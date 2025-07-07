@@ -1,16 +1,21 @@
 spring:
   datasource:
+    # The URL for connecting to a MySQL 8.0 database.
+    # Replace 'your_database_name' with your actual database schema name.
+    # The parameters are recommended for MySQL 8+ to handle timezone and character encoding correctly.
+    url: jdbc:mysql://127.0.0.1:3306/your_database_name?useSSL=false&serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8
+    # Replace with your MySQL username and password
+    username: root
+    password: password
+    # The driver class name for MySQL Connector/J 8+
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
-    url: jdbc:sqlserver://127.0.0.1:1433;databaseName=volunteer_web_09;encrypt=false
-    username: volunteer_09
-    password: volunteer
-    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
-
-# 配置mybatis实体和xml映射
+# This section for mybatis remains the same as it is not specific to the database vendor.
 mybatis:
-  ## 映射xml
+  # Path to your mapper XML files
   mapper-locations: classpath:mapper/*.xml
   configuration:
-    # 配置日志
+    # Enables logging of SQL statements to the console
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # Automatically maps underscore_case in the database to camelCase in Java objects
     map-underscore-to-camel-case: true
