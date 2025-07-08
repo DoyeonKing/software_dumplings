@@ -1,0 +1,110 @@
+# ===================================================================
+# General & Operating System Files
+# 通用和操作系统文件
+# ===================================================================
+# Mac
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ===================================================================
+# IDE and Editor Configurations
+# IDE及编辑器配置文件
+# ===================================================================
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+
+# VS Code
+.vscode/
+
+# Eclipse
+.settings/
+.project
+.classpath
+
+# ===================================================================
+# Java / Spring Boot / Maven / Gradle
+# ===================================================================
+# Compiled class file
+*.class
+
+# Log files
+*.log
+
+# BlueJ files
+*.ctxt
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Package Files #
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+
+# Gradle
+.gradle/
+build/
+
+# ===================================================================
+# Node.js / Vue.js
+# ===================================================================
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+.output/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local environment variables
+# 非常重要：保护你的本地环境变量和密码等敏感信息不被上传
+.env
+.env.local
+.env.*.local
+
+# ===================================================================
+# Adobe Flex / AIR (您提供的原始内容)
+# ===================================================================
+# Build and Release Folders
+bin-debug/
+bin-release/
+[Oo]bj/
+[Bb]in/
+
+# Executables
+*.swf
+*.air
+*.ipa
+*.apk
+
+# ===================================================================
+# SQL
+# 如果你有SQL脚本，通常需要上传，但如果是查询结果等临时文件，可以在此忽略
+# *.csv
+# *.txt
+# ===================================================================
