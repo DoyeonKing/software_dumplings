@@ -3,11 +3,16 @@ spring:
     # The URL for connecting to a MySQL 8.0 database.
     # Replace 'your_database_name' with your actual database schema name.
     # The parameters are recommended for MySQL 8+ to handle timezone and character encoding correctly.
-    url: jdbc:mysql://127.0.0.1:3306/your_database_name?useSSL=false&serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8
-    # Replace with your MySQL username and password
-    username: root
-    password: password
-    # The driver class name for MySQL Connector/J 8+
+    # RDS 数据库连接 URL
+    url: jdbc:mysql://17ae6c54067847949ee747f1ef1b01ccin01.internal.cn-north-4.mysql.rds.myhuaweicloud.com:3306/bicycle_sharing_web01?useSSL=false&serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8
+
+    # RDS 数据库用户名（需在 RDS 控制台创建并授权）
+    username: bicycle_user_01
+
+    # RDS 数据库密码（对应上述用户名的密码）
+    password: Bicycle_sharing
+
+    # 驱动类（MySQL 8+ 仍使用此驱动，无需修改）
     driver-class-name: com.mysql.cj.jdbc.Driver
 
 # This section for mybatis remains the same as it is not specific to the database vendor.
