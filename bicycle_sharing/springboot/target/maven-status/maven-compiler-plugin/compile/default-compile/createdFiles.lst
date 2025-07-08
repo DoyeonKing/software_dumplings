@@ -1,0 +1,5 @@
+com\example\springboot\common\Result.class
+com\example\springboot\exception\GlobalExceptionHandler.class
+com\example\springboot\SpringbootApplication.class
+com\example\springboot\common\CorsConfig.class
+com\example\springboot\exception\CustomException.class
