@@ -130,7 +130,7 @@
 </template>
 
 <script>
-import MenuComponent from '@/views/administrator/component/menuComponent.vue'
+import MenuComponent from '@/views/administrator/component/MenuComponent.vue'
 import { mapMixin } from '@/utils/mapMixin.js'
 
 export default {
