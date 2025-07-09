@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.springboot.mapper.WeatherRecordMapper">
+
+    <resultMap id="WeatherRecordResultMap" type="com.example.springboot.entity.WeatherRecord">
+        <id column="weather_record_id" property="weatherRecordId"/>
+        <result column="record_date" property="recordDate"/>
+        <result column="geohash_area" property="geohashArea"/>
+        <result column="temp_max_c" property="tempMaxC"/>
+        <result column="temp_min_c" property="tempMinC"/>
+        <result column="wind_direction" property="windDirection"/>
+        <result column="wind_level" property="windLevel"/>
+        <result column="has_precipitation_text_indicator" property="hasPrecipitationTextIndicator"/>
+    </resultMap>
+
+    </mapper>

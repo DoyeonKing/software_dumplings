@@ -1,25 +1,26 @@
+# Spring Boot 应用配置
 spring:
   application:
     name: My Spring Boot Application # 您的应用名称
   datasource:
-    # The URL for connecting to a MySQL 8.0 database.
-    # Replace 'your_database_name' with your actual database schema name.
-    # The parameters are recommended for MySQL 8+ to handle timezone and character encoding correctly.
+    # MySQL 8.0 数据库连接 URL
+    # 请将 'your_database_name' 替换为你的实际数据库名称。
+    # 这些参数推荐用于 MySQL 8+，以正确处理时区和字符编码。
     url: jdbc:mysql://127.0.0.1:3306/your_database_name?useSSL=false&serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8
-    # Replace with your MySQL username and password
+    # 替换为你的 MySQL 用户名和密码
     username: root
     password: password
-    # The driver class name for MySQL Connector/J 8+
+    # MySQL Connector/J 8+ 的驱动类名
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-# This section for mybatis remains the same as it is not specific to the database vendor.
+# Mybatis 配置
 mybatis:
-  # Path to your mapper XML files
+  # Mapper XML 文件路径
   mapper-locations: classpath:mapper/*.xml
   configuration:
-    # Enables logging of SQL statements to the console
+    # 启用 SQL 语句在控制台的日志输出
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
-    # Automatically maps underscore_case in the database to camelCase in Java objects
+    # 自动将数据库中的下划线命名（underscore_case）映射到 Java 对象中的驼峰命名（camelCase）
     map-underscore-to-camel-case: true
 
 # SpringDoc OpenAPI 配置
@@ -45,3 +46,7 @@ springdoc:
   external-docs: # 外部文档链接 (可选)
     description: "更多信息请访问我们的官网"
     url: "http://yourcompany.com"
+
+# 高德地图 API 配置
+amap:
+  key: b76a53fff091a12f2807eba6b206febd # 你的高德地图 API 密钥
