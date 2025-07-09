@@ -1,38 +1,9 @@
 <template>
   <div class="dashboard-view-root">
-    <!-- 地图容器 -->
     <div id="mapContainer"></div>
 
-    <!-- 菜单按钮 -->
-    <div class="menu-container">
-      <button class="menu-btn" @click="toggleMenu">
-        <span class="menu-icon">☰</span>
-      </button>
-
-      <!-- 弹出菜单 -->
-      <div class="menu-dropdown" :class="{ 'menu-open': menuOpen }">
-        <div class="menu-item" @click="showProfileModal">
-          <span class="menu-item-text">个人资料</span>
-        </div>
-
-        <router-link to="/dashboard" class="menu-item" @click="closeMenu">
-          <span class="menu-item-text">指标看板</span>
-        </router-link>
-
-        <router-link to="/location" class="menu-item" @click="closeMenu">
-          <span class="menu-item-text">车辆定位</span>
-        </router-link>
-
-
-        <router-link to="/tasks" class="menu-item" @click="closeMenu">
-          <span class="menu-item-text">任务查询</span>
-        </router-link>
-
-        <router-link to="/help" class="menu-item" @click="closeMenu">
-          <span class="menu-item-text">帮助指南</span>
-        </router-link>
-      </div>
-    </div>
+    <!-- 菜单组件 -->
+    <MenuComponent @profile-saved="handleProfileSaved" />
 
     <!-- 个人资料浮窗 -->
     <div v-if="showProfile" class="profile-modal-overlay" @click="closeProfileModal">
@@ -48,7 +19,6 @@
             </div>
             <button class="close-btn" @click="closeProfileModal">×</button>
           </div>
-
           <form class="profile-info" @submit.prevent>
             <div class="info-row">
               <div class="info-label">姓名</div>
@@ -56,13 +26,7 @@
             </div>
             <div class="info-row">
               <div class="info-label">出生年月</div>
-              <input
-                  class="info-input"
-                  type="date"
-                  v-model="form.birth"
-                  :disabled="!editMode"
-                  style="min-width: 0;"
-              />
+              <input class="info-input" type="date" v-model="form.birth" :disabled="!editMode" style="min-width: 0;" />
             </div>
             <div class="info-row">
               <div class="info-label">性别</div>
@@ -96,40 +60,31 @@
               <input class="info-input" v-model="form.email" :disabled="!editMode" />
             </div>
           </form>
-
           <div class="button-row">
-            <button
-                class="action-btn"
-                v-if="!editMode"
-                @click="editMode = true"
-                type="button"
-            >修改信息</button>
-            <button
-                class="action-btn"
-                v-if="editMode"
-                @click="saveInfo"
-                type="button"
-            >保存信息</button>
-            <button
-                class="action-btn"
-                @click="closeProfileModal"
-                type="button"
-            >关闭</button>
+            <button class="action-btn" v-if="!editMode" @click="editMode = true" type="button">修改信息</button>
+            <button class="action-btn" v-if="editMode" @click="saveInfo" type="button">保存信息</button>
+            <button class="action-btn" @click="closeProfileModal" type="button">关闭</button>
           </div>
         </div>
       </div>
     </div>
 
     <!-- 热力图切换按钮 -->
-    <button class="toggle-btn" @click="toggleHeatmap">
+    <button class="toggle-btn" @click="onToggleHeatmap">
       {{ showHeatmap ? '显示普通地图' : '显示热力图' }}
     </button>
   </div>
 </template>
 
 <script>
+import MenuComponent from '@/components/admin/menuComponent.vue'
+import { mapMixin } from '@/utils/mapMixin.js'
+import AMapLoader from '@/utils/loadAMap.js'
+
 export default {
   name: "DashboardView",
+  components: { MenuComponent },
+  mixins: [mapMixin],
   data() {
     return {
       menuOpen: false,
@@ -168,23 +123,29 @@ export default {
         { id: "SZ1018", lng: 114.060000, lat: 22.53620, status: "待维修", address: "深圳市-福田区-华强北" },
         { id: "SZ1019", lng: 114.062000, lat: 22.53460, status: "正常", address: "深圳市-福田区-八卦岭" },
         { id: "SZ1020", lng: 114.062200, lat: 22.53560, status: "正常", address: "深圳市-福田区-上步路" }
-      ],
-      map: null,
-      infoWindow: null,
-      markers: [],
-      heatmap: null,
-      heatmapReady: false,
-      showHeatmap: false
+      ]
     };
   },
   mounted() {
-    this.initMap();
+    // 动态加载高德地图SDK，加载完成后再初始化地图
+    AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
+      const { yellowBikeIcon } = this.initMap();
+      this.addBikeMarkers(this.bikeList, yellowBikeIcon);
+    }).catch(err => {
+      this.$message && this.$message.error
+          ? this.$message.error('地图加载失败: ' + err.message)
+          : alert('地图加载失败: ' + err.message);
+    });
     document.addEventListener('click', this.handleClickOutside);
   },
   beforeUnmount() {
     document.removeEventListener('click', this.handleClickOutside);
   },
   methods: {
+    handleProfileSaved(formData) {
+      // 你可以在这里处理保存后的逻辑
+      this.form = { ...this.form, ...formData };
+    },
     toggleMenu() {
       this.menuOpen = !this.menuOpen;
     },
@@ -209,100 +170,15 @@ export default {
       this.editMode = false;
       window.alert('信息已保存！');
     },
-    initMap() {
-      this.map = new window.AMap.Map("mapContainer", {
-        center: [114.057868, 22.53445],
-        zoom: 17,
-        dragEnable: true
-      });
-
-      this.infoWindow = new window.AMap.InfoWindow({
-        offset: new window.AMap.Pixel(0, -20)
-      });
-
-      // SVG: 黄色圆底+黑色自行车图案
-      const bikeSvg = `
-        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="16" cy="16" r="15" fill="#FFD600" stroke="#FFD600" stroke-width="2"/>
-          <g stroke="#222" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
-            <circle cx="10" cy="22" r="4"/>
-            <circle cx="22" cy="22" r="4"/>
-            <path d="M10 22 L14 14 L18 14 L22 22"/>
-            <path d="M14 14 L16 10 L18 14"/>
-            <circle cx="16" cy="10" r="1"/>
-          </g>
-        </svg>
-      `;
-
-      const yellowBikeIcon = new window.AMap.Icon({
-        image: 'data:image/svg+xml;base64,' + btoa(bikeSvg),
-        size: new window.AMap.Size(32, 32),
-        imageSize: new window.AMap.Size(32, 32)
-      });
-
-      this.bikeList.forEach(bike => {
-        const marker = new window.AMap.Marker({
-          position: [bike.lng, bike.lat],
-          map: this.map,
-          icon: yellowBikeIcon,
-          title: `单车编号: ${bike.id}`
-        });
-
-        marker.on('mouseover', () => {
-          this.infoWindow.setContent(`
-            <div style="min-width:160px;">
-              <b>单车编号：</b>${bike.id}<br/>
-              <b>状态：</b>${bike.status}<br/>
-              <b>位置：</b>${bike.address}
-            </div>`);
-          this.infoWindow.open(this.map, marker.getPosition());
-        });
-        marker.on('mouseout', () => this.infoWindow.close());
-
-        this.markers.push(marker);
-      });
-
-      window.AMap.plugin(['AMap.Heatmap'], () => {
-        this.heatmap = new window.AMap.Heatmap(this.map, {
-          radius: 35,
-          opacity: [0.1, 0.9],
-          gradient: {
-            0.2: 'blue',
-            0.4: 'green',
-            0.6: 'yellow',
-            0.8: 'orange',
-            1.0: 'red'
-          }
-        });
-        this.heatmapReady = true;
-      });
-    },
-    toggleHeatmap() {
-      this.showHeatmap = !this.showHeatmap;
-
-      if (this.showHeatmap) {
-        this.markers.forEach(m => m.hide());
-        const heatData = this.bikeList.map(bike => ({
-          lng: bike.lng,
-          lat: bike.lat,
-          count: 80
-        }));
-        if (this.heatmapReady && this.heatmap) {
-          this.heatmap.setDataSet({
-            data: heatData,
-            max: 100
-          });
-          this.heatmap.show();
-        }
-      } else {
-        this.markers.forEach(m => m.show());
-        if (this.heatmap) this.heatmap.hide();
-      }
+    onToggleHeatmap() {
+      this.toggleHeatmap(this.bikeList);
     }
   }
 };
 </script>
+
 <style scoped>
+/* 你的样式原样保留 */
 html, body, #app, .dashboard-view-root {
   height: 100%;
   margin: 0;

@@ -130,8 +130,9 @@
 </template>
 
 <script>
-import MenuComponent from '@/views/administrator/component/MenuComponent.vue'
+import MenuComponent from '@/components/admin/menuComponent.vue'
 import { mapMixin } from '@/utils/mapMixin.js'
+import AMapLoader from '@/utils/loadAMap.js'
 
 export default {
   name: "DashboardView",
@@ -141,11 +142,9 @@ export default {
   mixins: [mapMixin],
   data() {
     return {
-      // 地区选择
       selectedCity: "深圳市",
       selectedDistrict: "福田区",
       selectedRoad: "福华三路",
-      // 天气数据
       weatherData: {
         temperature: 28,
         description: "多云",
@@ -153,21 +152,18 @@ export default {
         windSpeed: 12,
         airQuality: "优"
       },
-      // 车辆统计
       bikeStats: {
         totalBikes: 1200,
         normalBikes: 1100,
         faultBikes: 60,
         repairBikes: 40
       },
-      // 使用率
       usageData: {
         usageRate: 76,
         onlineBikes: 1000,
         inUseBikes: 760,
         idleBikes: 240
       },
-      // 地区数据
       cityDistrictRoad: {
         "深圳市": {
           "福田区": ["福华三路", "金田路", "滨河大道"],
@@ -186,7 +182,6 @@ export default {
           "徐汇区": ["漕溪北路", "肇嘉浜路", "虹桥路"]
         }
       },
-      // 自行车数据
       bikeList: [
         {id: "SZ1001", lng: 114.057868, lat: 22.53445, status: "正常", address: "深圳市-福田区-福华三路"},
         {id: "SZ1002", lng: 114.060868, lat: 22.53495, status: "故障", address: "深圳市-福田区-金田路"},
@@ -233,16 +228,21 @@ export default {
     }
   },
   mounted() {
-    // 使用混入中的地图初始化方法
-    const {yellowBikeIcon} = this.initMap();
-    this.addBikeMarkers(this.bikeList, yellowBikeIcon);
+    // 先动态加载高德地图SDK
+    AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
+      const {yellowBikeIcon} = this.initMap();
+      this.addBikeMarkers(this.bikeList, yellowBikeIcon);
+    }).catch(err => {
+      this.$message && this.$message.error
+          ? this.$message.error('地图加载失败: ' + err.message)
+          : alert('地图加载失败: ' + err.message);
+    });
   },
   methods: {
     handleProfileSaved(formData) {
       console.log('个人资料已保存:', formData);
     },
     updateLocation() {
-      // 更新天气、车辆等数据
       this.weatherData = {
         temperature: 28 + Math.floor(Math.random() * 5),
         description: ["多云", "晴", "小雨", "阴"][Math.floor(Math.random() * 4)],
@@ -264,7 +264,6 @@ export default {
       };
     },
     onToggleHeatmap() {
-      // 使用混入中的热力图切换方法
       this.toggleHeatmap(this.bikeList);
     },
     goHome() {
@@ -285,7 +284,7 @@ export default {
 
 .info-panel {
   position: fixed;
-  top: 90px; /* 调整位置避免与菜单重叠 */
+  top: 90px;
   left: 30px;
   z-index: 20;
   display: flex;
