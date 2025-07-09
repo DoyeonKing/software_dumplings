@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.springboot.mapper.BikesMapper"> <resultMap id="BikesResultMap" type="com.example.springboot.entity.Bikes"> <id column="bike_id" property="bikeId"/>
+        <result column="current_lat" property="currentLat"/>
+        <result column="current_lon" property="currentLon"/>
+        <result column="current_geohash" property="currentGeohash"/>
+        <result column="bike_status" property="bikeStatus"/>
+        <result column="last_updated_time" property="lastUpdatedTime"/>
+    </resultMap>
+
+    </mapper>
