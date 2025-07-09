@@ -464,26 +464,32 @@ export default {
         parkingAreas.value.forEach(area => {
           // 创建矩形的四个顶点
           const path = [
-            [area.bounds.southwest[1], area.bounds.southwest[0]],  // 
+            [area.bounds.southwest[1], area.bounds.southwest[0]],  // 左下角
             [area.bounds.northeast[1], area.bounds.southwest[0]],  // 右下角
-            [area.bounds.northeast[1], area.bounds.northeast[0]],  // 
-            [area.bounds.southwest[1], area.bounds.northeast[0]]   // 左上角
+            [area.bounds.northeast[1], area.bounds.northeast[0]],  // 右上角
+            [area.bounds.southwest[1], area.bounds.northeast[0]],  // 左上角
+            [area.bounds.southwest[1], area.bounds.southwest[0]]   // 闭合多边形
           ];
 
           // 创建多边形
           const polygon = new AMap.Polygon({
             path: path,
-            strokeColor: '#4CAF50',  // 使用固定的绿色
+            strokeColor: parkingStatusColors[area.status] || '#4CAF50',  // 根据状态设置颜色
             strokeWeight: 3,
             strokeOpacity: 1,
-            fillColor: '#4CAF50',
+            fillColor: parkingStatusColors[area.status] || '#4CAF50',
             fillOpacity: 0.4,
             cursor: 'pointer'
           });
 
-          // 创建图标标记（放在右上角）
+          // 创建图标标记（放在区域中心）
+          const center = [
+            (area.bounds.southwest[1] + area.bounds.northeast[1]) / 2,
+            (area.bounds.southwest[0] + area.bounds.northeast[0]) / 2
+          ];
+          
           const marker = new AMap.Marker({
-            position: area.bounds.northeast,
+            position: center,
             icon: parkingIcon,
             offset: new AMap.Pixel(-20, -20),
             cursor: 'pointer'
@@ -493,9 +499,9 @@ export default {
           marker.on('click', () => {
             const content = `
               <div class="parking-info">
-                <h4>停车区域</h4>
+                <h4>${area.name}</h4>
                 <p><strong>编号：</strong>${area.id}</p>
-                <p><strong>GeoHash：</strong>${area.geohash}</p>
+                <p><strong>状态：</strong>${parkingStatusText[area.status]}</p>
               </div>
             `;
             

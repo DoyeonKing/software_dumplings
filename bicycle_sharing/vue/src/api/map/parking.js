@@ -1,66 +1,68 @@
 import request from '@/utils/request'
-import geohash from 'ngeohash';
 
-// GeoHash 解码函数（将 GeoHash 转换为经纬度范围）
-function decodeGeoHash(hash) {
-    console.log(`\n开始解码 GeoHash: ${hash}`);
-    
-    // 使用 ngeohash 库解码
-    const [minlat, minlon, maxlat, maxlon] = geohash.decode_bbox(hash);
-    
-    const result = {
-        southwest: [minlat, minlon],
-        northeast: [maxlat, maxlon]
-    };
-    
-    console.log('解码结果：');
-    console.log(`经度范围: ${minlon} 到 ${maxlon}`);
-    console.log(`纬度范围: ${minlat} 到 ${maxlat}`);
-    
-    console.log('返回的边界坐标：');
-    console.log(`西南角 - 经度: ${minlon}, 纬度: ${minlat}`);
-    console.log(`东北角 - 经度: ${maxlon}, 纬度: ${maxlat}\n`);
-    
-    return result;
-}
-
-// 模拟的停车点数据（使用 GeoHash）
+// 模拟的停车点数据（使用边界框坐标）
 const mockParkingAreas = [
-    { id: 'P001', geohash: 'uxbpbz' },
-    { id: 'P002', geohash: 'uxbpcr' },
-    { id: 'P003', geohash: 'uxbpcp' },
-    { id: 'P004', geohash: 'uxbpbz' },
-    { id: 'P005', geohash: 'uxbpfp' },
-    { id: 'P006', geohash: 'uxbpgr' },
-    { id: 'P007', geohash: 'uxbpcr' },
-    { id: 'P008', geohash: 'uxbpbx' }
+    {
+        id: 'P001',
+        bounds: {
+            southwest: [22.557678, 114.098511],
+            northeast: [22.560425, 114.104004]  // min_lat + 0.002747, min_lon + 0.005493
+        },
+        status: 'normal',
+        name: '停车区域1'
+    },
+    {
+        id: 'P002',
+        bounds: {
+            southwest: [22.552185, 114.043579],
+            northeast: [22.554932, 114.049072]  // min_lat + 0.002747, min_lon + 0.005493
+        },
+        status: 'normal',
+        name: '停车区域2'
+    },
+    {
+        id: 'P003',
+        bounds: {
+            southwest: [22.480774, 114.037745],
+            northeast: [22.483521, 114.043238]  // min_lat + 0.002747, min_lon + 0.005493
+        },
+        status: 'normal',
+        name: '停车区域3'
+    },
+    {
+        id: 'P004',
+        bounds: {
+            southwest: [22.557678, 114.065552],
+            northeast: [22.560425, 114.071045]  // min_lat + 0.002747, min_lon + 0.005493
+        },
+        status: 'normal',
+        name: '停车区域4'
+    },
+    {
+        id: 'P005',
+        bounds: {
+            southwest: [22.552185, 114.043579],
+            northeast: [22.554932, 114.049072]  // min_lat + 0.002747, min_lon + 0.005493
+        },
+        status: 'normal',
+        name: '停车区域5'
+    }
 ];
 
 // 获取所有停车点
 export function getAllParkingAreas() {
-    // 为每个停车区域添加边界坐标
-    const areasWithBounds = mockParkingAreas.map(area => ({
-        ...area,
-        bounds: decodeGeoHash(area.geohash)
-    }));
-
     return Promise.resolve({
         code: 200,
-        data: areasWithBounds
+        data: mockParkingAreas
     });
 }
 
 // 获取指定区域内的停车点
 export function getParkingAreasInBounds(bounds) {
     // 实际项目中，这里应该根据传入的bounds筛选符合条件的停车区域
-    const areasWithBounds = mockParkingAreas.map(area => ({
-        ...area,
-        bounds: decodeGeoHash(area.geohash)
-    }));
-
     return Promise.resolve({
         code: 200,
-        data: areasWithBounds
+        data: mockParkingAreas
     });
 }
 
@@ -68,13 +70,9 @@ export function getParkingAreasInBounds(bounds) {
 export function getParkingAreaDetails(parkingId) {
     const parkingArea = mockParkingAreas.find(area => area.id === parkingId);
     if (parkingArea) {
-        const areaWithBounds = {
-            ...parkingArea,
-            bounds: decodeGeoHash(parkingArea.geohash)
-        };
         return Promise.resolve({
             code: 200,
-            data: areaWithBounds
+            data: parkingArea
         });
     }
     return Promise.resolve({
