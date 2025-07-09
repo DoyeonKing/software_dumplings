@@ -1,4 +1,4 @@
-// 高德地图 API Keys 说明：
+ // 高德地图 API Keys 说明：
 // 1. Web端 Key (key-webJS): 7a9ebfd8db9264a7f90b65369bd2970a
 //    用于前端地图显示和基础交互功能（JavaScript API、地图组件等）
 // 
@@ -68,8 +68,8 @@
 import { onMounted, ref, onUnmounted, watch } from 'vue';
 import AMapLoader from '@amap/amap-jsapi-loader';
 // 导入单车数据API
-import { getAllBicycles } from '@/api/bicycle';
-import { getAllParkingAreas } from '@/api/parking';
+import { getAllBicycles } from '@/api/map/bicycle';
+import { getAllParkingAreas } from '@/api/map/parking';
 import { ElMessage } from 'element-plus';
 import { getRidingRoute } from '@/utils/amap';
 

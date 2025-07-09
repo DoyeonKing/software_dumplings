@@ -85,7 +85,7 @@
         <router-link to="/login" class="dropdown-item">切换账号</router-link>
       </div>
     </div>
-    <MapComponent 
+    <UserMapComponent 
       :hideUI="hideUI" 
       :mapType="mapType"
       :mapStyle="currentMapStyle"
@@ -100,7 +100,7 @@
 
 <script setup>
 import { ref } from 'vue';
-import MapComponent from '@/components/map/MapComponent.vue';
+import UserMapComponent from '@/components/map/UserMapComponent.vue';
 
 const showDropdown = ref(false);
 const showFeatureBar = ref(false);
