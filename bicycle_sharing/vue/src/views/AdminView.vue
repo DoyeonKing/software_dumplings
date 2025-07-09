@@ -1,3 +1,4 @@
+<!--
 <template>
   <div class="dashboard">
     <div class="header">
@@ -98,4 +99,4 @@ h1 {
   font-size: 2rem;
   color: #333;
 }
-</style> 
+</style> -->
