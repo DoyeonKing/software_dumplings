@@ -343,17 +343,6 @@ const loadTasks = async () => {
   }
 };
 
-// 更新地图类型
-const updateMapType = (type) => {
-  if (!map.value) return;
-  
-  if (type === 'satellite') {
-    map.value.setLayers([new AMap.TileLayer.Satellite()]);
-  } else {
-    map.value.setLayers([new AMap.TileLayer()]);
-  }
-};
-
 // 更新地图样式
 const updateMapStyle = (style) => {
   if (!map.value) return;
@@ -467,7 +456,6 @@ const closeTaskPanel = () => {
 
 // 暴露方法给父组件
 defineExpose({
-  updateMapType,
   updateMapStyle,
   zoomIn,
   zoomOut
@@ -483,7 +471,6 @@ const initMap = async () => {
         'AMap.ControlBar',
         'AMap.Scale',
         'AMap.ToolBar',
-        'AMap.TileLayer.Satellite'
       ],
       securityJsCode: '1751964054605',
       security: {

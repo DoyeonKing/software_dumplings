@@ -63,21 +63,6 @@
         <div class="close-button" @click="showMapSettings = false">×</div>
       </div>
       <div class="settings-content">
-        <!-- 地图类型 -->
-        <div class="settings-section">
-          <h4>地图类型</h4>
-          <div class="radio-group">
-            <label>
-              <input type="radio" v-model="mapType" value="normal" @change="updateMapType">
-              标准地图
-            </label>
-            <label>
-              <input type="radio" v-model="mapType" value="satellite" @change="updateMapType">
-              卫星地图
-            </label>
-          </div>
-        </div>
-
         <!-- 地图样式 -->
         <div class="settings-section">
           <h4>地图样式</h4>
@@ -240,7 +225,6 @@ const showWorkbench = ref(true); // 默认显示工作台
 const showBicycles = ref(false);
 const showParkingAreas = ref(false);
 const showMapSettings = ref(false);
-const mapType = ref('normal');
 const currentMapStyle = ref('normal');
 const hideUI = ref(false);
 const mapComponentRef = ref(null);
@@ -316,13 +300,6 @@ const updateStats = () => {
     inProgress: tasks.value.filter(t => t.status === '处理中').length,
     completed: tasks.value.filter(t => t.status === '处理完成').length
   };
-};
-
-// 更新地图类型
-const updateMapType = () => {
-  if (mapComponentRef.value) {
-    mapComponentRef.value.updateMapType(mapType.value);
-  }
 };
 
 // 更新地图样式

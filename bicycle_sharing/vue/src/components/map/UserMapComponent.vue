@@ -101,10 +101,6 @@ export default {
       type: Boolean,
       default: false
     },
-    mapType: {
-      type: String,
-      default: 'normal'
-    },
     mapStyle: {
       type: String,
       default: 'normal'
@@ -276,19 +272,6 @@ export default {
           control.show();
         }
       });
-    });
-
-    // 监听地图类型变化
-    watch(() => props.mapType, (newType) => {
-      if (!map.value) return;
-      
-      if (newType === 'satellite') {
-        // 切换到卫星图
-        map.value.setLayers([new AMap.TileLayer.Satellite()]);
-      } else {
-        // 切换到普通地图
-        map.value.setLayers([new AMap.TileLayer()]);
-      }
     });
 
     // 监听地图样式变化

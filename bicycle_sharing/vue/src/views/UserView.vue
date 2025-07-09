@@ -25,21 +25,6 @@
         <div class="close-button" @click="toggleMapSettings">×</div>
       </div>
       <div class="settings-content">
-        <!-- 地图类型 -->
-        <div class="settings-section">
-          <h4>地图类型</h4>
-          <div class="radio-group">
-            <label>
-              <input type="radio" v-model="mapType" value="normal" @change="updateMapType">
-              标准地图
-            </label>
-            <label>
-              <input type="radio" v-model="mapType" value="satellite" @change="updateMapType">
-              卫星地图
-            </label>
-          </div>
-        </div>
-
         <!-- 地图样式 -->
         <div class="settings-section">
           <h4>地图样式</h4>
