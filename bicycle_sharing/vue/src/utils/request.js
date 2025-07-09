@@ -1,12 +1,6 @@
+import axios from "axios";
 import {ElMessage} from "element-plus";
-import axios from 'axios';
 
-const service = axios.create({
-  // import.meta.env.VITE_APP_API_BASE_URL 会在构建时自动被替换为 .env.production 文件中的值baseURL: import.meta.env.VITE_APP_API_BASE_URL,
-  timeout: 5000
-});
-
-export default service;
 const request = axios.create({
     // *********** 核心修改点 ***********
     // 将 baseURL 指向 Vite 代理的前缀 '/api'

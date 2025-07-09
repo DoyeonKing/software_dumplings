@@ -9,10 +9,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@amap/amap-jsapi-loader": "^1.0.1",
     "@element-plus/icons-vue": "^2.3.1",
     "axios": "^1.8.3",
     "element-plus": "^2.9.6",
+    "latlon-geohash": "^2.0.0",
     "leaflet": "^1.9.4",
+    "ngeohash": "^0.6.3",
     "pinia": "^2.3.1",
     "sass": "^1.79.3",
     "vue": "^3.5.13",
