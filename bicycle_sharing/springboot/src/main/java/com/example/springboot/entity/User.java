@@ -1,94 +1,113 @@
 package com.example.springboot.entity;
 
-import io.swagger.v3.oas.annotations.media.Schema;
+import java.math.BigDecimal; // 用于DECIMAL类型
 
-import java.io.Serial;
-import java.io.Serializable; // 推荐实现Serializable接口，尤其是在分布式或缓存场景下
+/**
+ * User实体类
+ * 对应数据库中的 'user' 表
+ */
+public class User {
+    // 骑行用户唯一标识符，PRIMARY KEY
+    private String userid;
 
-@Schema(description = "用户实体信息") // 为整个User模型添加描述
-public class User implements Serializable {
+    // 登录用户名，可以是电话号码或开放ID，NOT NULL
+    private String username;
 
-    @Serial
-    private static final long serialVersionUID = 1L; // 序列化ID
+    // 密码的哈希值，NOT NULL (注意：实际存储应是加密后的哈希值)
+    private String passwordHash;
 
-    @Schema(description = "用户唯一ID", example = "101", requiredMode = Schema.RequiredMode.REQUIRED)
-    private Long id;
+    // 电话号码，UNIQUE
+    private String phoneNumber;
 
-    @Schema(description = "用户姓名", example = "张三", requiredMode = Schema.RequiredMode.REQUIRED)
-    private String name;
+    // 骑行总次数，DEFAULT 0 (从trips聚合计算)
+    private Integer totalRides;
 
-    @Schema(description = "用户邮箱地址", example = "zhangsan@example.com", requiredMode = Schema.RequiredMode.REQUIRED)
-    private String email;
+    // 骑行总时长 (分钟)，DEFAULT 0 (从trips聚合计算)
+    private Integer totalDurationMinutes;
+
+    // 总消费金额，DECIMAL(8, 2)，DEFAULT 0.00 (从trips聚合计算)
+    private BigDecimal totalCost;
 
     // --- 构造函数 ---
-
-    // 无参构造函数：
-    // Spring Framework (特别是Jackson库用于JSON序列化/反序列化) 需要一个无参构造函数来创建对象实例。
     public User() {
     }
 
-    // 全参构造函数：
-    // 方便在代码中快速创建User对象，如UserController中的示例：new User(1L, "Alice", "alice@example.com")
-    public User(Long id, String name, String email) {
-        this.id = id;
-        this.name = name;
-        this.email = email;
+    public User(String userid, String username, String passwordHash, String phoneNumber, Integer totalRides, Integer totalDurationMinutes, BigDecimal totalCost) {
+        this.userid = userid;
+        this.username = username;
+        this.passwordHash = passwordHash;
+        this.phoneNumber = phoneNumber;
+        this.totalRides = totalRides;
+        this.totalDurationMinutes = totalDurationMinutes;
+        this.totalCost = totalCost;
     }
 
     // --- Getter 和 Setter 方法 ---
-
-    public Long getId() {
-        return id;
+    public String getUserid() {
+        return userid;
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    public void setUserid(String userid) {
+        this.userid = userid;
     }
 
-    public String getName() {
-        return name;
+    public String getUsername() {
+        return username;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setUsername(String username) {
+        this.username = username;
     }
 
-    public String getEmail() {
-        return email;
+    public String getPasswordHash() {
+        return passwordHash;
     }
 
-    public void setEmail(String email) {
-        this.email = email;
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
     }
 
-    // --- toString 方法 (可选，但推荐用于日志和调试) ---
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
+
+    public Integer getTotalRides() {
+        return totalRides;
+    }
+
+    public void setTotalRides(Integer totalRides) {
+        this.totalRides = totalRides;
+    }
+
+    public Integer getTotalDurationMinutes() {
+        return totalDurationMinutes;
+    }
+
+    public void setTotalDurationMinutes(Integer totalDurationMinutes) {
+        this.totalDurationMinutes = totalDurationMinutes;
+    }
+
+    public BigDecimal getTotalCost() {
+        return totalCost;
+    }
+
+    public void setTotalCost(BigDecimal totalCost) {
+        this.totalCost = totalCost;
+    }
+
     @Override
     public String toString() {
         return "User{" +
-                "id=" + id +
-                ", name='" + name + '\'' +
-                ", email='" + email + '\'' +
-                '}';
-    }
-
-    // --- equals 和 hashCode 方法 (可选，如果User对象需要作为Map的键或存储在Set中时推荐) ---
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        User user = (User) o;
-
-        if (!id.equals(user.id)) return false;
-        if (!name.equals(user.name)) return false;
-        return email.equals(user.email);
-    }
-
-    @Override
-    public int hashCode() {
-        int result = id.hashCode();
-        result = 31 * result + name.hashCode();
-        result = 31 * result + email.hashCode();
-        return result;
+               "userid='" + userid + '\'' +
+               ", username='" + username + '\'' +
+               ", phoneNumber='" + phoneNumber + '\'' +
+               ", totalRides=" + totalRides +
+               ", totalDurationMinutes=" + totalDurationMinutes +
+               ", totalCost=" + totalCost +
+               '}';
     }
 }
