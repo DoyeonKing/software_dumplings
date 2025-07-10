@@ -5,14 +5,17 @@ import com.example.springboot.common.request.RegisterRequest;
 import com.example.springboot.entity.Staff;
 import com.example.springboot.exception.CustomException;
 
+import java.util.Map;
+
 public interface IStaffService {
+
     /**
-     * 处理工作人员登录逻辑
+     * 处理 Staff 用户登录逻辑
      * @param loginRequest 登录请求 DTO
-     * @return 登录成功的工作人员对象（已脱敏）
-     * @throws CustomException 如果登录失败（如用户名密码错误）
+     * @return 登录成功的工作人员响应 Map (包含 Staff 信息和Token)
+     * @throws CustomException 如果登录失败
      */
-    Staff login(LoginRequest loginRequest);
+    Map<String, Object> login(LoginRequest loginRequest);
 
     /**
      * 处理工作人员注册逻辑
