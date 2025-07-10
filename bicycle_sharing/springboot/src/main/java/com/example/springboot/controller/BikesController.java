@@ -1,11 +1,13 @@
 package com.example.springboot.controller;
 
 import com.example.springboot.common.Result;
+import com.example.springboot.dto.UtilizationResponse;
 import com.example.springboot.entity.Bikes;
 import com.example.springboot.exception.CustomException;
 import com.example.springboot.service.Interface.IBikesService;
 import com.github.pagehelper.PageInfo;
 import jakarta.annotation.Resource;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -90,34 +92,47 @@ public class BikesController { // 控制器类名与资源名复数形式保持�
     }
 
 
-    /**
- * 获取指定地理范围内（视口内）的单车列表，支持按状态筛选
- * 这个接口主要用于地图显示，返回的是列表而不是分页信息
- * Endpoint: GET /bikes/viewport
- * @param minLat 最小纬度
- * @param maxLat 最大纬度
- * @param minLon 最小经度
- * @param maxLon 最大经度
- * @param bikeStatus 单车状态 (可选，例如 "待使用")
- * @return 统一响应结果，包含指定范围内的单车列表
- */
-@GetMapping("/viewport")
-public Result getBikesInViewport(
-        @RequestParam BigDecimal minLat,
-        @RequestParam BigDecimal maxLat,
-        @RequestParam BigDecimal minLon,
-        @RequestParam BigDecimal maxLon,
-        @RequestParam(required = false) String bikeStatus) {
-    try {
-        List<Bikes> bikesInViewport = bikesService.getBikesInViewport(minLat, maxLat, minLon, maxLon, bikeStatus);
-        return Result.success(bikesInViewport);
-    } catch (CustomException e) {
-        return Result.error(e.getCode(), e.getMsg());
-    } catch (Exception e) {
-        e.printStackTrace();
-        return Result.error("500", "获取视口内单车失败: " + e.getMessage());
+        /**
+     * 获取指定地理范围内（视口内）的单车列表，支持按状态筛选
+     * 这个接口主要用于地图显示，返回的是列表而不是分页信息
+     * Endpoint: GET /bikes/viewport
+     * @param minLat 最小纬度
+     * @param maxLat 最大纬度
+     * @param minLon 最小经度
+     * @param maxLon 最大经度
+     * @param bikeStatus 单车状态 (可选，例如 "待使用")
+     * @return 统一响应结果，包含指定范围内的单车列表
+     */
+    @GetMapping("/viewport")
+    public Result getBikesInViewport(
+            @RequestParam BigDecimal minLat,
+            @RequestParam BigDecimal maxLat,
+            @RequestParam BigDecimal minLon,
+            @RequestParam BigDecimal maxLon,
+            @RequestParam(required = false) String bikeStatus) {
+        try {
+            List<Bikes> bikesInViewport = bikesService.getBikesInViewport(minLat, maxLat, minLon, maxLon, bikeStatus);
+            return Result.success(bikesInViewport);
+        } catch (CustomException e) {
+            return Result.error(e.getCode(), e.getMsg());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("500", "获取视口内单车失败: " + e.getMessage());
+        }
     }
-}
 
+    /**
+     * 获取车辆使用率及其相关统计数据。
+     * URL: GET /api/bikes/utilization
+     *
+     * @return ResponseEntity 包含 UtilizationResponse DTO
+     */
+    @GetMapping("/bikes/utilization") // 新的接口路径
+    public ResponseEntity<UtilizationResponse> getBikeUtilization() {
+        UtilizationResponse utilization = bikesService.getVehicleUtilization();
+        // 如果 utilization 对象是空的或者数据不合理，可以返回 204 No Content 或 404 Not Found
+        // 但由于计算逻辑，它总会返回一个对象，即使所有计数都是0。
+        return ResponseEntity.ok(utilization);
+    }
 
 }

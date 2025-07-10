@@ -1,5 +1,6 @@
 package com.example.springboot.service.implementation;
 
+import com.example.springboot.dto.UtilizationResponse;
 import com.example.springboot.entity.Bikes;
 import com.example.springboot.exception.CustomException;
 import com.example.springboot.mapper.BikesMapper;
@@ -10,6 +11,7 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 
 
@@ -22,6 +24,44 @@ public class BikesServiceImpl implements IBikesService { // 实现接口名纠�
 
     @Resource // 注入BikesMapper
     private BikesMapper bikesMapper; // 注入的Mapper类型纠正为BikesMapper
+
+    @Override
+    public UtilizationResponse getVehicleUtilization() {
+        // 1. 获取所有车辆的总数 (在线车辆)
+        int onlineVehicles = bikesMapper.countAllBikes();
+
+        // 2. 获取 '使用中' 车辆数
+        int inUseVehicles = bikesMapper.countByStatus("使用中");
+
+        // 3. 计算 '空闲' 车辆数
+        int idleVehicles = onlineVehicles - inUseVehicles;
+        // 确保空闲车辆不为负数，尽管在正常逻辑下不会出现
+        if (idleVehicles < 0) {
+            idleVehicles = 0;
+        }
+
+        // 4. 计算使用率
+        double utilizationRatePercentage;
+        if (onlineVehicles == 0) {
+            utilizationRatePercentage = 0.0; // 避免除以零
+        } else {
+            // 使用 BigDecimal 进行精确计算，避免浮点数精度问题，并四舍五入到两位小数
+            BigDecimal inUseBd = new BigDecimal(inUseVehicles);
+            BigDecimal onlineBd = new BigDecimal(onlineVehicles);
+            utilizationRatePercentage = inUseBd.divide(onlineBd, 4, RoundingMode.HALF_UP) // 计算到4位小数
+                    .multiply(new BigDecimal(100))
+                    .doubleValue(); // 转换为double
+        }
+
+        // 5. 构建并返回响应 DTO
+        return new UtilizationResponse(
+                utilizationRatePercentage,
+                onlineVehicles,
+                inUseVehicles,
+                idleVehicles
+        );
+    }
+
 
     /**
      * 获取所有可用（状态为“待使用”）的单车列表
