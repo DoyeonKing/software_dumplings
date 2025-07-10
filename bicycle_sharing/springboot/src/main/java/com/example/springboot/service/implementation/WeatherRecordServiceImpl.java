@@ -7,8 +7,10 @@ import com.example.springboot.service.Interface.IWeatherRecordService;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List; // 导入List
 
 /**
@@ -17,9 +19,18 @@ import java.util.List; // 导入List
  */
 @Service
 public class WeatherRecordServiceImpl implements IWeatherRecordService {
-
-    @Resource
+    @Autowired
     private WeatherRecordMapper weatherRecordMapper;
 
-    // 空壳：不在此处定义任何方法实现
+    @Override
+    public WeatherRecord getTodayWeatherByGeohash(String geohashArea) {
+        LocalDate today = LocalDate.now();
+        return weatherRecordMapper.selectByGeohashAndDate(geohashArea, today);
+    }
+
+    @Override
+    public WeatherRecord getWeatherByGeohashAndDate(String geohashArea, LocalDate recordDate) {
+        // 直接调用 Mapper 层的方法，传入 geohashArea 和 recordDate
+        return weatherRecordMapper.selectByGeohashAndDate(geohashArea, recordDate);
+    }
 }
