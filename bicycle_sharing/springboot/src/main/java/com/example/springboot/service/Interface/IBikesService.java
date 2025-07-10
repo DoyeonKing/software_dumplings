@@ -20,6 +20,13 @@ public interface IBikesService { // 接口名与实体类名保持一致，改�
     UtilizationResponse getVehicleUtilization();
 
     /**
+     * 根据 geohash 获取该区域内的所有车辆数量
+     * @param geohash 区域编码
+     * @return 车辆数量
+     */
+    int getAllBikeCountByGeohash(String geohash);
+
+    /**
      * 获取所有可用（状态为“待使用”）的单车列表
      *
      * @return 可用单车列表

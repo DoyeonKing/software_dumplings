@@ -20,9 +20,19 @@ import java.util.List;
 @RestController // 标记这是一个RESTful控制器
 @RequestMapping("/bikes") // 基础URL路径通常与资源名复数形式保持一致
 public class BikesController { // 控制器类名与资源名复数形式保持一致
-
     @Resource // 注入IBikesService接口的实现类
     private IBikesService bikesService; // 注入的Service类型纠正为IBikesService
+
+    @GetMapping("/count")
+    public Result getAllBikeCountByGeohash(@RequestParam String geohash) {
+        try {
+            int count = bikesService.getAllBikeCountByGeohash(geohash);
+            return Result.success(count);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("500", "获取区域单车数量失败: " + e.getMessage());
+        }
+    }
 
     /**
      * 获取所有可用（状态为“待使用”）的单车列表

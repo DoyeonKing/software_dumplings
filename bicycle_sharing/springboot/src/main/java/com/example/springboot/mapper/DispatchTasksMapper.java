@@ -1,9 +1,7 @@
 package com.example.springboot.mapper;
 
 import com.example.springboot.entity.DispatchTasks; // 导入纠正后的实体类名
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.*;
 
 import java.util.List; // 导入必要的类
 
@@ -68,4 +66,12 @@ public interface DispatchTasksMapper { // 接口名与实体类名保持一致�
             "WHERE assigned_to = #{assignedTo}")
     List<DispatchTasks> selectTasksByAssignedTo(@Param("assignedTo") Integer assignedTo);
 
+    /**
+     * 插入新的调度任务。
+     * SQL语句和keyProperty需要匹配DispatchTasks实体的新字段名。
+     */
+    @Insert("INSERT INTO dispatch_tasks (start_geohash, end_geohash, bike_count, assigned_to, status, created_at) " +
+            "VALUES (#{startGeohash}, #{endGeohash}, #{bikeCount}, #{assignedTo}, #{status}, #{createdAt})")
+    @Options(useGeneratedKeys = true, keyProperty = "taskId") // 主键名从id改为taskId
+    int insertDispatchTask(DispatchTasks task);
 }

@@ -25,6 +25,10 @@ public class BikesServiceImpl implements IBikesService { // 实现接口名纠�
     @Resource // 注入BikesMapper
     private BikesMapper bikesMapper; // 注入的Mapper类型纠正为BikesMapper
 
+    public int getAllBikeCountByGeohash(String geohash) {
+        return bikesMapper.countAllByCurrentGeohash(geohash);
+    }
+
     @Override
     public UtilizationResponse getVehicleUtilization() {
         // 1. 获取所有车辆的总数 (在线车辆)
