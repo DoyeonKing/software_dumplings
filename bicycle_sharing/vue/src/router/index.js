@@ -10,6 +10,7 @@ import dashboardView from "@/views/administrator/dashboardView.vue";
 import locationView from "@/views/administrator/locationView.vue";
 import tasksView from "@/views/administrator/tasksView.vue";
 import helpView from "@/views/administrator/helpView.vue";
+import newView from "@/views/administrator/newView.vue";
 
 
 const router = createRouter({
@@ -68,6 +69,11 @@ const router = createRouter({
       path: '/help',
       name: 'help',
       component: helpView
+    },
+    {
+      path: '/new',
+      name: 'new',
+      component: newView
     }
   ]
 })
