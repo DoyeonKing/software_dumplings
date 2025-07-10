@@ -1,14 +1,14 @@
 // 高德地图 API Keys 说明：
 // 1. Web端 Key (key-webJS): 7a9ebfd8db9264a7f90b65369bd2970a
 //    用于前端地图显示和基础交互功能（JavaScript API、地图组件等）
-// 
+//
 // 2. Web服务 Key (key-web): 4c4409cdbe818ceb94f8660e2e111563
 //    用于后端服务调用（路径规划、搜索、地理编码等），不要在前端直接使用
 
 <template>
   <div class="map-container">
     <div ref="mapContainer" class="map"></div>
-    
+
     <!-- 任务详情面板 -->
     <div v-if="selectedTaskId" class="task-panel">
       <div class="panel-header">
@@ -24,19 +24,19 @@
           <p>车辆数量: {{ getTaskBikeCount }}</p>
         </div>
         <div class="task-actions">
-          <el-button 
-            type="primary" 
-            size="small"
-            @click="handleAcceptTask"
-            v-if="canAcceptTask"
+          <el-button
+              type="primary"
+              size="small"
+              @click="handleAcceptTask"
+              v-if="canAcceptTask"
           >
             接受任务
           </el-button>
-          <el-button 
-            type="success" 
-            size="small"
-            @click="handleCompleteTask"
-            v-if="canCompleteTask"
+          <el-button
+              type="success"
+              size="small"
+              @click="handleCompleteTask"
+              v-if="canCompleteTask"
           >
             完成任务
           </el-button>
@@ -56,6 +56,7 @@ import { getAllParkingAreas } from '@/api/map/parking';
 import { getAllBicycles } from '@/api/map/bicycle';
 import { ElMessage } from 'element-plus';
 import { Close } from '@element-plus/icons-vue';
+
 
 const props = defineProps({
   showBicycles: {
@@ -118,7 +119,7 @@ const loadBicycles = async () => {
 
     const response = await getAllBicycles();
     const bicycles = response.data;
-    
+
     // 创建标记但不立即添加到地图
     bicycles.forEach(bicycle => {
       const marker = new AMap.Marker({
@@ -131,7 +132,7 @@ const loadBicycles = async () => {
         title: `单车 #${bicycle.id}`,
         map: props.showBicycles ? map.value : null  // 根据当前显示状态决定是否添加到地图
       });
-      
+
       // 添加点击事件
       marker.on('click', () => {
         const info = new AMap.InfoWindow({
@@ -146,10 +147,10 @@ const loadBicycles = async () => {
           `,
           offset: new AMap.Pixel(0, -30)
         });
-        
+
         info.open(map.value, marker.getPosition());
       });
-      
+
       bicycleMarkers.value.push(marker);
     });
   } catch (error) {
@@ -174,12 +175,12 @@ const loadParkingAreas = async () => {
 
     const response = await getAllParkingAreas();
     const parkingAreas = response.data;
-    
+
     parkingAreas.forEach(area => {
       // 计算停车区域的中心点
       const centerLat = (area.bounds.northeast[0] + area.bounds.southwest[0]) / 2;
       const centerLng = (area.bounds.northeast[1] + area.bounds.southwest[1]) / 2;
-      
+
       // 创建多边形路径
       const path = [
         [area.bounds.southwest[1], area.bounds.southwest[0]],  // 左下角
@@ -223,18 +224,18 @@ const loadParkingAreas = async () => {
 
       // 添加多边形悬停效果
       let originalOptions = null;
-      
+
       polygon.on('mouseover', () => {
         originalOptions = {
           fillOpacity: polygon.getOptions().fillOpacity,
           strokeWeight: polygon.getOptions().strokeWeight
         };
-        
+
         polygon.setOptions({
           fillOpacity: 0.6,
           strokeWeight: 4
         });
-        
+
         marker.setzIndex(110);
       });
 
@@ -253,12 +254,12 @@ const loadParkingAreas = async () => {
             strokeWeight: polygon.getOptions().strokeWeight
           };
         }
-        
+
         polygon.setOptions({
           fillOpacity: 0.6,
           strokeWeight: 4
         });
-        
+
         marker.setzIndex(110);
       });
 
@@ -282,14 +283,14 @@ const loadParkingAreas = async () => {
           `,
           offset: new AMap.Pixel(0, -30)
         });
-        
+
         info.open(map.value, marker.getPosition());
       };
 
       // 为多边形和标记添加点击事件
       polygon.on('click', showInfo);
       marker.on('click', showInfo);
-      
+
       parkingMarkers.value.push(marker);
       parkingPolygons.value.push(polygon);
     });
@@ -304,13 +305,13 @@ const loadTasks = async () => {
   try {
     const response = await getAllTasks();
     const tasks = response.data;
-    
+
     // 清除现有的任务线
     if (taskLines.value.length > 0) {
       map.value.remove(taskLines.value);
       taskLines.value = [];
     }
-    
+
     tasks.forEach(task => {
       const line = new AMap.Polyline({
         path: [
@@ -322,17 +323,17 @@ const loadTasks = async () => {
         strokeOpacity: 0.8,
         extData: task
       });
-      
+
       // 添加点击事件
       line.on('click', () => {
         currentTask.value = task;
         emit('update:selectedTaskId', task.task_id);
         highlightTask(task.task_id);
       });
-      
+
       taskLines.value.push(line);
     });
-    
+
     // 一次性添加所有任务线
     if (taskLines.value.length > 0) {
       map.value.add(taskLines.value);
@@ -399,7 +400,7 @@ const highlightTask = (taskId) => {
       strokeOpacity: 0.8
     });
   });
-  
+
   // 高亮选中的任务线
   const selectedLine = taskLines.value.find(line => line.getExtData().task_id === taskId);
   if (selectedLine) {
@@ -488,7 +489,7 @@ const initMap = async () => {
     map.value.addControl(new AMap.Scale({
       position: { bottom: '20px', left: '20px' }
     }));
-    
+
     map.value.addControl(new AMap.ToolBar({
       position: { top: '20px', right: '20px' }
     }));
