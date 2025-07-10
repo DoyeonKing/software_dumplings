@@ -20,4 +20,16 @@ public interface StaffMapper {
      * @param staff 待插入的工作人员对象
      */
     void insert(Staff staff);
+
+    /**
+     * 根据用户名查询员工信息
+     * @param username 用户名
+     * @return 对应的 Staff 对象，如果不存在则返回 null
+     */
+    @Select("SELECT staff_id, username, password_hash, staff_type FROM staff WHERE username = #{username}")
+    Staff selectByUsername(@Param("username") String username);
+
+    // 如果你有注册功能，也可以添加一个检查用户名是否存在的方法
+    @Select("SELECT COUNT(*) FROM staff WHERE username = #{username}")
+    int countByUsername(@Param("username") String username);
 }

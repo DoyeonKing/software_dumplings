@@ -21,4 +21,11 @@ public interface IStaffService {
      * @throws CustomException 如果注册失败（如用户名已存在）
      */
     Staff register(RegisterRequest registerRequest);
+
+    /**
+     * 根据用户名查找员工信息
+     * @param username 用户名
+     * @return 员工对象或 null
+     */
+    Staff findByUsername(String username);
 }

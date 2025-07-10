@@ -85,4 +85,9 @@ public class StaffServiceImpl implements IStaffService {
         newStaff.setPasswordHash(null);
         return newStaff;
     }
+
+    @Override
+    public Staff findByUsername(String username) {
+        return staffMapper.selectByUsername(username);
+    }
 }
