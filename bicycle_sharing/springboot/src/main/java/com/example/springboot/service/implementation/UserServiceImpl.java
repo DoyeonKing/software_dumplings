@@ -8,7 +8,7 @@ import com.example.springboot.entity.User;
 import com.example.springboot.exception.CustomException;
 import com.example.springboot.mapper.UserMapper;
 import com.example.springboot.service.Interface.IUserService;
-import com.util.JwtTokenUtil;
+import com.example.springboot.util.JwtTokenUtil;
 import jakarta.annotation.Resource;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder; // 导入密码编码器
 import org.springframework.stereotype.Service;
@@ -24,6 +24,9 @@ public class UserServiceImpl implements IUserService {
 
     @Resource
     private BCryptPasswordEncoder bCryptPasswordEncoder; // 注入密码编码器
+
+    @Resource
+    private JwtTokenUtil jwtTokenUtil;
 
     /**
      * 处理普通用户登录逻辑
@@ -47,7 +50,7 @@ public class UserServiceImpl implements IUserService {
 
         // 3. 登录成功，生成 JWT Token
         // 假设 user 表中没有 role 字段，这里默认给 "user" 角色
-        String token = JwtTokenUtil.generateToken(dbUser.getUserid(), dbUser.getUsername(), "user");
+        String token = jwtTokenUtil.generateToken(dbUser.getUserid(), dbUser.getUsername(), "user");
 
         // 4. 返回脱敏后的 User 对象和 Token
         dbUser.setPasswordHash(null); // 脱敏
