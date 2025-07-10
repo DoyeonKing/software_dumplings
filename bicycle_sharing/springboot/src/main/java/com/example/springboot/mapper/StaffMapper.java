@@ -1,15 +1,23 @@
 package com.example.springboot.mapper;
 
-import com.example.springboot.entity.Staff; // 导入实体类
+import com.example.springboot.entity.Staff;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Insert;
 
-import java.util.List; // 导入必要的类 (如果需要)
-
-/**
- * StaffMapper接口空壳
- * 用于定义对数据库 'staff' 表的操作方法框架
- */
-@Mapper // 标记这是一个MyBatis Mapper接口
+@Mapper
 public interface StaffMapper {
-    // 空壳：不在此处定义任何方法签名
+    /**
+     * 根据用户名查询工作人员
+     * @param username 用户名
+     * @return 匹配的工作人员对象或 null
+     */
+    Staff findByUsername(@Param("username") String username);
+
+    /**
+     * 插入新工作人员
+     * @param staff 待插入的工作人员对象
+     */
+    void insert(Staff staff);
 }

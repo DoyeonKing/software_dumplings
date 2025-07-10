@@ -79,7 +79,7 @@ public class AuthController {
                 // 调用 Staff Service 处理工作人员注册 (通常管理员/工作人员注册由后台管理，不直接对外开放)
                 // 注意：StaffService.register 方法的实现由负责 Admin/Worker 的同事完成
                 // 如果不允许前端直接注册，可以抛出异常
-                throw new CustomException("管理员/工作人员注册功能未开放或由其他接口处理", "400");
+                registeredEntity = staffService.register(registerRequest);
                 // registeredEntity = staffService.register(registerRequest); // 如果允许，则调用
             } else {
                 throw new CustomException("无效的角色类型: " + role, "400");
