@@ -1,12 +1,8 @@
 package com.example.springboot.mapper;
 
 import com.example.springboot.entity.User;
-import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
-
-import java.util.List;
 
 /**
  * UserMapper接口
@@ -34,4 +30,19 @@ public interface UserMapper {
      * @param user 待插入的用户对象
      */
     void insert(User user);
+
+ /**
+  * 根据用户ID查询用户
+  *
+  * @param userid 用户唯一标识符
+  * @return 匹配的用户对象或 null
+  */
+ User findByUserId(@Param("userid") String userid);
+
+ /**
+  * 更新用户信息
+  *
+  * @param user 待更新的用户对象
+  */
+ void update(User user);
 }

@@ -9,5 +9,31 @@
         <result column="bike_status" property="bikeStatus"/>
         <result column="last_updated_time" property="lastUpdatedTime"/>
     </resultMap>
+<select id="findByBikeId" resultMap="BikesResultMap">
+        SELECT bike_id, current_lat, current_lon, current_geohash, bike_status, last_updated_time
+        FROM bikes
+        WHERE bike_id = #{bikeId}
+    </select>
 
+    <select id="findAllByStatus" resultMap="BikesResultMap">
+        SELECT bike_id, current_lat, current_lon, current_geohash, bike_status, last_updated_time
+        FROM bikes
+        WHERE bike_status = #{status}
+    </select>
+    <!-- 查询所有单车 -->
+    <select id="findAlltoPages" resultMap="BikesResultMap">
+        SELECT bike_id, current_lat, current_lon, current_geohash, bike_status, last_updated_time
+        FROM bikes
+    </select>
+
+    <!-- 查询指定地理范围内（视口内）的单车列表，支持按状态筛选 -->
+    <select id="findInViewport" resultMap="BikesResultMap">
+        SELECT bike_id, current_lat, current_lon, current_geohash, bike_status, last_updated_time
+        FROM bikes
+        WHERE current_lat BETWEEN #{minLat} AND #{maxLat}
+          AND current_lon BETWEEN #{minLon} AND #{maxLon}
+        <if test="bikeStatus != null and bikeStatus != ''">
+            AND bike_status = #{bikeStatus}
+        </if>
+    </select>
     </mapper>
