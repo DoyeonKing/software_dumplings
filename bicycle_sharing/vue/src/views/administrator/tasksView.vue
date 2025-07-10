@@ -51,7 +51,7 @@
               <div class="task-row"><span class="label">工作人员：</span>{{ task.workerName }}</div>
               <div class="task-row"><span class="label">联系电话：</span>{{ task.workerPhone }}</div>
               <div class="task-row"><span class="label">调度数量：</span>{{ task.deployAmount }}</div>
-              <div class="task-row"><span class="label">创建时间：</span>{{ task.creationTime }}</div>
+              
             </div>
             <div class="task-action-col">
               <div class="task-status-tag" :class="statusClass(task.status)">
@@ -123,11 +123,11 @@ export default {
         { label: "已完成", value: "done" }
       ],
       tasks: [
-        { id: "T20240710001", startLocation: "深圳市-福田区-福华三路-区域A", endLocation: "深圳市-南山区-科技园-区域E", workerName: "李明", workerPhone: "13800000001", deployAmount: 10, status: "pending", creationTime: "2024-07-10 09:15:30" },
-        { id: "T20240710002", startLocation: "深圳市-福田区-会展中心-区域D", endLocation: "深圳市-福田区-金田路-区域B", workerName: "王芳", workerPhone: "13800000002", deployAmount: 8, status: "processing", creationTime: "2024-07-10 10:05:12" },
-        { id: "T20240709003", startLocation: "深圳市-福田区-滨河大道-区域C", endLocation: "深圳市-福田区-福华三路-区域A", workerName: "张伟", workerPhone: "13800000003", deployAmount: 12, status: "done", creationTime: "2024-07-09 14:30:00" },
-        { id: "T20240709004", startLocation: "深圳市-南山区-科技园-区域E", endLocation: "深圳市-福田区-会展中心-区域D", workerName: "赵丽", workerPhone: "13800000004", deployAmount: 5, status: "pending", creationTime: "2024-07-09 16:45:20" },
-        { id: "T20240708005", startLocation: "深圳市-福田区-金田路-区域B", endLocation: "深圳市-福田区-滨河大道-区域C", workerName: "钱涛", workerPhone: "13800000005", deployAmount: 7, status: "processing", creationTime: "2024-07-08 11:20:45" }
+        { id: "T20240710001", startLocation: "深圳市-福田区-福华三路-区域A", endLocation: "深圳市-南山区-科技园-区域E", workerName: "李明", workerPhone: "13800000001", deployAmount: 10, status: "pending" },
+        { id: "T20240710002", startLocation: "深圳市-福田区-会展中心-区域D", endLocation: "深圳市-福田区-金田路-区域B", workerName: "王芳", workerPhone: "13800000002", deployAmount: 8, status: "processing" },
+        { id: "T20240709003", startLocation: "深圳市-福田区-滨河大道-区域C", endLocation: "深圳市-福田区-福华三路-区域A", workerName: "张伟", workerPhone: "13800000003", deployAmount: 12, status: "done" },
+        { id: "T20240709004", startLocation: "深圳市-南山区-科技园-区域E", endLocation: "深圳市-福田区-会展中心-区域D", workerName: "赵丽", workerPhone: "13800000004", deployAmount: 5, status: "pending" },
+        { id: "T20240708005", startLocation: "深圳市-福田区-金田路-区域B", endLocation: "深圳市-福田区-滨河大道-区域C", workerName: "钱涛", workerPhone: "13800000005", deployAmount: 7, status: "processing" }
       ],
       parkingAreas: [
         { id: 1, location: "深圳市-福田区-福华三路", areaCode: "区域A", polygon: [ [114.0560, 22.5330], [114.0590, 22.5330], [114.0590, 22.5360], [114.0560, 22.5360] ], currentBikes: 23, availableSpots: 7 },
@@ -262,11 +262,11 @@ export default {
   margin-right: 8px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
-.icon-list::before { content: '📋'; }
-.icon-home::before { content: '🏠'; }
+/*.icon-list::before { content: '📋'; }*/
+/*.icon-home::before { content: '🏠'; }*/
 .icon-search::before { content: '🔍'; }
 .icon-clear::before { content: '✕'; }
-.icon-dispatch::before { content: '🚲'; }
+.icon-dispatch::before { content: '🚚'; }
 .icon-pending::before { content: '⏳'; }
 .icon-processing::before { content: '🔄'; }
 .icon-done::before { content: '✅'; }
@@ -385,8 +385,8 @@ export default {
 }
 .status-filter-btn.active,
 .status-filter-btn:hover {
-  background: #FFD600;
-  color: #222;
+  background: #ffebee;
+  color: #d84315;
   border-color: #FFD600;
 }
 .task-list-scroll {
