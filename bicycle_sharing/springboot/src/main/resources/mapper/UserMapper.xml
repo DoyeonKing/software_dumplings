@@ -14,4 +14,20 @@
         <result column="total_cost" property="totalCost"/>
     </resultMap>
 
+    <select id="findByUsername" resultMap="UserResultMap">
+        SELECT * FROM user WHERE username = #{username}
+    </select>
+
+    <select id="findByPhoneNumber" resultMap="UserResultMap">
+        SELECT * FROM user WHERE phone_number = #{phoneNumber}
+    </select>
+
+    <insert id="insert">
+        INSERT INTO user (
+            userid, username, password_hash, phone_number, total_rides, total_duration_minutes, total_cost
+        ) VALUES (
+            #{userid}, #{username}, #{passwordHash}, #{phoneNumber}, #{totalRides}, #{totalDurationMinutes}, #{totalCost}
+        )
+    </insert>
+
     </mapper>
