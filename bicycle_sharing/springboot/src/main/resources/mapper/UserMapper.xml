@@ -30,4 +30,22 @@
         )
     </insert>
 
+    <select id="findByUserId" resultMap="UserResultMap">
+        SELECT *
+        FROM user
+        WHERE userid = #{userid}
+    </select>
+
+    <update id="update">
+        UPDATE user
+        <set>
+            <if test="username != null">username = #{username},</if>
+            <if test="passwordHash != null">password_hash = #{passwordHash},</if>
+            <if test="phoneNumber != null">phone_number = #{phoneNumber},</if>
+            <if test="totalRides != null">total_rides = #{totalRides},</if>
+            <if test="totalDurationMinutes != null">total_duration_minutes = #{totalDurationMinutes},</if>
+            <if test="totalCost != null">total_cost = #{totalCost},</if>
+        </set>
+        WHERE userid = #{userid}
+    </update>
     </mapper>

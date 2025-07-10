@@ -45,6 +45,7 @@ public class AuthController {
             } else if ("admin".equalsIgnoreCase(role) || "worker".equalsIgnoreCase(role)) {
                 // 调用 Staff Service 处理管理员/工作人员登录
                 // 注意：StaffService.login 方法的实现由负责 Admin/Worker 的同事完成
+                loggedInEntity = staffService.login(loginRequest);
             } else {
                 throw new CustomException("无效的角色类型: " + role, "400");
             }

@@ -25,4 +25,31 @@ public interface IUserService {
      * @throws CustomException 如果注册失败（如用户名/手机号已存在）
      */
     User register(RegisterRequest registerRequest);
+
+/**
+ * 获取用户个人信息
+ * @param userId 用户ID
+ * @return 用户对象（已脱敏）
+ * @throws CustomException 如果用户不存在
+ */
+User getUserProfile(String userId);
+
+/**
+ * 更新用户个人信息
+ * @param user 包含待更新字段的用户对象
+ * @throws CustomException 如果更新失败（如用户名/手机号已存在）
+ */
+void updateUserProfile(User user);
+
+/**
+ * 修改用户密码
+ * @param userId 用户ID
+ * @param oldPassword 旧密码（明文）
+ * @param newPassword 新密码（明文）
+ * @throws CustomException 如果旧密码不正确或修改失败
+ */
+void changePassword(String userId, String oldPassword, String newPassword);
+
+
 }
+
