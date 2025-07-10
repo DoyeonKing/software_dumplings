@@ -2,7 +2,6 @@
   <div class="dashboard-view-root">
     <div id="mapContainer"></div>
 
-    <!-- 使用菜单组件 -->
     <MenuComponent @profile-saved="handleProfileSaved" />
 
     <div class="info-panel">
@@ -182,6 +181,12 @@ export default {
           "徐汇区": ["漕溪北路", "肇嘉浜路", "虹桥路"]
         }
       },
+      // 新增：停车区域数据
+      parkingAreas: [
+        { id: 1, location: "深圳市-福田区-福华三路", areaCode: "区域A", polygon: [ [114.0560, 22.5330], [114.0590, 22.5330], [114.0590, 22.5360], [114.0560, 22.5360] ] },
+        { id: 2, location: "深圳市-福田区-金田路", areaCode: "区域B", polygon: [ [114.0595, 22.5330], [114.0625, 22.5330], [114.0625, 22.5360], [114.0595, 22.5360] ] },
+        { id: 3, location: "深圳市-福田区-滨河大道", areaCode: "区域C", polygon: [ [114.0560, 22.5365], [114.0590, 22.5365], [114.0590, 22.5395], [114.0560, 22.5395] ] }
+      ],
       bikeList: [
         {id: "SZ1001", lng: 114.057868, lat: 22.53445, status: "正常", address: "深圳市-福田区-福华三路"},
         {id: "SZ1002", lng: 114.060868, lat: 22.53495, status: "故障", address: "深圳市-福田区-金田路"},
@@ -189,20 +194,6 @@ export default {
         {id: "SZ1004", lng: 114.061868, lat: 22.53445, status: "正常", address: "深圳市-福田区-会展中心"},
         {id: "SZ1005", lng: 114.061867, lat: 22.53545, status: "正常", address: "深圳市-福田区-福华一路"},
         {id: "SZ1006", lng: 114.057000, lat: 22.53400, status: "正常", address: "深圳市-福田区-福华三路附近"},
-        {id: "SZ1007", lng: 114.058500, lat: 22.53500, status: "正常", address: "深圳市-福田区-金田路附近"},
-        {id: "SZ1008", lng: 114.059500, lat: 22.53600, status: "故障", address: "深圳市-福田区-滨河大道附近"},
-        {id: "SZ1009", lng: 114.060500, lat: 22.53400, status: "正常", address: "深圳市-福田区-会展中心附近"},
-        {id: "SZ1010", lng: 114.062500, lat: 22.53500, status: "待维修", address: "深圳市-福田区-福华一路附近"},
-        {id: "SZ1011", lng: 114.057200, lat: 22.53460, status: "正常", address: "深圳市-福田区-中心区"},
-        {id: "SZ1012", lng: 114.060200, lat: 22.53520, status: "正常", address: "深圳市-福田区-益田路"},
-        {id: "SZ1013", lng: 114.058000, lat: 22.53680, status: "正常", address: "深圳市-福田区-彩田路"},
-        {id: "SZ1014", lng: 114.061000, lat: 22.53480, status: "故障", address: "深圳市-福田区-民田路"},
-        {id: "SZ1015", lng: 114.061500, lat: 22.53580, status: "正常", address: "深圳市-福田区-福中路"},
-        {id: "SZ1016", lng: 114.059000, lat: 22.53420, status: "正常", address: "深圳市-福田区-新闻路"},
-        {id: "SZ1017", lng: 114.058200, lat: 22.53540, status: "正常", address: "深圳市-福田区-景田路"},
-        {id: "SZ1018", lng: 114.060000, lat: 22.53620, status: "待维修", address: "深圳市-福田区-华强北"},
-        {id: "SZ1019", lng: 114.062000, lat: 22.53460, status: "正常", address: "深圳市-福田区-八卦岭"},
-        {id: "SZ1020", lng: 114.062200, lat: 22.53560, status: "正常", address: "深圳市-福田区-上步路"}
       ]
     };
   },
@@ -228,10 +219,12 @@ export default {
     }
   },
   mounted() {
-    // 先动态加载高德地图SDK
     AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
       const {yellowBikeIcon} = this.initMap();
+      this.map.setZoomAndCenter(15, [114.0588, 22.5368]);
       this.addBikeMarkers(this.bikeList, yellowBikeIcon);
+      // 新增：调用绘制停车区域的方法
+      this.drawParkingAreas();
     }).catch(err => {
       this.$message && this.$message.error
           ? this.$message.error('地图加载失败: ' + err.message)
@@ -239,6 +232,38 @@ export default {
     });
   },
   methods: {
+    // 新增：绘制停车区域的方法
+    drawParkingAreas() {
+      const infoWindow = new window.AMap.InfoWindow({
+        offset: new window.AMap.Pixel(0, -20)
+      });
+
+      this.parkingAreas.forEach(area => {
+        const polygon = new window.AMap.Polygon({
+          path: area.polygon,
+          fillColor: "#FFD600",
+          fillOpacity: 0.2,
+          strokeColor: "#FFD600",
+          strokeWeight: 2,
+          zIndex: 40,
+          cursor: "pointer"
+        });
+
+        this.map.add(polygon);
+
+        polygon.on("mouseover", (e) => {
+          infoWindow.setContent(`
+            <div style="min-width:160px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+              <b>停车区域：</b>${area.location}-${area.areaCode}
+            </div>`);
+          infoWindow.open(this.map, e.lnglat);
+        });
+
+        polygon.on("mouseout", () => {
+          infoWindow.close();
+        });
+      });
+    },
     handleProfileSaved(formData) {
       console.log('个人资料已保存:', formData);
     },
@@ -280,6 +305,15 @@ export default {
   position: relative;
   height: 100vh;
   overflow: hidden;
+}
+
+#mapContainer {
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1;
 }
 
 .info-panel {

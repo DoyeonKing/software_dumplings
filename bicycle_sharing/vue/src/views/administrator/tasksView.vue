@@ -5,10 +5,10 @@
     <MenuComponent @profile-saved="handleProfileSaved" />
 
     <div class="top-right-btn-group btn-group">
-      <button class="yellow-btn" @click="listCollapsed = !listCollapsed">
+      <button class="yellow-btn icon-list" @click="listCollapsed = !listCollapsed">
         {{ listCollapsed ? '展开任务列表' : '收起任务列表' }}
       </button>
-      <button class="yellow-btn" @click="goHome">
+      <button class="yellow-btn icon-home" @click="goHome">
         返回主页
       </button>
     </div>
@@ -23,8 +23,8 @@
                 placeholder="搜索任务编号/地点/工作人员"
                 @keyup.enter="onSearch"
             />
-            <button class="yellow-btn search-btn" @click="onSearch">搜索</button>
-            <button class="yellow-btn clear-search-btn" @click="clearSearch">置空</button>
+            <button class="yellow-btn search-btn icon-search" @click="onSearch">搜索</button>
+            <button class="yellow-btn clear-search-btn icon-clear" @click="clearSearch">置空</button>
           </div>
           <div class="task-status-filters">
             <button
@@ -37,7 +37,7 @@
             </button>
           </div>
         </div>
-        <div class="task-list-title">投放任务查询列表</div>
+        <div class="task-list-title icon-dispatch">调度任务查询列表</div>
         <div class="task-list-scroll">
           <div
               v-for="task in filteredTasks"
@@ -46,47 +46,52 @@
           >
             <div class="task-info">
               <div class="task-row"><span class="label">任务编号：</span>{{ task.id }}</div>
-              <div class="task-row"><span class="label">地点：</span>{{ task.location }}</div>
+              <div class="task-row"><span class="label">调度起点：</span>{{ task.startLocation }}</div>
+              <div class="task-row"><span class="label">调度终点：</span>{{ task.endLocation  }}</div>
               <div class="task-row"><span class="label">工作人员：</span>{{ task.workerName }}</div>
-              <div class="task-row"><span class="label">电话：</span>{{ task.workerPhone }}</div>
-              <div class="task-row"><span class="label">投放数量：</span>{{ task.deployAmount }}</div>
-              <div class="task-row"><span class="label">取车数量：</span>{{ task.pickupAmount }}</div>
+              <div class="task-row"><span class="label">联系电话：</span>{{ task.workerPhone }}</div>
+              <div class="task-row"><span class="label">调度数量：</span>{{ task.deployAmount }}</div>
+              <div class="task-row"><span class="label">创建时间：</span>{{ task.creationTime }}</div>
             </div>
             <div class="task-action-col">
               <div class="task-status-tag" :class="statusClass(task.status)">
+                <span :class="statusIconClass(task.status)"></span>
                 {{ statusText(task.status) }}
               </div>
 
               <div class="task-action-btns" v-if="task.status === 'pending'">
                 <button
-                    class="yellow-btn task-action-btn"
+                    class="yellow-btn task-action-btn icon-remind"
                     @click="remindTask(task)"
                     :disabled="remindDisabled"
                 >
                   催促
                 </button>
                 <button
-                    class="yellow-btn task-action-btn"
+                    class="yellow-btn task-action-btn icon-reselect"
                     @click="reselectTask(task)"
                 >
-                  重新选择投放
+                  重新调度
                 </button>
                 <button
-                    class="yellow-btn task-action-btn delete-btn"
+                    class="yellow-btn task-action-btn delete-btn icon-delete"
                     @click="deleteTask(task)"
                 >
                   删除
                 </button>
               </div>
               <div class="task-action-btns" v-else>
-                <button class="yellow-btn task-action-btn" disabled>催促</button>
-                <button class="yellow-btn task-action-btn" disabled>重新选择投放</button>
-                <button class="yellow-btn task-action-btn delete-btn" @click="deleteTask(task)">删除</button>
+                <button class="yellow-btn task-action-btn icon-remind" disabled>催促</button>
+                <button class="yellow-btn task-action-btn icon-reselect" disabled>重新调度</button>
+                <button class="yellow-btn task-action-btn delete-btn icon-delete" @click="deleteTask(task)">删除</button>
               </div>
 
             </div>
           </div>
-          <div v-if="filteredTasks.length === 0" class="no-task-tip">暂无符合条件的任务</div>
+          <div v-if="filteredTasks.length === 0" class="no-task-tip">
+            <div class="icon-empty"></div>
+            <div>暂无符合条件的任务</div>
+          </div>
         </div>
       </div>
     </transition>
@@ -118,11 +123,11 @@ export default {
         { label: "已完成", value: "done" }
       ],
       tasks: [
-        { id: "T20240601001", location: "深圳市-福田区-福华三路-区域A", workerName: "李明", workerPhone: "13800000001", deployAmount: 10, pickupAmount: 2, status: "pending" },
-        { id: "T20240601002", location: "深圳市-福田区-金田路-区域B", workerName: "王芳", workerPhone: "13800000002", deployAmount: 8, pickupAmount: 1, status: "processing" },
-        { id: "T20240601003", location: "深圳市-福田区-滨河大道-区域C", workerName: "张伟", workerPhone: "13800000003", deployAmount: 12, pickupAmount: 0, status: "done" },
-        { id: "T20240601004", location: "深圳市-福田区-会展中心-区域D", workerName: "赵丽", workerPhone: "13800000004", deployAmount: 5, pickupAmount: 1, status: "pending" },
-        { id: "T20240601005", location: "深圳市-南山区-科技园-区域E", workerName: "钱涛", workerPhone: "13800000005", deployAmount: 7, pickupAmount: 0, status: "processing" }
+        { id: "T20240710001", startLocation: "深圳市-福田区-福华三路-区域A", endLocation: "深圳市-南山区-科技园-区域E", workerName: "李明", workerPhone: "13800000001", deployAmount: 10, status: "pending", creationTime: "2024-07-10 09:15:30" },
+        { id: "T20240710002", startLocation: "深圳市-福田区-会展中心-区域D", endLocation: "深圳市-福田区-金田路-区域B", workerName: "王芳", workerPhone: "13800000002", deployAmount: 8, status: "processing", creationTime: "2024-07-10 10:05:12" },
+        { id: "T20240709003", startLocation: "深圳市-福田区-滨河大道-区域C", endLocation: "深圳市-福田区-福华三路-区域A", workerName: "张伟", workerPhone: "13800000003", deployAmount: 12, status: "done", creationTime: "2024-07-09 14:30:00" },
+        { id: "T20240709004", startLocation: "深圳市-南山区-科技园-区域E", endLocation: "深圳市-福田区-会展中心-区域D", workerName: "赵丽", workerPhone: "13800000004", deployAmount: 5, status: "pending", creationTime: "2024-07-09 16:45:20" },
+        { id: "T20240708005", startLocation: "深圳市-福田区-金田路-区域B", endLocation: "深圳市-福田区-滨河大道-区域C", workerName: "钱涛", workerPhone: "13800000005", deployAmount: 7, status: "processing", creationTime: "2024-07-08 11:20:45" }
       ],
       parkingAreas: [
         { id: 1, location: "深圳市-福田区-福华三路", areaCode: "区域A", polygon: [ [114.0560, 22.5330], [114.0590, 22.5330], [114.0590, 22.5360], [114.0560, 22.5360] ], currentBikes: 23, availableSpots: 7 },
@@ -133,9 +138,6 @@ export default {
       bikeList: [
         { id: "SZ1001", lng: 114.057868, lat: 22.53445, status: "正常", address: "深圳市-福田区-福华三路" },
         { id: "SZ1002", lng: 114.060868, lat: 22.53495, status: "故障", address: "深圳市-福田区-金田路" },
-        { id: "SZ1003", lng: 114.058868, lat: 22.53645, status: "待维修", address: "深圳市-福田区-滨河大道" },
-        { id: "SZ1004", lng: 114.061868, lat: 22.53445, status: "正常", address: "深圳市-福田区-会展中心" },
-        { id: "SZ1005", lng: 114.061867, lat: 22.53545, status: "正常", address: "深圳市-福田区-福华一路" }
       ],
       polygons: []
     };
@@ -149,7 +151,8 @@ export default {
       if (kw) {
         list = list.filter(t =>
             t.id.toLowerCase().includes(kw) ||
-            t.location.toLowerCase().includes(kw) ||
+            t.startLocation.toLowerCase().includes(kw) ||
+            t.endLocation.toLowerCase().includes(kw) ||
             t.workerName.toLowerCase().includes(kw) ||
             (t.workerPhone && t.workerPhone.includes(kw))
         );
@@ -204,6 +207,10 @@ export default {
     statusClass(status) {
       return `status-${status}`;
     },
+    statusIconClass(status) {
+      const map = { pending: "icon-pending", processing: "icon-processing", done: "icon-done" };
+      return map[status] || "";
+    },
     remindTask() {
       this.remindDisabled = true;
       alert("催促成功");
@@ -229,7 +236,6 @@ export default {
     },
   },
   mounted() {
-    // 动态加载高德地图SDK，加载完成后再初始化地图
     AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
       const { yellowBikeIcon } = this.initMap();
       this.map.setZoomAndCenter(15, [114.0588, 22.5368]);
@@ -237,9 +243,7 @@ export default {
       this.addBikeMarkers(this.bikeList, yellowBikeIcon);
       this.searchKey = "";
     }).catch(err => {
-      this.$message && this.$message.error
-          ? this.$message.error('地图加载失败: ' + err.message)
-          : alert('地图加载失败: ' + err.message);
+      alert('地图加载失败: ' + err.message);
     });
   },
   beforeDestroy() {
@@ -253,7 +257,35 @@ export default {
 <style scoped>
 @import '@/assets/globalStyles.css';
 
-/* ...原样保留你的样式... */
+/* 新增图标样式 */
+[class^="icon-"]::before, [class*=" icon-"]::before {
+  margin-right: 8px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+.icon-list::before { content: '📋'; }
+.icon-home::before { content: '🏠'; }
+.icon-search::before { content: '🔍'; }
+.icon-clear::before { content: '✕'; }
+.icon-dispatch::before { content: '🚲'; }
+.icon-pending::before { content: '⏳'; }
+.icon-processing::before { content: '🔄'; }
+.icon-done::before { content: '✅'; }
+.icon-remind::before { content: '📢'; }
+.icon-reselect::before { content: '🔄'; }
+.icon-delete::before { content: '🗑️'; }
+.no-task-tip .icon-empty::before {
+  content: '📭';
+  font-size: 2.5rem;
+  display: block;
+  margin-right: 0;
+  margin-bottom: 10px;
+}
+/* 状态标签内的图标微调 */
+.task-status-tag [class^="icon-"]::before {
+  margin-right: 5px;
+}
+
+
 .tasks-view-root {
   position: relative;
   height: 100vh;
@@ -278,7 +310,6 @@ export default {
   gap: 14px;
 }
 
-/* ...后续样式同你原文件... */
 .center-task-list-card {
   position: fixed;
   top: 50%;
@@ -299,7 +330,6 @@ export default {
   backdrop-filter: blur(4px);
   border: 1px solid rgba(255, 214, 0, 0.5);
 }
-/* ...其余样式不变... */
 .task-list-title {
   font-size: 1.4rem;
   font-weight: 700;
@@ -355,8 +385,8 @@ export default {
 }
 .status-filter-btn.active,
 .status-filter-btn:hover {
-  background: #ffebee;
-  color: #c62828;
+  background: #FFD600;
+  color: #222;
   border-color: #FFD600;
 }
 .task-list-scroll {
@@ -386,7 +416,7 @@ export default {
 .task-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   font-size: 1rem;
   color: #444;
   flex-grow: 1;
@@ -394,6 +424,8 @@ export default {
 .task-row .label {
   color: #888;
   font-weight: 500;
+  display: inline-block;
+  width: 90px;
 }
 .task-action-col {
   display: flex;
@@ -404,12 +436,15 @@ export default {
   text-align: right;
 }
 .task-status-tag {
-  width: 100px;
+  width: 120px;
   text-align: center;
   font-size: 0.95rem;
   font-weight: 600;
   border-radius: 16px;
   padding: 6px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .status-pending { background: #ffebee; color: #c62828; }
 .status-processing { background: #e3f2fd; color: #1565c0; }
@@ -433,12 +468,13 @@ export default {
   border-color: #eee !important;
 }
 .delete-btn {
-  background: #ff4d4f !important;
-  color: #fff !important;
-  border: none !important;
+  background: #fbe9e7 !important;
+  color: #d84315 !important;
+  border: 1px solid #ffccbc !important;
 }
 .delete-btn:hover:not([disabled]) {
-  background: #d32f2f !important;
+  background: #ffccbc !important;
+  color: #bf360c !important;
 }
 .no-task-tip {
   text-align: center;

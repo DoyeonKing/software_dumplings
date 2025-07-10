@@ -57,6 +57,7 @@ import { getAllBicycles } from '@/api/map/bicycle';
 import { ElMessage } from 'element-plus';
 import { Close } from '@element-plus/icons-vue';
 
+
 const props = defineProps({
   showBicycles: {
     type: Boolean,
