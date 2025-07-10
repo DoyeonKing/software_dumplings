@@ -1,5 +1,6 @@
 package com.example.springboot.service.Interface;
 
+import com.example.springboot.dto.UtilizationResponse;
 import com.example.springboot.entity.Bikes;
 import com.example.springboot.exception.CustomException;
 import com.github.pagehelper.PageInfo;
@@ -11,7 +12,12 @@ import java.util.List;
  * IBikesService接口空壳
  * 定义自行车相关的业务操作契约框架
  */
-public interface IBikesService { // 接口名与实体类名保持一致，改为IBikesService
+public interface IBikesService { // 接口名与实体类名保持一致，改为IBikesService/
+    /**
+     * 获取车辆使用率及其相关统计数据。
+     * @return UtilizationResponse 对象，包含使用率、在线数、使用中数和空闲数。
+     */
+    UtilizationResponse getVehicleUtilization();
 
     /**
      * 获取所有可用（状态为“待使用”）的单车列表
