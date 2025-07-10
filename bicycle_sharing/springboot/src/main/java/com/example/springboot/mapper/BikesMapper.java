@@ -1,9 +1,11 @@
 package com.example.springboot.mapper;
 
-import com.example.springboot.entity.Bikes; // 导入纠正后的实体类名
+import com.example.springboot.entity.Bikes;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
-import java.util.List; // 导入必要的类
+import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * BikesMapper接口空壳
@@ -11,5 +13,44 @@ import java.util.List; // 导入必要的类
  */
 @Mapper // 标记这是一个MyBatis Mapper接口
 public interface BikesMapper { // 接口名与实体类名保持一致，改为BikesMapper
-    // 空壳：不在此处定义任何方法签名
+
+    /**
+     * 根据单车ID查询单车信息
+     *
+     * @param bikeId 单车ID
+     * @return 匹配的单车对象或 null
+     */
+    Bikes findByBikeId(@Param("bikeId") String bikeId); // 这个方法在 BikesServiceImpl 中已被使用，确保它存在
+
+    /**
+     * 查询所有单车
+     *
+     * @return 所有单车的列表
+     */
+    List<Bikes> findAlltoPages();
+
+    /**
+     * 查询指定状态的所有单车
+     *
+     * @param status 单车状态 (例如 "待使用", "使用中")
+     * @return 指定状态的单车列表
+     */
+    List<Bikes> findAllByStatus(@Param("status") String status);
+
+/**
+ * 查询指定地理范围内（视口内）的单车列表，支持按状态筛选
+ * @param minLat 最小纬度
+ * @param maxLat 最大纬度
+ * @param minLon 最小经度
+ * @param maxLon 最大经度
+ * @param bikeStatus 单车状态 (可选，如果为null则查询所有状态)
+ * @return 指定范围内的单车列表
+ */
+List<Bikes> findInViewport(
+        @Param("minLat") BigDecimal minLat,
+        @Param("maxLat") BigDecimal maxLat,
+        @Param("minLon") BigDecimal minLon,
+        @Param("maxLon") BigDecimal maxLon,
+        @Param("bikeStatus") String bikeStatus); // 新增方法
+
 }
