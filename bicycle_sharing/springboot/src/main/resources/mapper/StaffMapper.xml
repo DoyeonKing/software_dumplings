@@ -11,4 +11,14 @@
         <result column="staff_type" property="staffType"/>
     </resultMap>
 
+    <select id="findByUsername" parameterType="String" resultType="com.example.springboot.entity.Staff">
+        SELECT * FROM staff WHERE username = #{username}
+    </select>
+
+    <insert id="insert" parameterType="com.example.springboot.entity.Staff">
+        INSERT INTO staff (username, password_hash, staff_type)
+        VALUES (#{username}, #{passwordHash}, #{staffType})
+    </insert>
+
+
     </mapper>
