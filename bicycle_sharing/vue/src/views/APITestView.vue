@@ -168,12 +168,23 @@
         <p><strong>消息：</strong>{{ loginResult.msg }}</p>
         <div v-if="loginResult.data" class="data-detail">
           <el-descriptions title="用户信息" :column="2" border>
-            <el-descriptions-item label="用户ID">{{ loginResult.data.userid }}</el-descriptions-item>
-            <el-descriptions-item label="用户名">{{ loginResult.data.username }}</el-descriptions-item>
-            <el-descriptions-item label="手机号码">{{ loginResult.data.phoneNumber }}</el-descriptions-item>
-            <el-descriptions-item label="总骑行次数">{{ loginResult.data.totalRides }}</el-descriptions-item>
-            <el-descriptions-item label="总骑行时长(分钟)">{{ loginResult.data.totalDurationMinutes }}</el-descriptions-item>
-            <el-descriptions-item label="总消费(元)">{{ loginResult.data.totalCost }}</el-descriptions-item>
+            <el-descriptions-item label="用户ID">{{ loginResult.data.user.userid }}</el-descriptions-item>
+            <el-descriptions-item label="用户名">{{ loginResult.data.user.username }}</el-descriptions-item>
+            <el-descriptions-item label="手机号码">{{ loginResult.data.user.phoneNumber }}</el-descriptions-item>
+            <el-descriptions-item label="总骑行次数">{{ loginResult.data.user.totalRides }}</el-descriptions-item>
+            <el-descriptions-item label="总骑行时长(分钟)">{{ loginResult.data.user.totalDurationMinutes }}</el-descriptions-item>
+            <el-descriptions-item label="总消费(元)">{{ loginResult.data.user.totalCost }}</el-descriptions-item>
+          </el-descriptions>
+
+          <el-descriptions title="认证信息" :column="1" border class="mt-4">
+            <el-descriptions-item label="Token">
+              <el-input
+                type="textarea"
+                :rows="3"
+                v-model="loginResult.data.token"
+                readonly
+              />
+            </el-descriptions-item>
           </el-descriptions>
         </div>
       </div>
@@ -392,5 +403,8 @@ const testLogin = async () => {
   padding: 15px;
   background-color: #fff;
   border-radius: 4px;
+}
+.mt-4 {
+  margin-top: 1rem;
 }
 </style>
