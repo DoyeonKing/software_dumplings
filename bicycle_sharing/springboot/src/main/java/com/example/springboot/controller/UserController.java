@@ -5,13 +5,10 @@ import com.example.springboot.common.request.ChangePasswordRequest;
 import com.example.springboot.entity.User; // 导入实体类
 import com.example.springboot.exception.CustomException; // 导入自定义异常
 import com.example.springboot.service.Interface.IUserService; // 导入Service接口
-import com.github.pagehelper.PageInfo; // 导入分页PageInfo (如果需要)
-import com.util.JwtTokenUtil;
+import com.example.springboot.util.JwtTokenUtil;
 import jakarta.annotation.Resource; // 导入Resource注解
 import org.springframework.web.bind.annotation.*; // 导入Spring Web注解
 
-import java.util.List; // 导入List (如果需要)
-import java.util.Map; // 导入Map (如果需要)
 
 /**
  * UserController
@@ -23,6 +20,9 @@ public class UserController {
 
     @Resource // 注入IUserService接口的实现类 (Spring会自动找到UserServiceImpl)
     private IUserService userService;
+
+    @Resource
+    private JwtTokenUtil jwtTokenUtil;
 
 /**
  * 获取用户个人信息
@@ -109,8 +109,8 @@ private String getUserIdFromToken(String authorizationHeader) {
         // 验证 Token 是否有效且未过期
         // 注意：这里只验证了 Token 结构和签名，实际生产环境还需要更复杂的验证逻辑，
         // 例如 Token 是否在黑名单中，或者是否与数据库中的用户状态匹配。
-        String userId = JwtTokenUtil.getUserIdFromToken(token);
-        if (!JwtTokenUtil.validateToken(token, userId)) { // 再次验证 Token 的有效性
+        String userId = jwtTokenUtil.getUserIdFromToken(token);
+        if (!jwtTokenUtil.validateToken(token, userId)) { // 再次验证 Token 的有效性
             throw new CustomException("认证失败：Token无效或已过期", "401");
         }
         return userId;
