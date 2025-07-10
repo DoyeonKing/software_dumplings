@@ -45,3 +45,6 @@ springdoc:
   external-docs: # 外部文档链接 (可选)
     description: "更多信息请访问我们的官网"
     url: "http://yourcompany.com"
+
+amap:
+  key: b76a53fff091a12f2807eba6b206febd
