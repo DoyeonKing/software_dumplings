@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.springboot.mapper.BikesMapper"> <resultMap id="BikesResultMap" type="com.example.springboot.entity.Bikes"> <id column="bike_id" property="bikeId"/>
+        <result column="current_lat" property="currentLat"/>
+        <result column="current_lon" property="currentLon"/>
+        <result column="current_geohash" property="currentGeohash"/>
+        <result column="bike_status" property="bikeStatus"/>
+        <result column="last_updated_time" property="lastUpdatedTime"/>
+    </resultMap>
+<select id="findByBikeId" resultMap="BikesResultMap">
+        SELECT bike_id, current_lat, current_lon, current_geohash, bike_status, last_updated_time
+        FROM bikes
+        WHERE bike_id = #{bikeId}
+    </select>
+
+    <select id="findAllByStatus" resultMap="BikesResultMap">
+        SELECT bike_id, current_lat, current_lon, current_geohash, bike_status, last_updated_time
+        FROM bikes
+        WHERE bike_status = #{status}
+    </select>
+    <!-- 查询所有单车 -->
+    <select id="findAlltoPages" resultMap="BikesResultMap">
+        SELECT bike_id, current_lat, current_lon, current_geohash, bike_status, last_updated_time
+        FROM bikes
+    </select>
+
+    <!-- 查询指定地理范围内（视口内）的单车列表，支持按状态筛选 -->
+    <select id="findInViewport" resultMap="BikesResultMap">
+        SELECT bike_id, current_lat, current_lon, current_geohash, bike_status, last_updated_time
+        FROM bikes
+        WHERE current_lat BETWEEN #{minLat} AND #{maxLat}
+          AND current_lon BETWEEN #{minLon} AND #{maxLon}
+        <if test="bikeStatus != null and bikeStatus != ''">
+            AND bike_status = #{bikeStatus}
+        </if>
+    </select>
+    </mapper>

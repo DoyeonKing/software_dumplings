@@ -1,12 +1,14 @@
 spring:
+  application:
+    name: My Spring Boot Application # 您的应用名称
   datasource:
     # The URL for connecting to a MySQL 8.0 database.
     # Replace 'your_database_name' with your actual database schema name.
     # The parameters are recommended for MySQL 8+ to handle timezone and character encoding correctly.
-    url: jdbc:mysql://127.0.0.1:3306/your_database_name?useSSL=false&serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8
+    url: jdbc:mysql://127.0.0.1:3306/sharebike?useSSL=false&serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8
     # Replace with your MySQL username and password
     username: root
-    password: password
+    password: Mga@5182
     # The driver class name for MySQL Connector/J 8+
     driver-class-name: com.mysql.cj.jdbc.Driver
 
@@ -19,3 +21,30 @@ mybatis:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
     # Automatically maps underscore_case in the database to camelCase in Java objects
     map-underscore-to-camel-case: true
+
+# SpringDoc OpenAPI 配置
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html # 访问 Swagger UI 的路径，默认为 /swagger-ui.html，可自定义
+    disable-swagger-default-url: true # 禁用默认的 petstore 示例
+  api-docs:
+    path: /v3/api-docs # OpenAPI 3 JSON 规范的路径，默认为 /v3/api-docs
+  default-produces-media-type: application/json # 默认的生产媒体类型
+  info:
+    title: "${spring.application.name} API Documentation" # API 文档标题，引用应用名称
+    description: "这是我的 Spring Boot 项目的 API 文档。提供所有后端接口的详细说明和测试功能。" # API 描述
+    version: "1.0.0" # API 版本
+    terms-of-service: "http://example.com/terms/" # 服务条款链接 (可选)
+    contact: # 联系信息
+      name: "您的名字"
+      url: "http://yourwebsite.com"
+      email: "youremail@example.com"
+    license: # 许可证信息
+      name: "Apache 2.0"
+      url: "http://www.apache.org/licenses/LICENSE-2.0.html"
+  external-docs: # 外部文档链接 (可选)
+    description: "更多信息请访问我们的官网"
+    url: "http://yourcompany.com"
+
+amap:
+  key: b76a53fff091a12f2807eba6b206febd

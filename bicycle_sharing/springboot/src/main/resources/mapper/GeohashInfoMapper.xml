@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.springboot.mapper.GeohashInfoMapper">
+
+    <resultMap id="GeohashInfoResultMap" type="com.example.springboot.entity.GeohashInfo">
+        <id column="geohash_area" property="geohashArea"/>
+        <result column="center_lat" property="centerLat"/>
+        <result column="center_lon" property="centerLon"/>
+        <result column="ne_lat" property="neLat"/>
+        <result column="ne_lon" property="neLon"/>
+        <result column="nw_lat" property="nwLat"/>
+        <result column="nw_lon" property="nwLon"/>
+        <result column="sw_lat" property="swLat"/>
+        <result column="sw_lon" property="swLon"/>
+        <result column="se_lat" property="seLat"/>
+        <result column="se_lon" property="seLon"/>
+    </resultMap>
+
+
+
+</mapper>

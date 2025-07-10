@@ -176,7 +176,7 @@ export default {
     // 显示单车位置
     const showBicycleMarkers = async () => {
       if (!map.value) return;
-      
+
       try {
         // 如果已经创建了标记，只需要切换显示状态
         if (bicycleMarkers.value.length > 0) {
@@ -224,18 +224,18 @@ export default {
                   <p><strong>总里程：</strong>${bike.totalMileage.toFixed(1)}km</p>
                 </div>
               `;
-              
+
               if (!infoWindow.value) {
                 infoWindow.value = new AMap.InfoWindow({
                   closeWhenClickMap: true,
                   offset: new AMap.Pixel(0, -30)
                 });
               }
-              
+
               infoWindow.value.setContent(content);
               infoWindow.value.open(map.value, marker.getPosition());
             });
-            
+
             bicycleMarkers.value.push(marker);
           });
         } else {
@@ -268,7 +268,7 @@ export default {
     // 监听 hideUI 属性变化
     watch(() => props.hideUI, (newValue) => {
       if (!map.value) return;
-      
+
       mapControls.value.forEach(control => {
         if (newValue) {
           control.hide();
@@ -300,7 +300,7 @@ export default {
     // 监听地图移动事件，更新单车数据
     const setupMapEventListeners = () => {
       if (!map.value) return;
-      
+
       // 当地图移动结束时，重新显示单车
       map.value.on('moveend', () => {
         if (props.showBicycles) {
@@ -402,7 +402,7 @@ export default {
             (area.bounds.southwest[1] + area.bounds.northeast[1]) / 2,
             (area.bounds.southwest[0] + area.bounds.northeast[0]) / 2
           ];
-          
+
           const marker = new AMap.Marker({
             position: center,
             icon: parkingIcon,
@@ -419,7 +419,7 @@ export default {
                 offset: new AMap.Pixel(0, -30)
               });
             }
-            
+
             const content = `
               <div class="parking-info">
                 <h4>${area.name}</h4>
@@ -429,7 +429,7 @@ export default {
                 <p><strong>总车位：</strong>${area.total_spots}个</p>
               </div>
             `;
-            
+
             infoWindow.value.setContent(content);
             infoWindow.value.open(map.value, marker.getPosition());
           });
@@ -442,7 +442,7 @@ export default {
                 offset: new AMap.Pixel(0, -30)
               });
             }
-            
+
             const content = `
               <div class="parking-info">
                 <h4>${area.name}</h4>
@@ -452,25 +452,25 @@ export default {
                 <p><strong>总车位：</strong>${area.total_spots}个</p>
               </div>
             `;
-            
+
             infoWindow.value.setContent(content);
             infoWindow.value.open(map.value, center);
           });
 
           // 添加多边形鼠标悬停效果
           let originalOptions = null;
-          
+
           polygon.on('mouseover', () => {
             originalOptions = {
               fillOpacity: polygon.getOptions().fillOpacity,
               strokeWeight: polygon.getOptions().strokeWeight
             };
-            
+
             polygon.setOptions({
               fillOpacity: 0.6,
               strokeWeight: 4
             });
-            
+
             marker.setzIndex(110);
           });
 
@@ -489,12 +489,12 @@ export default {
                 strokeWeight: polygon.getOptions().strokeWeight
               };
             }
-            
+
             polygon.setOptions({
               fillOpacity: 0.6,
               strokeWeight: 4
             });
-            
+
             marker.setzIndex(110);
           });
 
@@ -601,8 +601,8 @@ export default {
         icon: new AMap.Icon({
           size: new AMap.Size(25, 34),
           imageSize: new AMap.Size(25, 34),
-          image: type === 'start' ? 
-            'https://webapi.amap.com/theme/v1.3/markers/n/start.png' : 
+          image: type === 'start' ?
+            'https://webapi.amap.com/theme/v1.3/markers/n/start.png' :
             'https://webapi.amap.com/theme/v1.3/markers/n/end.png'
         }),
         offset: new AMap.Pixel(-12, -34)
@@ -659,8 +659,8 @@ export default {
 
           // 更新路线信息
           routeInfo.value = {
-            distance: result.route.distance < 1000 ? 
-              `${Math.round(result.route.distance)}米` : 
+            distance: result.route.distance < 1000 ?
+              `${Math.round(result.route.distance)}米` :
               `${(result.route.distance / 1000).toFixed(2)}公里`,
             time: Math.ceil(result.route.duration / 60)  // 转换为分钟
           };
@@ -683,7 +683,7 @@ export default {
         map.value.remove(routePath.value);
         routePath.value = null;
       }
-      
+
       // 清除路线信息
       routeInfo.value = null;
     };
@@ -695,7 +695,7 @@ export default {
         map.value.remove(routePath.value);
         routePath.value = null;
       }
-      
+
       // 清除起终点标记
       if (navigationMarkers.value.length) {
         navigationMarkers.value.forEach(marker => {
@@ -816,7 +816,7 @@ export default {
 
         // 初始化用户位置为地图中心点
         userPosition.value = [114.085947, 22.547];
-        
+
         // 创建用户位置标记
         userPositionMarker.value = new AMap.Marker({
           map: map.value,

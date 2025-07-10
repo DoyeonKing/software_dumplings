@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.springboot.mapper.DispatchTasksMapper"> <resultMap id="DispatchTasksResultMap" type="com.example.springboot.entity.DispatchTasks"> <id column="task_id" property="taskId"/>
+        <result column="start_geohash" property="startGeohash"/>
+        <result column="end_geohash" property="endGeohash"/>
+        <result column="bike_count" property="bikeCount"/>
+        <result column="assigned_to" property="assignedTo"/>
+        <result column="status" property="status"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="completed_at" property="completedAt"/>
+    </resultMap>
+
+    </mapper>
