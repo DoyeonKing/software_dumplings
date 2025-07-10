@@ -9,15 +9,26 @@ export function getAllBicycles() {
 }
 
 // 获取地图指定区域内的单车
-export function getMapAreaBicycles(bounds) {
+export function getMapAreaBicycles(params) {
   return request({
-    url: '/bicycle/area_list',
+    url: '/bikes/viewport',
     method: 'get',
     params: {
-      minLat: bounds.minLat,
-      maxLat: bounds.maxLat,
-      minLng: bounds.minLng,
-      maxLng: bounds.maxLng
+      minLat: params.minLat,
+      maxLat: params.maxLat,
+      minLon: params.minLng,
+      maxLon: params.maxLng,
+      bikeStatus: params.bikeStatus
     }
   })
+}
+
+// 获取单车详细信息
+export function getBikeDetails(bikeId) {
+  return request({
+    url: `/bikes/${bikeId}/details`,
+    method: 'get'
+  })
 } 
+
+
