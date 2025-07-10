@@ -1,5 +1,12 @@
 <template>
   <div class="login-container">
+    <!-- API测试按钮 -->
+    <div class="api-test-link">
+      <el-button type="primary" link @click="router.push('/api-test')">
+        API测试页面
+      </el-button>
+    </div>
+
     <div class="login-content">
       <div class="left-section">
         <div class="title-container">
@@ -115,6 +122,7 @@ const handleLogin = () => {
 
 <style scoped>
 .login-container {
+  position: relative;  /* 添加相对定位 */
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -344,6 +352,13 @@ input:focus {
   margin-bottom: 16px;
   font-size: 14px;
   text-align: center;
+}
+
+.api-test-link {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 100;
 }
 
 @media (max-width: 1200px) {
