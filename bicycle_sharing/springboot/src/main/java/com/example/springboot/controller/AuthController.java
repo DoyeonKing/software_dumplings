@@ -31,7 +31,7 @@ public class AuthController {
     /**
      * 统一的登录接口，根据角色分发到不同的Service处理
      * @param loginRequest 包含用户名、密码和角色
-     * @return 登录结果（包含用户或工作人员信息）
+     * @return 登录结果（包含用户或工作人员信息及Token）
      */
     @PostMapping("/login")
     public Result login(@RequestBody LoginRequest loginRequest) {
@@ -40,27 +40,26 @@ public class AuthController {
             Object loggedInEntity = null; // 用于存储登录成功后的 User 或 Staff 对象
 
             if ("user".equalsIgnoreCase(role)) {
-                // 调用 User Service 处理用户登录
+                // 调用 User Service 处理用户登录，返回 LoginResponse
                 loggedInEntity = userService.login(loginRequest);
             } else if ("admin".equalsIgnoreCase(role) || "worker".equalsIgnoreCase(role)) {
                 // 调用 Staff Service 处理管理员/工作人员登录
                 // 注意：StaffService.login 方法的实现由负责 Admin/Worker 的同事完成
+                // 假设 StaffService.login 也返回 LoginResponse
                 loggedInEntity = staffService.login(loginRequest);
             } else {
                 throw new CustomException("无效的角色类型: " + role, "400");
             }
 
-            return Result.success(loggedInEntity);
+            return Result.success(loggedInEntity); // 返回 LoginResponse 或其他包含Token的对象
 
         } catch (CustomException e) {
             return Result.error(e.getCode(), e.getMsg());
         } catch (Exception e) {
-            // 记录详细异常日志
             e.printStackTrace();
             return Result.error("500", "登录失败: " + e.getMessage());
         }
     }
-
     /**
      * 统一的注册接口，根据角色分发到不同的Service处理
      * @param registerRequest 包含用户名、手机号、密码和角色
