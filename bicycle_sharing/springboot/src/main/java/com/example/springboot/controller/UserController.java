@@ -48,33 +48,4 @@ public class UserController {
         }
     }
 
-    /**
-     * 用户登录接口
-     * 请求方式: POST
-     * 请求路径: /user/login
-     * 请求体: JSON格式的User对象 (至少包含 username 或 phoneNumber, 以及 passwordHash)
-     * 响应: Result对象，包含登录结果信息和登录成功的用户信息
-     */
-    @PostMapping("/login")
-    public Result login(@RequestBody User user) {
-        try {
-            // 调用Service层进行用户登录业务逻辑
-            User loggedInUser = userService.login(user);
-            // 登录成功，返回成功的Result，并附带登录后的用户信息（不含密码）
-            // 在实际项目中，这里可能会生成并返回JWT Token等，以供后续认证使用
-            // 注意：你提供的Result.success(Object data)方法默认msg是"请求成功"
-            return Result.success(loggedInUser);
-        } catch (CustomException e) {
-            // 捕获Service层抛出的自定义业务异常
-            // 注意：你提供的Result.error(String code, String msg)方法
-            return Result.error(e.getCode(), e.getMessage());
-        } catch (Exception e) {
-            // 捕获其他未知异常
-            e.printStackTrace();
-            // 注意：你提供的Result.error(String code, String msg)方法
-            return Result.error("500", "登录失败，服务器内部错误：" + e.getMessage());
-        }
-    }
-
-    // 你可以在此控制器中继续添加其他用户相关的API
 }

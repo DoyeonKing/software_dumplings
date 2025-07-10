@@ -26,7 +26,7 @@
 # 忽略前端项目的依赖和构建产物
 # ===================================================================
 # 忽略项目根目录下的 node_modules 文件夹 (对应你的第一张图)
-/node_modules/
+/bicycle_sharing/node_modules/
 
 # 忽略 bicycle_sharing/vue 目录下的 node_modules 文件夹 (对应你的第三张图)
 /bicycle_sharing/vue/node_modules/
