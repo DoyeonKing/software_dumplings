@@ -22,59 +22,5 @@ public class UserController {
     @Resource // 注入IUserService接口的实现类 (Spring会自动找到UserServiceImpl)
     private IUserService userService;
 
-    /**
-     * 用户注册接口
-     * 请求方式: POST
-     * 请求路径: /user/register
-     * 请求体: JSON格式的User对象 (至少包含 username, passwordHash, phoneNumber)
-     * 响应: Result对象，包含注册结果信息
-     */
-    @PostMapping("/register")
-    public Result register(@RequestBody User user) {
-        try {
-            // 调用Service层进行用户注册业务逻辑
-            User registeredUser = userService.register(user);
-            // 注册成功，返回成功的Result，并附带注册后的用户信息（不含密码）
-            // 注意：你提供的Result.success(Object data)方法默认msg是"请求成功"
-            return Result.success(registeredUser);
-        } catch (CustomException e) {
-            // 捕获Service层抛出的自定义业务异常，并返回带有特定错误码和消息的Result
-            return Result.error(e.getCode(), e.getMessage());
-        } catch (Exception e) {
-            // 捕获其他未知异常，返回通用错误信息
-            e.printStackTrace(); // 在生产环境中可能需要更详细的日志记录
-            // 注意：你提供的Result.error(String code, String msg)方法
-            return Result.error("500", "注册失败，服务器内部错误：" + e.getMessage());
-        }
-    }
 
-    /**
-     * 用户登录接口
-     * 请求方式: POST
-     * 请求路径: /user/login
-     * 请求体: JSON格式的User对象 (至少包含 username 或 phoneNumber, 以及 passwordHash)
-     * 响应: Result对象，包含登录结果信息和登录成功的用户信息
-     */
-    @PostMapping("/login")
-    public Result login(@RequestBody User user) {
-        try {
-            // 调用Service层进行用户登录业务逻辑
-            User loggedInUser = userService.login(user);
-            // 登录成功，返回成功的Result，并附带登录后的用户信息（不含密码）
-            // 在实际项目中，这里可能会生成并返回JWT Token等，以供后续认证使用
-            // 注意：你提供的Result.success(Object data)方法默认msg是"请求成功"
-            return Result.success(loggedInUser);
-        } catch (CustomException e) {
-            // 捕获Service层抛出的自定义业务异常
-            // 注意：你提供的Result.error(String code, String msg)方法
-            return Result.error(e.getCode(), e.getMessage());
-        } catch (Exception e) {
-            // 捕获其他未知异常
-            e.printStackTrace();
-            // 注意：你提供的Result.error(String code, String msg)方法
-            return Result.error("500", "登录失败，服务器内部错误：" + e.getMessage());
-        }
-    }
-
-    // 你可以在此控制器中继续添加其他用户相关的API
 }
