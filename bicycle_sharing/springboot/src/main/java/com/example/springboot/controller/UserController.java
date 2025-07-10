@@ -6,6 +6,7 @@ import com.example.springboot.entity.User; // 导入实体类
 import com.example.springboot.exception.CustomException; // 导入自定义异常
 import com.example.springboot.service.Interface.IUserService; // 导入Service接口
 import com.github.pagehelper.PageInfo; // 导入分页PageInfo (如果需要)
+import com.util.JwtTokenUtil;
 import jakarta.annotation.Resource; // 导入Resource注解
 import org.springframework.web.bind.annotation.*; // 导入Spring Web注解
 
@@ -30,9 +31,9 @@ public class UserController {
  * @return 统一响应结果，包含用户个人信息（已脱敏）
  */
 @GetMapping("/profile")
-public Result getUserProfile(@RequestHeader("Authorization") String token) { // 假设通过Header传递Token
-    // TODO: 从Token中解析出用户ID
-    String userId = "parsedUserIdFromToken"; // 占位符，需要实际解析逻辑
+public Result getUserProfile(@RequestHeader("Authorization") String token) {
+    // 从 Token 中解析出用户ID
+    String userId = getUserIdFromToken(token); // 调用辅助方法解析 Token
     try {
         User userProfile = userService.getUserProfile(userId);
         return Result.success(userProfile);
@@ -53,8 +54,8 @@ public Result getUserProfile(@RequestHeader("Authorization") String token) { // 
  */
 @PutMapping("/profile")
 public Result updateUserProfile(@RequestHeader("Authorization") String token, @RequestBody User user) {
-    // TODO: 从Token中解析出用户ID，并设置到 user 对象中，确保更新的是当前用户
-    String userId = "parsedUserIdFromToken"; // 占位符
+    // 从 Token 中解析出用户ID，并设置到 user 对象中，确保更新的是当前用户
+    String userId = getUserIdFromToken(token); // 调用辅助方法解析 Token
     user.setUserid(userId); // 确保 user 对象的 userid 被设置
     try {
         userService.updateUserProfile(user);
@@ -76,8 +77,8 @@ public Result updateUserProfile(@RequestHeader("Authorization") String token, @R
  */
 @PostMapping("/change-password")
 public Result changePassword(@RequestHeader("Authorization") String token, @RequestBody ChangePasswordRequest request) {
-    // TODO: 从Token中解析出用户ID
-    String userId = "parsedUserIdFromToken"; // 占位符
+    // 从 Token 中解析出用户ID
+    String userId = getUserIdFromToken(token); // 调用辅助方法解析 Token
     try {
         // 校验新密码和确认新密码是否一致 (前端已做，后端可再次校验)
         if (!request.getNewPassword().equals(request.getConfirmNewPassword())) {
@@ -92,4 +93,30 @@ public Result changePassword(@RequestHeader("Authorization") String token, @Requ
         return Result.error("500", "修改密码失败: " + e.getMessage());
     }
 }
+
+/**
+ * 辅助方法：从 Authorization 头中提取 Token 并解析出用户ID
+ * @param authorizationHeader Authorization 请求头的值 (例如 "Bearer <token>")
+ * @return 解析出的用户ID
+ * @throws CustomException 如果 Token 无效或解析失败
+ */
+private String getUserIdFromToken(String authorizationHeader) {
+    if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+        throw new CustomException("认证失败：缺少Bearer Token", "401");
+    }
+    String token = authorizationHeader.substring(7); // 提取 "Bearer " 后的 Token 字符串
+    try {
+        // 验证 Token 是否有效且未过期
+        // 注意：这里只验证了 Token 结构和签名，实际生产环境还需要更复杂的验证逻辑，
+        // 例如 Token 是否在黑名单中，或者是否与数据库中的用户状态匹配。
+        String userId = JwtTokenUtil.getUserIdFromToken(token);
+        if (!JwtTokenUtil.validateToken(token, userId)) { // 再次验证 Token 的有效性
+            throw new CustomException("认证失败：Token无效或已过期", "401");
+        }
+        return userId;
+    } catch (Exception e) {
+        throw new CustomException("认证失败：Token解析异常或无效: " + e.getMessage(), "401");
+    }
+}
+
 }

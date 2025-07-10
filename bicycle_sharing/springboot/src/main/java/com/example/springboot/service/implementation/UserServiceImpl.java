@@ -3,10 +3,12 @@ package com.example.springboot.service.implementation;
 import cn.hutool.crypto.SecureUtil;
 import com.example.springboot.common.request.LoginRequest;
 import com.example.springboot.common.request.RegisterRequest;
+import com.example.springboot.common.response.LoginResponse;
 import com.example.springboot.entity.User;
 import com.example.springboot.exception.CustomException;
 import com.example.springboot.mapper.UserMapper;
 import com.example.springboot.service.Interface.IUserService;
+import com.util.JwtTokenUtil;
 import jakarta.annotation.Resource;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder; // 导入密码编码器
 import org.springframework.stereotype.Service;
@@ -23,14 +25,14 @@ public class UserServiceImpl implements IUserService {
     @Resource
     private BCryptPasswordEncoder bCryptPasswordEncoder; // 注入密码编码器
 
-   /**
+    /**
      * 处理普通用户登录逻辑
      * @param loginRequest 登录请求 DTO
-     * @return 登录成功的用户对象（已脱敏）
+     * @return 登录成功的用户响应对象（包含用户信息和Token）
      * @throws CustomException 如果登录失败（如用户名密码错误）
      */
     @Override
-    public User login(LoginRequest loginRequest) {
+    public LoginResponse login(LoginRequest loginRequest) { // 返回类型改为 LoginResponse
         // 1. 根据用户名查询用户
         User dbUser = userMapper.findByUsername(loginRequest.getUsername());
         if (dbUser == null) {
@@ -38,14 +40,18 @@ public class UserServiceImpl implements IUserService {
         }
 
         // 2. 密码比对：使用 SHA256 对输入的明文密码进行哈希，然后与数据库中的哈希值比对
-        String inputHashedPassword = SecureUtil.sha256(loginRequest.getPassword()); // 使用 Hutool 的 SHA256
+        String inputHashedPassword = SecureUtil.sha256(loginRequest.getPassword());
         if (!inputHashedPassword.equals(dbUser.getPasswordHash())) {
             throw new CustomException("用户名或密码错误", "401");
         }
 
-        // 3. 返回脱敏后的 User 对象 (不包含密码哈希)
-        dbUser.setPasswordHash(null);
-        return dbUser;
+        // 3. 登录成功，生成 JWT Token
+        // 假设 user 表中没有 role 字段，这里默认给 "user" 角色
+        String token = JwtTokenUtil.generateToken(dbUser.getUserid(), dbUser.getUsername(), "user");
+
+        // 4. 返回脱敏后的 User 对象和 Token
+        dbUser.setPasswordHash(null); // 脱敏
+        return new LoginResponse(dbUser, token); // 返回 LoginResponse 对象
     }
 
     /**
