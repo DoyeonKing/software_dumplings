@@ -20,5 +20,14 @@
         VALUES (#{username}, #{passwordHash}, #{staffType})
     </insert>
 
+    <update id="update">
+        UPDATE staff
+        <set>
+            <if test="username != null">username = #{username},</if>
+            <if test="passwordHash != null">password_hash = #{passwordHash},</if>
+            <if test="staffType != null">staff_type = #{staffType},</if>
+        </set>
+        WHERE staff_id = #{staffId}
+    </update>
 
     </mapper>

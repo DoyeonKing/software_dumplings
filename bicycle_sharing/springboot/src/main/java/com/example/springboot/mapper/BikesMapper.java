@@ -3,6 +3,7 @@ package com.example.springboot.mapper;
 import com.example.springboot.entity.Bikes;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -13,6 +14,34 @@ import java.util.List;
  */
 @Mapper // 标记这是一个MyBatis Mapper接口
 public interface BikesMapper { // 接口名与实体类名保持一致，改为BikesMapper
+    /**
+     * 根据 geohash统计自行车数量。
+     */
+    @Select("SELECT COUNT(*) FROM bikes WHERE current_geohash = #{currentGeohash}")
+    int countAllByCurrentGeohash(@Param("currentGeohash") String currentGeohash);
+
+    /**
+     * 根据 geohash 和车辆状态统计自行车数量。
+     * 注意：Bikes实体中的bikeStatus现在是String类型，Mapper方法参数也应为String。
+     */
+    @Select("SELECT COUNT(*) FROM bikes WHERE current_geohash = #{currentGeohash} AND bike_status = #{bikeStatus}")
+    int countByCurrentGeohashAndBikeStatus(@Param("currentGeohash") String currentGeohash, @Param("bikeStatus") String bikeStatus);
+
+    /**
+     * 获取所有车辆的总数
+     * @return 车辆总数
+     */
+    @Select("SELECT COUNT(*) FROM bikes")
+    int countAllBikes();
+
+    /**
+     * 根据车辆状态获取车辆数量
+     * @param status 车辆状态，如 '使用中', '待使用'
+     * @return 对应状态的车辆数量
+     */
+    @Select("SELECT COUNT(*) FROM bikes WHERE bike_status = #{status}")
+    int countByStatus(@Param("status") String status);
+
 
     /**
      * 根据单车ID查询单车信息
@@ -52,5 +81,6 @@ List<Bikes> findInViewport(
         @Param("minLon") BigDecimal minLon,
         @Param("maxLon") BigDecimal maxLon,
         @Param("bikeStatus") String bikeStatus); // 新增方法
+
 
 }

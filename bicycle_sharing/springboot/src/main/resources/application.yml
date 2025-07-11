@@ -48,3 +48,7 @@ springdoc:
 
 amap:
   key: b76a53fff091a12f2807eba6b206febd
+
+# 新增JWT配置
+jwt:
+  secret: "a2FzZGg4M2pkaGZnOTg0MzVoZ2tqZmQ5ODIzcmZrZGpoZ2ZkaG9pMzQ5ODVoZ2tmZGhqZ2ZkaGZnZGZnCg=="

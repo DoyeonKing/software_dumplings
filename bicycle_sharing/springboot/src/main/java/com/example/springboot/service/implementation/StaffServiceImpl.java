@@ -3,12 +3,15 @@ package com.example.springboot.service.implementation;
 import cn.hutool.crypto.SecureUtil;
 import com.example.springboot.common.request.LoginRequest;
 import com.example.springboot.common.request.RegisterRequest;
+import com.example.springboot.common.response.LoginResponse;
 import com.example.springboot.entity.Staff;
 import com.example.springboot.exception.CustomException;
 import com.example.springboot.mapper.StaffMapper;
 import com.example.springboot.service.Interface.IStaffService;
+import com.example.springboot.util.JwtTokenUtil;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
+import java.util.List;
 
 @Service
 public class StaffServiceImpl implements IStaffService {
@@ -16,14 +19,17 @@ public class StaffServiceImpl implements IStaffService {
     @Resource
     private StaffMapper staffMapper;
 
+    @Resource
+    private JwtTokenUtil jwtTokenUtil;
+
     /**
      * 处理工作人员登录逻辑
      * @param loginRequest 登录请求 DTO
-     * @return 登录成功的工作人员对象（已脱敏）
+     * @return 登录成功的响应对象（包含工作人员信息和Token）
      * @throws CustomException 如果登录失败（如用户名密码错误）
      */
     @Override
-    public Staff login(LoginRequest loginRequest) {
+    public Object login(LoginRequest loginRequest) {
         // 1. 根据用户名查询工作人员
         Staff dbStaff = staffMapper.findByUsername(loginRequest.getUsername());
         if (dbStaff == null) {
@@ -36,9 +42,13 @@ public class StaffServiceImpl implements IStaffService {
             throw new CustomException("用户名或密码错误", "401");
         }
 
-        // 3. 返回脱敏后的 Staff 对象 (不包含密码哈希)
+        // 3. 登录成功，生成 JWT Token
+        String token = jwtTokenUtil.generateToken(String.valueOf(dbStaff.getStaffId()), dbStaff.getUsername(), dbStaff.getStaffType());
+
+        // 4. 返回脱敏后的 Staff 对象和 Token
         dbStaff.setPasswordHash(null);
-        return dbStaff;
+        // 注意：这里的LoginResponse第一个参数传null，因为用户信息在dbStaff对象中，可以根据前端需要调整
+        return new LoginResponse(null, token);
     }
 
     /**
@@ -89,5 +99,10 @@ public class StaffServiceImpl implements IStaffService {
     @Override
     public Staff findByUsername(String username) {
         return staffMapper.selectByUsername(username);
+    }
+
+    @Override
+    public List<Staff> getAllWorkers() {
+        return staffMapper.findAllWorkers();
     }
 }
