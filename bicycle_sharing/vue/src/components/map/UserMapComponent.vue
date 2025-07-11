@@ -8,6 +8,17 @@
 <template>
   <div class="map-container">
     <div id="map"></div>
+    <!-- 定位按钮 -->
+    <div class="location-button" @click="setUserPosition" :class="{ hidden: hideUI }">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.94 11A8 8 0 0 0 13 4.06"></path>
+        <path d="M12 2v2"></path>
+        <path d="M12 20v2"></path>
+        <path d="M4.06 11a8 8 0 0 0 0 2"></path>
+        <path d="M20 12a8 8 0 0 1-.06 1"></path>
+      </svg>
+    </div>
     <!-- 导航控制面板 -->
     <div v-if="showNavigation" class="navigation-panel" :class="{ hidden: hideUI }">
       <div class="panel-header">
@@ -68,8 +79,9 @@
 import { onMounted, ref, onUnmounted, watch } from 'vue';
 import AMapLoader from '@amap/amap-jsapi-loader';
 // 导入单车数据API
-import { getAllBicycles } from '@/api/map/bicycle';
+import { getMapAreaBicycles } from '@/api/map/bicycle';
 import { getAllParkingAreas } from '@/api/map/parking';
+import { getHeatMapData } from '@/api/map/heat';
 import { ElMessage } from 'element-plus';
 import { getRidingRoute } from '@/utils/amap';
 
@@ -120,6 +132,10 @@ export default {
     showNavigation: {
       type: Boolean,
       default: false
+    },
+    showHeatmap: {
+      type: Boolean,
+      default: false
     }
   },
   setup(props, { emit }) {
@@ -133,6 +149,7 @@ export default {
     const parkingAreas = ref([]);
     const parkingPolygons = ref([]);
     const parkingMarkers = ref([]); // 存储停车场图标标记
+    const heatmap = ref(null); // 热力图实例
 
     // 导航相关的状态
     const startPoint = ref(null);
@@ -148,6 +165,8 @@ export default {
     const userPositionMarker = ref(null);  // 用户位置标记
     const isSettingUserPosition = ref(false);  // 是否正在设置用户位置
 
+
+
     // 地图样式映射
     const styleMapping = {
       normal: 'amap://styles/normal',
@@ -158,14 +177,31 @@ export default {
       grey: 'amap://styles/grey'
     };
 
-    // 获取单车数据（直接使用模拟数据）
+    // 获取单车数据
     const fetchBicyclesData = async () => {
       try {
-        // 如果已经加载过数据，直接返回
-        if (bicyclesData.value.length > 0) {
+        if (!props.showBicycles) {
+          // 清除现有标记
+          bicycleMarkers.value.forEach(marker => {
+            if (marker && typeof marker.setMap === 'function') {
+              marker.setMap(null);
+            }
+          });
+          bicycleMarkers.value = [];
           return;
         }
-        const response = await getAllBicycles();
+
+        // 获取当前地图边界
+        const bounds = map.value.getBounds();
+        const params = {
+          minLat: bounds.getSouthWest().lat,
+          maxLat: bounds.getNorthEast().lat,
+          minLng: bounds.getSouthWest().lng,
+          maxLng: bounds.getNorthEast().lng
+        };
+
+        // 获取区域内的单车
+        const response = await getMapAreaBicycles(params);
         bicyclesData.value = response.data;
       } catch (error) {
         console.error('获取单车数据失败：', error);
@@ -173,18 +209,103 @@ export default {
       }
     };
 
+    // 初始化热力图
+    const initHeatmap = async () => {
+      if (!map.value) return;
+
+      try {
+        if (!heatmap.value) {
+          // 先加载插件
+          await AMapLoader.load({
+            key: '7a9ebfd8db9264a7f90b65369bd2970a',
+            version: '2.0',
+            plugins: ['AMap.HeatMap']
+          });
+
+          // 确保地图实例存在
+          if (!map.value) return;
+
+          // 创建热力图实例
+          heatmap.value = new window.AMap.HeatMap(map.value, {
+            radius: 30, // 增加热力图的半径
+            opacity: [0, 0.8],
+            gradient: {
+              0.4: 'rgb(0, 255, 255)',
+              0.65: 'rgb(0, 255, 0)',
+              0.85: 'rgb(255, 255, 0)',
+              1.0: 'rgb(255, 0, 0)'
+            },
+            zooms: [1, 20], // 支持的缩放级别范围
+            visible: true
+          });
+        }
+
+        // 获取并设置热力图数据
+        try {
+          const response = await getHeatMapData();
+          if (response.code === 200 && Array.isArray(response.data)) {
+            heatmap.value.setDataSet({
+              data: response.data,
+              max: 100 // 最大权重值
+            });
+
+            // 初始时隐藏热力图
+            heatmap.value.hide();
+            
+            // 只有在props.showHeatmap为true时才显示
+            if (props.showHeatmap) {
+              heatmap.value.show();
+            }
+            console.log('热力图数据已更新，数据点数：', response.data.length);
+          } else {
+            console.error('获取热力图数据格式错误：', response);
+            ElMessage.error('获取热力图数据格式错误');
+          }
+        } catch (error) {
+          console.error('获取热力图数据失败：', error);
+          ElMessage.error('获取热力图数据失败');
+        }
+      } catch (error) {
+        console.error('初始化热力图失败：', error);
+        ElMessage.error('初始化热力图失败');
+      }
+    };
+
+    // 监听热力图显示状态
+    watch(() => props.showHeatmap, async (newVal) => {
+      if (!map.value) return;
+
+      if (newVal) {
+        // 如果开启热力图，确保已初始化并显示
+        await initHeatmap();
+        if (heatmap.value) {
+          heatmap.value.show();
+        }
+      } else if (heatmap.value) {
+        // 如果关闭热力图，隐藏热力图层
+        heatmap.value.hide();
+      }
+    });
+
     // 显示单车位置
     const showBicycleMarkers = async () => {
       if (!map.value) return;
 
       try {
-        // 如果已经创建了标记，只需要切换显示状态
-        if (bicycleMarkers.value.length > 0) {
-          bicycleMarkers.value.forEach(marker => {
-            marker.setMap(props.showBicycles ? map.value : null);
-          });
-          return;
+        // 确保 bicycleMarkers.value 是数组
+        if (!Array.isArray(bicycleMarkers.value)) {
+          bicycleMarkers.value = [];
         }
+
+        // 清除现有标记
+        bicycleMarkers.value.forEach(marker => {
+          if (marker && typeof marker.setMap === 'function') {
+            marker.setMap(null);
+          }
+        });
+        bicycleMarkers.value = [];
+
+        if (!props.showBicycles) return;
 
         // 获取数据
         await fetchBicyclesData();
@@ -201,50 +322,42 @@ export default {
           imageSize: new AMap.Size(32, 32)
         });
 
-        // 为每个单车创建标记
-        if (bicyclesData.value && bicyclesData.value.length > 0) {
-          bicyclesData.value.forEach(bike => {
+        // 创建标记
+        if (Array.isArray(bicyclesData.value)) {
+          bicyclesData.value.forEach(bicycle => {
             const marker = new AMap.Marker({
-              position: bike.location,
+              position: [bicycle.currentLon, bicycle.currentLat],
               icon: icon,
-              title: `单车编号: ${bike.id}`,
-              offset: new AMap.Pixel(-16, -16),
-              map: props.showBicycles ? map.value : null  // 根据当前显示状态决定是否添加到地图
+              map: map.value,
+              title: `单车 #${bicycle.bikeId}`
             });
 
             // 添加点击事件
             marker.on('click', () => {
-              const content = `
-                <div class="bicycle-info">
-                  <h4>单车信息</h4>
-                  <p><strong>编号：</strong>${bike.id}</p>
-                  <p><strong>状态：</strong>${statusText[bike.status]}</p>
-                  <p><strong>电量：</strong>${bike.battery}%</p>
-                  <p><strong>最后使用：</strong>${bike.lastUsed}</p>
-                  <p><strong>总里程：</strong>${bike.totalMileage.toFixed(1)}km</p>
-                </div>
-              `;
-
-              if (!infoWindow.value) {
-                infoWindow.value = new AMap.InfoWindow({
-                  closeWhenClickMap: true,
-                  offset: new AMap.Pixel(0, -30)
-                });
+              if (infoWindow.value) {
+                infoWindow.value.close();
               }
 
-              infoWindow.value.setContent(content);
+              infoWindow.value = new AMap.InfoWindow({
+                content: `
+                  <div class="info-window">
+                    <h4>单车 #${bicycle.bikeId}</h4>
+                    <p>状态: ${statusText[bicycle.bikeStatus] || bicycle.bikeStatus}</p>
+                    <p>最后更新: ${bicycle.lastUpdatedTime}</p>
+                  </div>
+                `,
+                offset: new AMap.Pixel(0, -30)
+              });
+
               infoWindow.value.open(map.value, marker.getPosition());
             });
 
             bicycleMarkers.value.push(marker);
           });
-        } else {
-          console.error('没有可用的单车数据');
-          ElMessage.warning('没有可用的单车数据');
         }
       } catch (error) {
-        console.error('加载单车标记失败：', error);
-        ElMessage.error('加载单车标记失败');
+        console.error('显示单车位置失败：', error);
+        ElMessage.error('显示单车位置失败');
       }
     };
 
@@ -536,156 +649,137 @@ export default {
       }
     });
 
-    // 处理地图点击事件
-    const handleMapClick = (e) => {
-      const clickPosition = [e.lnglat.getLng(), e.lnglat.getLat()];
-
-      if (isSettingUserPosition.value) {
-        // 更新用户位置
-        userPosition.value = clickPosition;
-        userPositionMarker.value.setPosition(clickPosition);
-        isSettingUserPosition.value = false;
-        map.value.setDefaultCursor('');
-        ElMessage.success('已更新当前位置');
-        return;
-      }
-
-      if (isSelectingStart.value) {
-        startPoint.value = clickPosition;
-        addNavigationMarker('start', clickPosition);
-        isSelectingStart.value = false;
-        map.value.setDefaultCursor('');
-        ElMessage.success('已选择起点');
-      } else if (isSelectingEnd.value) {
-        endPoint.value = clickPosition;
-        addNavigationMarker('end', clickPosition);
-        isSelectingEnd.value = false;
-        map.value.setDefaultCursor('');
-        ElMessage.success('已选择终点');
-      }
-    };
-
-    // 开始选择点位
-    const startSelectingPoint = (type) => {
-      if (type === 'start') {
-        isSelectingStart.value = true;
-        isSelectingEnd.value = false;
-        isSettingUserPosition.value = false;
-        map.value.setDefaultCursor('crosshair');
-        ElMessage.info('请在地图上点击选择起点');
-      } else {
-        isSelectingEnd.value = true;
-        isSelectingStart.value = false;
-        isSettingUserPosition.value = false;
-        map.value.setDefaultCursor('crosshair');
-        ElMessage.info('请在地图上点击选择终点');
-      }
-    };
-
-    // 添加导航标记
-    const addNavigationMarker = async (type, position) => {
-      const AMap = await AMapLoader.load({
-        key: '7a9ebfd8db9264a7f90b65369bd2970a',
-        version: '2.0'
-      });
-
-      // 移除之前的标记
-      const index = type === 'start' ? 0 : 1;
-      if (navigationMarkers.value[index]) {
-        map.value.remove(navigationMarkers.value[index]);
-      }
-
-      // 创建新标记
-      const marker = new AMap.Marker({
-        position: position,
-        icon: new AMap.Icon({
-          size: new AMap.Size(25, 34),
-          imageSize: new AMap.Size(25, 34),
-          image: type === 'start' ?
-            'https://webapi.amap.com/theme/v1.3/markers/n/start.png' :
-            'https://webapi.amap.com/theme/v1.3/markers/n/end.png'
-        }),
-        offset: new AMap.Pixel(-12, -34)
-      });
-
-      navigationMarkers.value[index] = marker;
-      map.value.add(marker);
-    };
-
-    // 计算路线
+    // 计算导航路线
     const calculateRoute = async () => {
       if (!startPoint.value || !endPoint.value) {
         ElMessage.warning('请先选择起点和终点');
         return;
       }
 
-      // 保存坐标点
-      const start = [...startPoint.value];
-      const end = [...endPoint.value];
+      console.log('开始计算路线');
+      console.log('起点:', startPoint.value);
+      console.log('终点:', endPoint.value);
+
+      // 验证坐标值是否有效
+      if (!isValidCoordinate(startPoint.value)) {
+        console.error('起点坐标无效');
+        ElMessage.error('起点坐标无效，请重新选择');
+        return;
+      }
+
+      if (!isValidCoordinate(endPoint.value)) {
+        console.error('终点坐标无效');
+        ElMessage.error('终点坐标无效，请重新选择');
+        return;
+      }
 
       try {
-        // 清除之前的路线
+        // 确保先完全清除之前的路线
         clearRoute();
 
-        // 恢复坐标点
-        startPoint.value = start;
-        endPoint.value = end;
+        // 准备起点和终点坐标数组
+        const start = [startPoint.value.lng, startPoint.value.lat];
+        const end = [endPoint.value.lng, endPoint.value.lat];
 
-        // 获取路线规划
+        // 调用封装好的路径规划服务
         const result = await getRidingRoute(start, end);
+        console.log('路径规划结果:', result);
 
-        if (result.status === 'complete') {
-          // 显示路线
-          const AMap = await AMapLoader.load({
-            key: '7a9ebfd8db9264a7f90b65369bd2970a',
-            version: '2.0'
-          });
-
-          // 创建路线折线
-          routePath.value = new AMap.Polyline({
-            path: result.route.polyline,
-            strokeColor: '#3366FF',
-            strokeWeight: 6,
-            strokeOpacity: 0.8,
-            showDir: true,  // 显示方向
-            dirColor: '#3366FF'  // 方向箭头颜色
-          });
-
-          // 添加到地图
-          map.value.add(routePath.value);
-
-          // 自动调整视野以显示整条路线
-          map.value.setFitView([routePath.value]);
-
+        if (result.status === 'complete' && result.route) {
           // 更新路线信息
           routeInfo.value = {
-            distance: result.route.distance < 1000 ?
-              `${Math.round(result.route.distance)}米` :
-              `${(result.route.distance / 1000).toFixed(2)}公里`,
-            time: Math.ceil(result.route.duration / 60)  // 转换为分钟
+            distance: (result.route.distance / 1000).toFixed(1) + 'km',
+            time: Math.ceil(result.route.duration / 60)
           };
 
-          ElMessage.success('路线规划成功');
+          // 重新初始化地图API用于显示路线
+          const AMap = await AMapLoader.load({
+            key: '7a9ebfd8db9264a7f90b65369bd2970a',  // 使用Web端Key显示地图
+            version: '2.0',
+            plugins: ['AMap.Riding']
+          });
+
+          // 创建路线点数组
+          const pathPoints = result.route.polyline.map(point => 
+            new AMap.LngLat(point[0], point[1])
+          );
+
+          // 创建或更新路线折线
+          if (navigationPolyline.value) {
+            navigationPolyline.value.setPath(pathPoints);
+          } else {
+            navigationPolyline.value = new AMap.Polyline({
+              path: pathPoints,
+              strokeColor: '#3366FF',
+              strokeWeight: 6,
+              strokeOpacity: 0.8,
+              strokeStyle: 'solid',
+              lineJoin: 'round',
+              lineCap: 'round',
+              zIndex: 50,
+              map: map.value
+            });
+          }
+
+
+
+          // 调整地图视野以显示整个路线
+          map.value.setFitView([navigationPolyline.value]);
+
         } else {
-          console.error('路线规划失败:', result.error);
-          ElMessage.error(result.error || '路线规划失败，请重试');
+          throw new Error(result.error || '未找到合适的骑行路线');
         }
+
       } catch (error) {
-        console.error('骑行路线规划失败：', error);
-        ElMessage.error(error.message || '路线规划失败，请重试');
+        console.error('路线规划失败:', error);
+        ElMessage.error(error.message || '路线规划失败，请确保起点和终点在合理的距离范围内');
+        clearRoute();
       }
     };
 
-    // 清除路线
-    const clearRoute = () => {
-      // 清除路线
-      if (routePath.value) {
-        map.value.remove(routePath.value);
-        routePath.value = null;
+    // 验证坐标是否有效
+    const isValidCoordinate = (point) => {
+      if (!point) {
+        console.log('坐标点为空');
+        return false;
+      }
+      
+      // 打印调试信息
+      console.log('验证坐标:', point);
+      console.log('lng类型:', typeof point.lng, '值:', point.lng);
+      console.log('lat类型:', typeof point.lat, '值:', point.lat);
+
+      // 转换为数字并验证
+      const lng = Number(point.lng);
+      const lat = Number(point.lat);
+
+      if (isNaN(lng) || isNaN(lat)) {
+        console.log('坐标转换为数字后无效');
+        return false;
       }
 
-      // 清除路线信息
+      // 验证坐标范围
+      const isValid = lng >= -180 && lng <= 180 && lat >= -90 && lat <= 90;
+      console.log('坐标范围验证结果:', isValid);
+      
+      return isValid;
+    };
+
+
+
+
+
+    // 修改 clearRoute 函数
+    const clearRoute = () => {
+      if (riding.value) {
+        riding.value.clear();
+        riding.value = null;
+      }
       routeInfo.value = null;
+      if (navigationPolyline.value) {
+        navigationPolyline.value.setMap(null);
+        navigationPolyline.value = null;
+      }
     };
 
     // 完全清除导航
@@ -718,165 +812,345 @@ export default {
 
     // 取消导航
     const cancelNavigation = () => {
-      clearNavigation();
-      // 触发事件通知父组件关闭导航面板
+      clearRoute();
+      startPoint.value = null;
+      endPoint.value = null;
+      isSelectingStart.value = false;
+      isSelectingEnd.value = false;
       emit('update:showNavigation', false);
     };
 
-    // 选择当前位置作为起点
+    // 初始化地图
+    const initMap = async () => {
+      try {
+        // 处理可能的加载器冲突 - 清理之前的状态
+        const cleanupPreviousState = () => {
+          // 如果存在来自其他加载器的script，但AMap状态不完整，进行清理
+          const existingScript = document.getElementById('amap-script');
+          if (existingScript && window.AMap) {
+            // 检查AMap对象是否完整（检查必需的插件）
+            const hasRequiredPlugins = window.AMap.HeatMap && window.AMap.ControlBar;
+            if (!hasRequiredPlugins) {
+              console.log('检测到不完整的AMap状态，清理后重新加载...');
+              existingScript.remove();
+              delete window.AMap;
+              // 清理可能存在的其他相关全局变量
+              if (window.AMapUI) delete window.AMapUI;
+            }
+          }
+        };
+
+        // 先清理可能冲突的状态
+        cleanupPreviousState();
+
+        const AMap = await AMapLoader.load({
+          key: '7a9ebfd8db9264a7f90b65369bd2970a',
+          version: '2.0',
+          plugins: ['AMap.HeatMap', 'AMap.ControlBar', 'AMap.Riding']
+        });
+
+        // 验证关键插件是否正确加载
+        if (!AMap.HeatMap || !AMap.ControlBar) {
+          throw new Error('必需的地图插件未正确加载');
+        }
+
+        map.value = new AMap.Map('map', {
+          zoom: 17, // 增加初始缩放级别
+          center: [114.13, 22.55],
+          mapStyle: styleMapping[props.mapStyle] || 'amap://styles/normal',
+          zooms: [3, 20] // 设置地图缩放范围
+        });
+
+        // 添加指南针和定位按钮
+        const controlBar = new AMap.ControlBar({
+          position: {
+            right: '15px',
+            bottom: '15px'
+          },
+          showZoomBar: false, // 不显示缩放按钮
+          showControlButton: true // 显示指南针
+        });
+        map.value.addControl(controlBar);
+
+        // 调整控制栏的样式
+        setTimeout(() => {
+          const controlElements = document.querySelectorAll('.amap-control-bar');
+          controlElements.forEach(element => {
+            element.style.transform = 'scale(1.2)'; // 放大20%
+            element.style.transformOrigin = 'bottom right';
+          });
+        }, 100);
+
+        // 设置默认当前位置为地图中心
+        const mapCenter = map.value.getCenter();
+        userPosition.value = [mapCenter.getLng(), mapCenter.getLat()];
+        
+        // 创建用户位置标记
+        userPositionMarker.value = new AMap.Marker({
+          position: userPosition.value,
+          map: map.value,
+          content: `
+            <div class="user-position-marker">
+              <div class="user-position-marker-inner"></div>
+            </div>
+          `,
+          offset: new AMap.Pixel(-10, -10), // 用户位置标记居中偏移
+          zIndex: 50
+        });
+
+        // 添加用户位置标记样式
+        const markerStyle = document.createElement('style');
+        markerStyle.textContent = `
+          .user-position-marker {
+            width: 20px;
+            height: 20px;
+            position: relative;
+          }
+          .user-position-marker-inner {
+            width: 20px;
+            height: 20px;
+            background-color: #4A90E2;
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 15px rgba(74, 144, 226, 0.4), 0 0 6px rgba(0,0,0,0.3);
+            animation: pulse 2s infinite;
+          }
+          @keyframes pulse {
+            0% {
+              box-shadow: 0 0 15px rgba(74, 144, 226, 0.4), 0 0 6px rgba(0,0,0,0.3);
+            }
+            50% {
+              box-shadow: 0 0 25px rgba(74, 144, 226, 0.6), 0 0 10px rgba(0,0,0,0.5);
+            }
+            100% {
+              box-shadow: 0 0 15px rgba(74, 144, 226, 0.4), 0 0 6px rgba(0,0,0,0.3);
+            }
+          }
+        `;
+        document.head.appendChild(markerStyle);
+
+        // 初始化骑行规划实例
+        riding.value = new AMap.Riding({
+          map: map.value,
+          panel: 'panel'
+        });
+
+        // 添加地图点击事件监听
+        map.value.on('click', handleMapClick);
+
+      } catch (error) {
+        console.error('初始化地图失败：', error);
+        
+        // 更详细的错误处理和重试机制
+        if (error.message && error.message.includes('必需的地图插件未正确加载')) {
+          ElMessage.error('地图插件加载失败，请刷新页面重试');
+          console.log('建议：可能存在地图加载器冲突，请刷新页面');
+        } else if (error.message && error.message.includes('load')) {
+          // 可能是加载器冲突，尝试一次重试
+          console.log('检测到可能的加载器冲突，尝试重试...');
+          
+          setTimeout(async () => {
+            try {
+              // 强制清理所有相关状态
+              const scripts = document.querySelectorAll('script[src*="webapi.amap.com"]');
+              scripts.forEach(script => script.remove());
+              delete window.AMap;
+              delete window.AMapUI;
+              
+              // 重新初始化
+              await initMap();
+              ElMessage.success('地图重新加载成功');
+            } catch (retryError) {
+              console.error('重试失败：', retryError);
+              ElMessage.error('地图加载失败，请刷新页面重试');
+            }
+          }, 1000);
+        } else {
+          ElMessage.error('地图加载失败，请刷新页面重试');
+        }
+      }
+    };
+
+    // 处理地图点击事件
+    const handleMapClick = (e) => {
+      // 确保从事件对象中正确获取坐标
+      if (!e.lnglat) {
+        console.error('无法获取点击位置的坐标');
+        return;
+      }
+
+      // 直接使用高德地图的经纬度对象
+      const lnglat = e.lnglat;
+      console.log('点击位置坐标:', lnglat.getLng(), lnglat.getLat());
+
+      if (isSettingUserPosition.value) {
+        // 处理用户位置设置
+        const newPosition = [lnglat.getLng(), lnglat.getLat()];
+        userPosition.value = newPosition;
+        console.log('设置用户位置:', userPosition.value);
+
+        // 更新用户位置标记
+        if (userPositionMarker.value) {
+          userPositionMarker.value.setPosition(newPosition);
+        } else {
+          userPositionMarker.value = new AMap.Marker({
+            position: newPosition,
+            map: map.value,
+            content: `
+              <div class="user-position-marker">
+                <div class="user-position-marker-inner"></div>
+              </div>
+            `,
+            offset: new AMap.Pixel(-10, -10)
+          });
+        }
+
+        // 移动地图中心到新位置
+        map.value.setCenter(newPosition);
+        
+        isSettingUserPosition.value = false;
+        map.value.setDefaultCursor('');
+        ElMessage.success('用户位置已更新');
+      } else if (isSelectingStart.value) {
+        startPoint.value = {
+          lng: lnglat.getLng(),
+          lat: lnglat.getLat()
+        };
+        console.log('设置起点:', startPoint.value);
+        
+        // 添加或更新起点标记
+        if (navigationMarkers.value[0]) {
+          navigationMarkers.value[0].setPosition([startPoint.value.lng, startPoint.value.lat]);
+        } else {
+          const startMarker = new AMap.Marker({
+            position: [startPoint.value.lng, startPoint.value.lat],
+            map: map.value,
+            offset: new AMap.Pixel(-13, -34), // 确保偏移量一致
+            icon: new AMap.Icon({
+              size: new AMap.Size(25, 34),
+              imageSize: new AMap.Size(25, 34),
+              image: 'https://webapi.amap.com/theme/v1.3/markers/n/start.png'
+            })
+          });
+          navigationMarkers.value[0] = startMarker;
+        }
+        isSelectingStart.value = false;
+        map.value.setDefaultCursor('');
+      } else if (isSelectingEnd.value) {
+        endPoint.value = {
+          lng: lnglat.getLng(),
+          lat: lnglat.getLat()
+        };
+        console.log('设置终点:', endPoint.value);
+
+        // 添加或更新终点标记
+        if (navigationMarkers.value[1]) {
+          navigationMarkers.value[1].setPosition([endPoint.value.lng, endPoint.value.lat]);
+        } else {
+          const endMarker = new AMap.Marker({
+            position: [endPoint.value.lng, endPoint.value.lat],
+            map: map.value,
+            offset: new AMap.Pixel(-13, -34), // 确保偏移量一致
+            icon: new AMap.Icon({
+              size: new AMap.Size(25, 34),
+              imageSize: new AMap.Size(25, 34),
+              image: 'https://webapi.amap.com/theme/v1.3/markers/n/end.png'
+            })
+          });
+          navigationMarkers.value[1] = endMarker;
+        }
+        isSelectingEnd.value = false;
+        map.value.setDefaultCursor('');
+      }
+    };
+
+    // 修改 selectCurrentPositionAsStart 函数
     const selectCurrentPositionAsStart = () => {
       if (!userPosition.value) {
         ElMessage.warning('请先设置当前位置');
         return;
       }
-      startPoint.value = userPosition.value;
-      addNavigationMarker('start', userPosition.value);
-      ElMessage.success('已将当前位置设为起点');
-    };
 
-    // 添加样式
-    const style = document.createElement('style');
-    style.textContent = `
-      .location-button {
-        position: absolute;
-        right: 20px;
-        bottom: 140px;  /* 调整位置到指南针上方 */
-        z-index: 100;
+      // 获取用户位置标记的实际位置，确保准确性
+      const actualUserPosition = userPositionMarker.value ? 
+        userPositionMarker.value.getPosition() : userPosition.value;
+
+      // 确保位置是数组格式
+      let position;
+      if (Array.isArray(actualUserPosition)) {
+        position = actualUserPosition;
+      } else if (actualUserPosition && typeof actualUserPosition.getLng === 'function') {
+        position = [actualUserPosition.getLng(), actualUserPosition.getLat()];
+      } else if (Array.isArray(userPosition.value)) {
+        position = userPosition.value;
+      } else {
+        position = [userPosition.value.getLng(), userPosition.value.getLat()];
       }
-      .custom-button {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background-color: white;
-        border: none;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0;
-        transition: background-color 0.3s;
-      }
-      .custom-button:hover {
-        background-color: #f0f0f0;
-      }
-      .custom-button:active {
-        background-color: #e0e0e0;
-      }
-    `;
-    document.head.appendChild(style);
 
-    // 初始化地图
-    const initMap = async () => {
-      try {
-        const AMap = await AMapLoader.load({
-          key: '7a9ebfd8db9264a7f90b65369bd2970a',
-          version: '2.0',
-          plugins: [
-            'AMap.ControlBar',
-            'AMap.Scale',
-            'AMap.Riding',
-            'AMap.LngLat'
-          ],
-          securityJsCode: '1751964054605',
-          security: {
-            serviceHost: 'https://restapi.amap.com'
-          }
-        });
+      startPoint.value = {
+        lng: position[0],
+        lat: position[1]
+      };
 
-        // 创建地图实例
-        map.value = new AMap.Map('map', {
-          zoom: 13,
-          center: [114.085947, 22.547],
-          viewMode: '2D',
-          mapStyle: styleMapping[props.mapStyle]
-        });
+      console.log('使用当前位置作为起点:', startPoint.value);
+      console.log('用户位置标记位置:', actualUserPosition);
+      console.log('用户位置变量:', userPosition.value);
+      console.log('最终起点位置:', position);
 
-        // 添加指南针（放在右下角）
-        const controlBar = new AMap.ControlBar({
-          position: { bottom: '20px', right: '20px' },
-          showZoomBar: false,  // 不显示缩放按钮
-          showControlButton: true  // 显示指南针
-        });
-        map.value.addControl(controlBar);
-
-        // 添加比例尺（放在左下角）
-        const scale = new AMap.Scale({
-          position: { bottom: '20px', left: '20px' }
-        });
-        map.value.addControl(scale);
-
-        // 初始化骑行规划插件
-        riding.value = new AMap.Riding({
+      // 添加或更新起点标记
+      if (navigationMarkers.value[0]) {
+        navigationMarkers.value[0].setPosition(position);
+      } else {
+        const startMarker = new AMap.Marker({
+          position: position,
           map: map.value,
-          panel: false,  // 不使用默认面板
-          hideMarkers: false,  // 显示起终点标记
-          key: '4c4409cdbe818ceb94f8660e2e111563'  // Web服务 Key [[memory:2538380]]
-        });
-
-        // 初始化用户位置为地图中心点
-        userPosition.value = [114.085947, 22.547];
-
-        // 创建用户位置标记
-        userPositionMarker.value = new AMap.Marker({
-          map: map.value,
-          position: userPosition.value,
+          offset: new AMap.Pixel(-13, -34), // 起点标记偏移量
           icon: new AMap.Icon({
-            size: new AMap.Size(24, 24),
-            imageSize: new AMap.Size(24, 24),
-            image: 'https://webapi.amap.com/theme/v1.3/markers/n/loc.png'
-          }),
-          offset: new AMap.Pixel(-12, -12),
-          zIndex: 200
+            size: new AMap.Size(25, 34),
+            imageSize: new AMap.Size(25, 34),
+            image: 'https://webapi.amap.com/theme/v1.3/markers/n/start.png'
+          })
         });
+        navigationMarkers.value[0] = startMarker;
+      }
 
-        // 添加自定义按钮
-        const locationButton = document.createElement('div');
-        locationButton.className = 'location-button';
-        locationButton.innerHTML = `
-          <button class="custom-button" title="设置当前位置">
-            <svg viewBox="0 0 24 24" width="22" height="22">
-              <path fill="currentColor" d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
-            </svg>
-          </button>
-        `;
-        map.value.getContainer().appendChild(locationButton);
+      // 取消选点模式
+      isSelectingStart.value = false;
+      map.value.setDefaultCursor('');
+    };
 
-        // 添加按钮点击事件
-        locationButton.addEventListener('click', () => {
-          isSettingUserPosition.value = true;
-          isSelectingStart.value = false;
-          isSelectingEnd.value = false;
-          map.value.setDefaultCursor('crosshair');
-          ElMessage.info('点击地图设置当前位置');
-        });
+    // 开始选择点位
+    const startSelectingPoint = (type) => {
+      if (type === 'start') {
+        isSelectingStart.value = true;
+        isSelectingEnd.value = false;
+      } else {
+        isSelectingStart.value = false;
+        isSelectingEnd.value = true;
+      }
+      isSettingUserPosition.value = false;
+    };
 
-        // 添加地图点击事件
-        map.value.on('click', handleMapClick);
-
-        // 预加载数据但不显示
-        await Promise.all([
-          fetchBicyclesData(),
-          fetchParkingAreas()
-        ]);
-
-        // 根据初始状态显示标记
-        if (props.showBicycles) {
-          await showBicycleMarkers();
-        }
-        if (props.showParkingAreas) {
-          await showParkingAreas();
-        }
-
-      } catch (error) {
-        console.error('地图加载失败：', error);
-        ElMessage.error('地图加载失败');
+    // 设置用户位置
+    const setUserPosition = () => {
+      isSettingUserPosition.value = true;
+      isSelectingStart.value = false;
+      isSelectingEnd.value = false;
+      ElMessage.info('请在地图上点击选择您的当前位置');
+      // 改变鼠标样式以提示用户
+      if (map.value) {
+        map.value.setDefaultCursor('crosshair');
       }
     };
 
-    onMounted(() => {
+
+
+
+
+    onMounted(async () => {
       initMap().then(() => {
         setupMapEventListeners();
+        initHeatmap(); // 在地图初始化完成后初始化热力图
       });
     });
 
@@ -890,10 +1164,13 @@ export default {
       if (userPositionMarker.value) {
         map.value.remove(userPositionMarker.value);
       }
-      // 移除样式
-      if (style.parentNode) {
-        style.parentNode.removeChild(style);
-      }
+      // 清理用户位置标记样式
+      const markerStyles = document.querySelectorAll('style');
+      markerStyles.forEach(style => {
+        if (style.textContent && style.textContent.includes('user-position-marker')) {
+          style.remove();
+        }
+      });
     });
 
     return {
@@ -916,7 +1193,8 @@ export default {
       isSelectingEnd,
       routeInfo,
       selectCurrentPositionAsStart,
-      userPosition
+      userPosition,
+      setUserPosition
     };
   }
 }
@@ -1044,5 +1322,36 @@ export default {
 
 :deep(.parking-info strong) {
   color: #333;
+}
+
+.location-button {
+  position: absolute;
+  right: 15px;
+  bottom: 130px;  /* 位于指南针上方，增加间距 */
+  width: 40px;
+  height: 40px;
+  background: white;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  transition: all 0.3s ease;
+}
+
+.location-button:hover {
+  background: #f5f5f5;
+}
+
+.location-button.hidden {
+  display: none;
+}
+
+.location-button svg {
+  color: #666;
+  width: 24px;
+  height: 24px;
 }
 </style> 

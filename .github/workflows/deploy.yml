@@ -1,90 +1,67 @@
-name: Deploy to Huawei Cloud (Password Auth Only)
-
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
 
 jobs:
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      frontend: ${{ steps.filter.outputs.frontend }}
-      backend: ${{ steps.filter.outputs.backend }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Detect changed files
-        uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            frontend:
-              - 'vue/**'
-            backend:
-              - 'springboot/**'
-
-  deploy-frontend:
-    needs: changes
-    if: ${{ needs.changes.outputs.frontend == 'true' }}
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Setup Node.js
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - name: Build Backend
+        run: mvn -f bicycle_sharing/springboot/pom.xml clean package -DskipTests
+      - name: Upload Backend
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.ECS_HOST }}
+          username: ${{ secrets.ECS_USER }}
+          password: ${{ secrets.ECS_PASSWORD }}
+          source: "bicycle_sharing/springboot/target/springboot-0.0.1-SNAPSHOT.jar"
+          target: "/app"
+          strip_components: 3
+
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-      - name: Build Vue App
-        working-directory: ./vue
+      - name: Build Frontend
+        working-directory: ./bicycle_sharing/vue
         run: |
           npm install
           npm run build
-        env:
-          VITE_APP_API_BASE_URL: http://${{ secrets.ECS_HOST }}:8080
-      - name: Deploy to Huawei Cloud OBS
-        uses: huaweicloud/huaweicloud-obs-action@v2.0.1
-        with:
-          access_key_id: ${{ secrets.HUAWEICLOUD_ACCESS_KEY_ID }}
-          secret_access_key: ${{ secrets.HUAWEICLOUD_SECRET_ACCESS_KEY }}
-          region: ${{ secrets.OBS_REGION }}
-          bucket_name: ${{ secrets.OBS_BUCKET_NAME }}
-          source_folder: ./vue/dist
-          clear_bucket: true
-
-  deploy-backend:
-    needs: changes
-    if: ${{ needs.changes.outputs.backend == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-          cache: 'maven'
-      - name: Build Spring Boot JAR
-        working-directory: ./springboot
-        run: mvn -B package --file pom.xml -DskipTests
-      # ------------------- 仅使用密码认证 -------------------
-      - name: Copy JAR and Script to ECS
-        uses: appleboy/scp-action@v1.0.1
+      - name: Clean Old Frontend Files
+        uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.ECS_HOST }}
           username: ${{ secrets.ECS_USER }}
-          password: ${{ secrets.ECS_PASSWORD }}  # 仅使用密码
-          port: 22
-          source: "./springboot/target/springboot-0.0.1-SNAPSHOT.jar,./springboot/deploy.sh"
-          target: "/home/${{ secrets.ECS_USER }}/"
-      - name: Execute Deployment Script on ECS
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.ECS_HOST }}
-          username: ${{ secrets.ECS_USER }}
-          password: ${{ secrets.ECS_PASSWORD }}  # 仅使用密码
-          port: 22
+          password: ${{ secrets.ECS_PASSWORD }}
           script: |
-            chmod +x /home/${{ secrets.ECS_USER }}/deploy.sh
-            bash /home/${{ secrets.ECS_USER }}/deploy.sh
-      # ------------------- 改动结束 -------------------
+            rm -rf /var/www/dist
+      - name: Upload Frontend
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.ECS_HOST }}
+          username: ${{ secrets.ECS_USER }}
+          password: ${{ secrets.ECS_PASSWORD }}
+          source: "bicycle_sharing/vue/dist"
+          target: "/var/www"
+
+      - name: Restart Services on ECS
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.ECS_HOST }}
+          username: ${{ secrets.ECS_USER }}
+          password: ${{ secrets.ECS_PASSWORD }}
+          script: |
+            PID=$(ps -ef | grep 'springboot-0.0.1-SNAPSHOT.jar' | grep -v grep | awk '{print $2}')
+            if [ -n "$PID" ]; then
+              kill -9 $PID
+            fi
+            nohup java -jar /app/springboot-0.0.1-SNAPSHOT.jar > /app/backend.log 2>&1 &
+            systemctl reload nginx

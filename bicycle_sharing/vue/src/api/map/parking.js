@@ -1,48 +1,48 @@
 import request from '@/utils/request'
 
-// 模拟的停车点数据（使用边界框坐标）
+// 停车点数据（使用边界框坐标）
 const mockParkingAreas = [
     {
-        id: 'P001',
+        id: 'ws1053',
         bounds: {
-            southwest: [22.557678, 114.098511],
-            northeast: [22.560425, 114.104004]  // min_lat + 0.002747, min_lon + 0.005493
+            southwest: [22.505493, 114.049072],  // south_lat, west_lon
+            northeast: [22.510986, 114.060059]   // north_lat, east_lon
         },
         status: 'normal',
         name: '停车区域1'
     },
     {
-        id: 'P002',
+        id: 'ws1056',
         bounds: {
-            southwest: [22.552185, 114.043579],
-            northeast: [22.554932, 114.049072]  // min_lat + 0.002747, min_lon + 0.005493
+            southwest: [22.510986, 114.049072],  // south_lat, west_lon
+            northeast: [22.516479, 114.060059]   // north_lat, east_lon
         },
         status: 'normal',
         name: '停车区域2'
     },
     {
-        id: 'P003',
+        id: 'ws106b',
         bounds: {
-            southwest: [22.480774, 114.037745],
-            northeast: [22.483521, 114.043238]  // min_lat + 0.002747, min_lon + 0.005493
+            southwest: [22.543945, 114.027100],  // south_lat, west_lon
+            northeast: [22.549438, 114.038086]   // north_lat, east_lon
         },
         status: 'normal',
         name: '停车区域3'
     },
     {
-        id: 'P004',
+        id: 'ws1052',
         bounds: {
-            southwest: [22.557678, 114.065552],
-            northeast: [22.560425, 114.071045]  // min_lat + 0.002747, min_lon + 0.005493
+            southwest: [22.500000, 114.049072],  // south_lat, west_lon
+            northeast: [22.505493, 114.060059]   // north_lat, east_lon
         },
         status: 'normal',
         name: '停车区域4'
     },
     {
-        id: 'P005',
+        id: 'ws109s',
         bounds: {
-            southwest: [22.552185, 114.043579],
-            northeast: [22.554932, 114.049072]  // min_lat + 0.002747, min_lon + 0.005493
+            southwest: [22.593384, 114.104004],  // south_lat, west_lon
+            northeast: [22.598877, 114.114990]   // north_lat, east_lon
         },
         status: 'normal',
         name: '停车区域5'

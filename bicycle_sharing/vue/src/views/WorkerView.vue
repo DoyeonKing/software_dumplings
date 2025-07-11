@@ -34,6 +34,12 @@
                   active-text="显示停车点"
                 />
               </el-dropdown-item>
+              <el-dropdown-item>
+                <el-switch
+                  v-model="showHeatmap"
+                  active-text="显示热力图"
+                />
+              </el-dropdown-item>
               <el-dropdown-item divided @click="showMapSettings = true">
                 地图设置
               </el-dropdown-item>
@@ -202,6 +208,7 @@
           :selectedTaskId="selectedTaskId"
           :showBicycles="showBicycles"
           :showParkingAreas="showParkingAreas"
+          :showHeatmap="showHeatmap"
           @update:selectedTaskId="selectedTaskId = $event"
           ref="mapComponentRef"
         />
@@ -224,6 +231,7 @@ const router = useRouter();
 const showWorkbench = ref(true); // 默认显示工作台
 const showBicycles = ref(false);
 const showParkingAreas = ref(false);
+const showHeatmap = ref(false);
 const showMapSettings = ref(false);
 const currentMapStyle = ref('normal');
 const hideUI = ref(false);

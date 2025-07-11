@@ -53,7 +53,8 @@ import parkingIcon from '@/components/icons/parking_area.png';
 import bicycleIcon from '@/components/icons/bicycle.png';
 import { getAllTasks, acceptTask, completeTask } from '@/api/assignment/task';
 import { getAllParkingAreas } from '@/api/map/parking';
-import { getAllBicycles } from '@/api/map/bicycle';
+import { getMapAreaBicycles } from '@/api/map/bicycle';
+import { getHeatMapData } from '@/api/map/heat';
 import { ElMessage } from 'element-plus';
 import { Close } from '@element-plus/icons-vue';
 
@@ -64,6 +65,10 @@ const props = defineProps({
     default: false
   },
   showParkingAreas: {
+    type: Boolean,
+    default: false
+  },
+  showHeatmap: {
     type: Boolean,
     default: false
   },
@@ -84,6 +89,7 @@ const parkingPolygons = ref([]); // 新增：存储停车区域多边形
 const taskLines = ref([]);
 const selectedTaskLine = ref(null);
 const currentTask = ref(null);
+const heatmap = ref(null); // 热力图实例
 
 // 计算属性
 const getTaskStatus = computed(() => {
@@ -109,28 +115,45 @@ const canCompleteTask = computed(() => {
 // 加载单车
 const loadBicycles = async () => {
   try {
-    // 如果已经加载过数据，直接切换显示状态
-    if (bicycleMarkers.value.length > 0) {
+    // 如果不需要显示单车，清除现有标记
+    if (!props.showBicycles) {
       bicycleMarkers.value.forEach(marker => {
-        marker.setMap(props.showBicycles ? map.value : null);
+        marker.setMap(null);
       });
+      bicycleMarkers.value = [];
       return;
     }
 
-    const response = await getAllBicycles();
+    // 获取当前地图边界
+    const bounds = map.value.getBounds();
+    const params = {
+      minLat: bounds.getSouthWest().lat,
+      maxLat: bounds.getNorthEast().lat,
+      minLng: bounds.getSouthWest().lng,
+      maxLng: bounds.getNorthEast().lng
+    };
+
+    // 获取区域内的单车
+    const response = await getMapAreaBicycles(params);
     const bicycles = response.data;
 
-    // 创建标记但不立即添加到地图
+    // 清除现有标记
+    bicycleMarkers.value.forEach(marker => {
+      marker.setMap(null);
+    });
+    bicycleMarkers.value = [];
+
+    // 创建新标记
     bicycles.forEach(bicycle => {
       const marker = new AMap.Marker({
-        position: bicycle.location,
+        position: [bicycle.currentLon, bicycle.currentLat], // 修改为正确的经纬度字段
         icon: new AMap.Icon({
           image: bicycleIcon,
           size: new AMap.Size(32, 32),
           imageSize: new AMap.Size(32, 32)
         }),
-        title: `单车 #${bicycle.id}`,
-        map: props.showBicycles ? map.value : null  // 根据当前显示状态决定是否添加到地图
+        title: `单车 #${bicycle.bikeId}`,
+        map: map.value
       });
 
       // 添加点击事件
@@ -138,11 +161,9 @@ const loadBicycles = async () => {
         const info = new AMap.InfoWindow({
           content: `
             <div class="info-window">
-              <h4>单车 #${bicycle.id}</h4>
-              <p>状态: ${bicycle.status}</p>
-              <p>电量: ${bicycle.battery}%</p>
-              <p>最后使用: ${bicycle.lastUsed}</p>
-              <p>总里程: ${bicycle.totalMileage}km</p>
+              <h4>单车 #${bicycle.bikeId}</h4>
+              <p>状态: ${bicycle.bikeStatus}</p>
+              <p>最后更新: ${bicycle.lastUpdatedTime}</p>
             </div>
           `,
           offset: new AMap.Pixel(0, -30)
@@ -344,6 +365,58 @@ const loadTasks = async () => {
   }
 };
 
+// 初始化热力图
+const initHeatmap = async () => {
+  if (!map.value) return;
+
+  try {
+    if (!heatmap.value) {
+      // 创建热力图实例
+      heatmap.value = new window.AMap.HeatMap(map.value, {
+        radius: 30, // 热力图的半径
+        opacity: [0, 0.8],
+        gradient: {
+          0.4: 'rgb(0, 255, 255)',
+          0.65: 'rgb(0, 255, 0)',
+          0.85: 'rgb(255, 255, 0)',
+          1.0: 'rgb(255, 0, 0)'
+        },
+        zooms: [1, 20], // 支持的缩放级别范围
+        visible: true
+      });
+    }
+
+    // 获取并设置热力图数据
+    try {
+      const response = await getHeatMapData();
+      if (response.code === 200 && Array.isArray(response.data)) {
+        heatmap.value.setDataSet({
+          data: response.data,
+          max: 100 // 最大权重值
+        });
+
+        // 初始时隐藏热力图
+        heatmap.value.hide();
+        
+        // 只有在props.showHeatmap为true时才显示
+        if (props.showHeatmap) {
+          heatmap.value.show();
+        }
+        console.log('工作人员热力图数据已更新，数据点数：', response.data.length);
+      } else {
+        console.error('获取热力图数据格式错误：', response);
+        ElMessage.error('获取热力图数据格式错误');
+      }
+    } catch (error) {
+      console.error('获取热力图数据失败：', error);
+      ElMessage.error('获取热力图数据失败');
+    }
+  } catch (error) {
+    console.error('初始化热力图失败：', error);
+    ElMessage.error('初始化热力图失败');
+  }
+};
+
 // 更新地图样式
 const updateMapStyle = (style) => {
   if (!map.value) return;
@@ -386,6 +459,22 @@ watch(() => props.showParkingAreas, async (show) => {
   } else {
     parkingMarkers.value.forEach(marker => marker.setMap(null));
     parkingPolygons.value.forEach(polygon => polygon.setMap(null));
+  }
+});
+
+// 监听热力图显示状态
+watch(() => props.showHeatmap, async (newVal) => {
+  if (!map.value) return;
+
+  if (newVal) {
+    // 如果开启热力图，确保已初始化并显示
+    await initHeatmap();
+    if (heatmap.value) {
+      heatmap.value.show();
+    }
+  } else if (heatmap.value) {
+    // 如果关闭热力图，隐藏热力图层
+    heatmap.value.hide();
   }
 });
 
@@ -465,6 +554,26 @@ defineExpose({
 // 初始化地图
 const initMap = async () => {
   try {
+    // 处理可能的加载器冲突 - 清理之前的状态
+    const cleanupPreviousState = () => {
+      // 如果存在来自其他加载器的script，但AMap状态不完整，进行清理
+      const existingScript = document.getElementById('amap-script');
+      if (existingScript && window.AMap) {
+        // 检查AMap对象是否完整（检查必需的插件）
+        const hasRequiredPlugins = window.AMap.HeatMap && window.AMap.ControlBar && window.AMap.Scale && window.AMap.ToolBar;
+        if (!hasRequiredPlugins) {
+          console.log('检测到不完整的AMap状态，清理后重新加载...');
+          existingScript.remove();
+          delete window.AMap;
+          // 清理可能存在的其他相关全局变量
+          if (window.AMapUI) delete window.AMapUI;
+        }
+      }
+    };
+
+    // 先清理可能冲突的状态
+    cleanupPreviousState();
+
     const AMap = await AMapLoader.load({
       key: '7a9ebfd8db9264a7f90b65369bd2970a',  // Web端 Key
       version: '2.0',
@@ -472,6 +581,7 @@ const initMap = async () => {
         'AMap.ControlBar',
         'AMap.Scale',
         'AMap.ToolBar',
+        'AMap.HeatMap'
       ],
       securityJsCode: '1751964054605',
       security: {
@@ -479,8 +589,13 @@ const initMap = async () => {
       }
     });
 
+    // 验证关键插件是否正确加载
+    if (!AMap.HeatMap || !AMap.ControlBar || !AMap.Scale || !AMap.ToolBar) {
+      throw new Error('必需的地图插件未正确加载');
+    }
+
     map.value = new AMap.Map(mapContainer.value, {
-      zoom: 13,
+      zoom: 16, // 放大地图比例尺
       center: [114.085947, 22.547],  // 深圳市中心
       viewMode: '2D'
     });
@@ -494,14 +609,54 @@ const initMap = async () => {
       position: { top: '20px', right: '20px' }
     }));
 
-    // 预加载数据但不显示
-    await Promise.all([
-      loadBicycles(),
-      loadParkingAreas()
-    ]);
+    // 添加地图移动和缩放事件监听
+    map.value.on('moveend', () => {
+      if (props.showBicycles) {
+        loadBicycles();
+      }
+    });
+
+    map.value.on('zoomend', () => {
+      if (props.showBicycles) {
+        loadBicycles();
+      }
+    });
+
+    // 预加载停车区域数据
+    await loadParkingAreas();
+    
+    // 初始化热力图
+    await initHeatmap();
   } catch (error) {
     console.error('Failed to initialize map:', error);
-    ElMessage.error('地图加载失败');
+    
+    // 更详细的错误处理和重试机制
+    if (error.message && error.message.includes('必需的地图插件未正确加载')) {
+      ElMessage.error('地图插件加载失败，请刷新页面重试');
+      console.log('建议：可能存在地图加载器冲突，请刷新页面');
+    } else if (error.message && error.message.includes('load')) {
+      // 可能是加载器冲突，尝试一次重试
+      console.log('检测到可能的加载器冲突，尝试重试...');
+      
+      setTimeout(async () => {
+        try {
+          // 强制清理所有相关状态
+          const scripts = document.querySelectorAll('script[src*="webapi.amap.com"]');
+          scripts.forEach(script => script.remove());
+          delete window.AMap;
+          delete window.AMapUI;
+          
+          // 重新初始化
+          await initMap();
+          ElMessage.success('地图重新加载成功');
+        } catch (retryError) {
+          console.error('重试失败：', retryError);
+          ElMessage.error('地图加载失败，请刷新页面重试');
+        }
+      }, 1000);
+    } else {
+      ElMessage.error('地图加载失败，请刷新页面重试');
+    }
   }
 };
 
@@ -510,6 +665,12 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  // 清理热力图
+  if (heatmap.value) {
+    heatmap.value.setMap(null);
+    heatmap.value = null;
+  }
+  
   if (map.value) {
     map.value.destroy();
   }

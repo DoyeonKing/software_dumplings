@@ -50,7 +50,8 @@
             @click="toggleUserMenu"
         />
         <div class="user-dropdown" :class="{ 'menu-open': userMenuOpen }">
-          <router-link to="/new" class="user-menu-item">切换账号</router-link>
+          <router-link to="/login" class="user-menu-item">切换账号</router-link>
+          <router-link to="/new" class="user-menu-item">原有切换new功能</router-link>
         </div>
       </div>
     </div>
