@@ -17,12 +17,21 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: 3. 检查磁盘空间
+      - name: Check disk space on runner
         run: |
-          df -h
-          if [ $(df -h / | grep -v Filesystem | awk '{print $4}') -lt 10G ]; then
-            echo "Disk space is less than 10GB, exiting."
+          # Get available disk space
+          available_space=$( df -h / | grep -v Filesystem | awk '{print $4}' )
+          echo "Available disk space: $available_space"
+          
+          # Define the minimum required space in GB
+          min_space=10
+          
+          # Convert available space to GB and compare
+          if [[ $(echo "$available_space < ${min_space}G" | bc -l) -eq 1 ]]; then
+            echo "Error: Available disk space is less than $min_space GB."
             exit 1
+          else
+            echo "Sufficient disk space available."
           fi
 
       - name: 4. 打包后端项目 (使用内存限制)
