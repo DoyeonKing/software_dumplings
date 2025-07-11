@@ -167,25 +167,68 @@
         <p><strong>状态码：</strong>{{ loginResult.code }}</p>
         <p><strong>消息：</strong>{{ loginResult.msg }}</p>
         <div v-if="loginResult.data" class="data-detail">
-          <el-descriptions title="用户信息" :column="2" border>
-            <el-descriptions-item label="用户ID">{{ loginResult.data.user.userid }}</el-descriptions-item>
-            <el-descriptions-item label="用户名">{{ loginResult.data.user.username }}</el-descriptions-item>
-            <el-descriptions-item label="手机号码">{{ loginResult.data.user.phoneNumber }}</el-descriptions-item>
-            <el-descriptions-item label="总骑行次数">{{ loginResult.data.user.totalRides }}</el-descriptions-item>
-            <el-descriptions-item label="总骑行时长(分钟)">{{ loginResult.data.user.totalDurationMinutes }}</el-descriptions-item>
-            <el-descriptions-item label="总消费(元)">{{ loginResult.data.user.totalCost }}</el-descriptions-item>
-          </el-descriptions>
-
-          <el-descriptions title="认证信息" :column="1" border class="mt-4">
-            <el-descriptions-item label="Token">
-              <el-input
-                type="textarea"
-                :rows="3"
-                v-model="loginResult.data.token"
-                readonly
-              />
+          <!-- 用户基本信息 -->
+          <el-descriptions title="用户基本信息" :column="2" border>
+            <el-descriptions-item label="用户ID">
+              <el-tag type="primary">{{ loginResult.data.user.userid }}</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="用户名">
+              <el-tag type="success">{{ loginResult.data.user.username }}</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="手机号码">
+              <el-tag type="info">{{ loginResult.data.user.phoneNumber }}</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="总骑行次数">
+              <el-statistic :value="loginResult.data.user.totalRides" suffix="次">
+                <template #prefix>
+                  <span style="color: #409EFF;">🚴</span>
+                </template>
+              </el-statistic>
+            </el-descriptions-item>
+            <el-descriptions-item label="总骑行时长">
+              <el-statistic :value="loginResult.data.user.totalDurationMinutes" suffix="分钟">
+                <template #prefix>
+                  <span style="color: #67C23A;">⏱️</span>
+                </template>
+              </el-statistic>
+            </el-descriptions-item>
+            <el-descriptions-item label="总消费">
+              <el-statistic :value="loginResult.data.user.totalCost" suffix="元" :precision="2">
+                <template #prefix>
+                  <span style="color: #E6A23C;">💰</span>
+                </template>
+              </el-statistic>
             </el-descriptions-item>
           </el-descriptions>
+
+          <!-- Token信息 -->
+          <el-descriptions title="🔑 认证Token信息" :column="1" border class="mt-4">
+            <el-descriptions-item label="JWT Token">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <el-input
+                  type="textarea"
+                  :rows="4"
+                  :value="loginResult.data.token"
+                  readonly
+                  style="flex: 1; font-family: 'Courier New', monospace; font-size: 12px;"
+                />
+                <el-button 
+                  type="primary" 
+                  size="small" 
+                  @click="copyTokenToClipboard(loginResult.data.token)"
+                >
+                  复制Token
+                </el-button>
+              </div>
+            </el-descriptions-item>
+          </el-descriptions>
+
+          <!-- 完整数据结构（折叠显示） -->
+          <el-collapse class="mt-4">
+            <el-collapse-item title="查看完整登录数据结构（调试用）" name="debug">
+              <pre style="background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;">{{ JSON.stringify(loginResult.data, null, 2) }}</pre>
+            </el-collapse-item>
+          </el-collapse>
         </div>
       </div>
     </el-card>
@@ -1023,6 +1066,27 @@ const copyTokenToChangePassword = () => {
     ElMessage.success('已复制登录Token到修改密码')
   } else {
     ElMessage.warning('请先成功登录获取Token')
+  }
+}
+
+// 复制Token到剪贴板
+const copyTokenToClipboard = async (token) => {
+  try {
+    await navigator.clipboard.writeText(token)
+    ElMessage.success('Token已复制到剪贴板')
+  } catch (error) {
+    // 如果 Clipboard API 不可用，使用传统方法
+    const textArea = document.createElement('textarea')
+    textArea.value = token
+    document.body.appendChild(textArea)
+    textArea.select()
+    try {
+      document.execCommand('copy')
+      ElMessage.success('Token已复制到剪贴板')
+    } catch (err) {
+      ElMessage.error('复制失败，请手动复制')
+    }
+    document.body.removeChild(textArea)
   }
 }
 
