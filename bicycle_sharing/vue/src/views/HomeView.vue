@@ -12,7 +12,8 @@
 </template>
 
 <script setup>
-import {reactive,ref} from "vue"
+import {reactive, ref} from "vue"
+
 const a = ref(1)
 
 </script>

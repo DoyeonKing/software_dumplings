@@ -5,8 +5,8 @@
       <div class="nav-left">
         <h2>调度管理系统</h2>
         <div class="nav-menu">
-          <div 
-            class="nav-item" 
+          <div
+            class="nav-item"
             :class="{ active: showWorkbench }"
             @click="toggleWorkbench"
           >
@@ -67,8 +67,8 @@
         <div class="settings-section">
           <h4>地图样式</h4>
           <div class="style-options">
-            <div class="style-option" 
-                 v-for="style in mapStyles" 
+            <div class="style-option"
+                 v-for="style in mapStyles"
                  :key="style.value"
                  :class="{ active: currentMapStyle === style.value }"
                  @click="updateMapStyle(style.value)">
@@ -96,14 +96,14 @@
             <component :is="showWorkbench ? 'ArrowLeft' : 'ArrowRight'" />
           </el-icon>
         </div>
-        
+
         <!-- 任务列表 -->
         <div class="task-list">
           <div class="panel-header">
             <h3>调度任务</h3>
             <el-button type="primary" size="small" @click="refreshTasks">刷新</el-button>
           </div>
-          
+
           <!-- 任务过滤器 -->
           <div class="task-filters">
             <el-radio-group v-model="taskFilter" size="small">
@@ -116,8 +116,8 @@
 
           <!-- 任务卡片列表 -->
           <div class="task-cards">
-            <el-card 
-              v-for="task in filteredTasks" 
+            <el-card
+              v-for="task in filteredTasks"
               :key="task.task_id"
               class="task-card"
               :class="{ 'selected': selectedTaskId === task.task_id }"
@@ -125,7 +125,7 @@
             >
               <div class="task-card-header">
                 <span class="task-id">任务 #{{ task.task_id }}</span>
-                <el-tag 
+                <el-tag
                   :type="getTaskStatusType(task.status)"
                   size="small"
                 >
@@ -154,9 +154,9 @@
                   <span class="info-value">{{ task.completed_at }}</span>
                 </div>
                 <div class="task-actions">
-                  <el-button 
-                    type="primary" 
-                    size="small" 
+                  <el-button
+                    type="primary"
+                    size="small"
                     :icon="Location"
                     @click.stop="navigateToTask(task)"
                   >
@@ -198,7 +198,7 @@
 
       <!-- 右侧地图区域 -->
       <div class="right-panel" :class="{ 'expanded': !showWorkbench }">
-        <WorkerMapComponent 
+        <WorkerMapComponent
           :selectedTaskId="selectedTaskId"
           :showBicycles="showBicycles"
           :showParkingAreas="showParkingAreas"

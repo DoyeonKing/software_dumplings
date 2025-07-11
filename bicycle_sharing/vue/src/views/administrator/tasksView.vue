@@ -51,7 +51,7 @@
               <div class="task-row"><span class="label">工作人员：</span>{{ task.workerName }}</div>
               <div class="task-row"><span class="label">联系电话：</span>{{ task.workerPhone }}</div>
               <div class="task-row"><span class="label">调度数量：</span>{{ task.deployAmount }}</div>
-
+              
             </div>
             <div class="task-action-col">
               <div class="task-status-tag" :class="statusClass(task.status)">
