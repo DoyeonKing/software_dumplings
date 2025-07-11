@@ -51,6 +51,7 @@
         />
         <div class="user-dropdown" :class="{ 'menu-open': userMenuOpen }">
           <router-link to="/login" class="user-menu-item">切换账号</router-link>
+          <router-link to="/new" class="user-menu-item">原有切换new功能</router-link>
         </div>
       </div>
     </div>
@@ -60,7 +61,7 @@
 <script>
 import MenuComponent from '@/components/admin/menuComponent.vue'
 import { mapMixin } from '@/utils/mapMixin.js'
-import { loadAMapV1, unloadAMapV1 } from '@/utils/loadAMapV1.js'
+import AMapLoader from '@/utils/loadAMap.js'
 
 export default {
   name: "DashboardView",
@@ -69,7 +70,7 @@ export default {
   data() {
     return {
       menuOpen: false,
-      userMenuOpen: false,
+      userMenuOpen: false, // 新增：控制用户菜单的开关
       showProfile: false,
       editMode: false,
       form: {
@@ -84,10 +85,9 @@ export default {
         email: 'admin@bikeshare.com',
         birth: '1990-01-01'
       },
-      // MODIFIED: Updated areaCode to new format
       parkingAreas: [
-        { id: 1, location: "深圳市-福田区-福华三路", areaCode: "P1001", polygon: [ [114.0560, 22.5330], [114.0590, 22.5330], [114.0590, 22.5360], [114.0560, 22.5360] ] },
-        { id: 2, location: "深圳市-福田区-金田路", areaCode: "P1002", polygon: [ [114.0595, 22.5330], [114.0625, 22.5330], [114.0625, 22.5360], [114.0595, 22.5360] ] },
+        { id: 1, location: "深圳市-福田区-福华三路", areaCode: "区域A", polygon: [ [114.0560, 22.5330], [114.0590, 22.5330], [114.0590, 22.5360], [114.0560, 22.5360] ] },
+        { id: 2, location: "深圳市-福田区-金田路", areaCode: "区域B", polygon: [ [114.0595, 22.5330], [114.0625, 22.5330], [114.0625, 22.5360], [114.0595, 22.5360] ] },
       ],
       bikeList: [
         { id: "SZ1001", lng: 114.057868, lat: 22.53445, status: "正常", address: "深圳市-福田区-福华三路" },
@@ -96,7 +96,7 @@ export default {
     };
   },
   mounted() {
-    loadAMapV1('dea7cc14dad7340b0c4e541dfa3d27b7').then(() => {
+    AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
       const { yellowBikeIcon } = this.initMap();
       this.map.setZoomAndCenter(15, [114.0588, 22.5368]);
       this.addBikeMarkers(this.bikeList, yellowBikeIcon);
@@ -104,22 +104,17 @@ export default {
     }).catch(err => {
       alert('地图加载失败: ' + err.message);
     });
+    // 增加对两个菜单的外部点击监听
     document.addEventListener('click', this.handleClickOutside);
   },
   beforeUnmount() {
+    // 移除监听
     document.removeEventListener('click', this.handleClickOutside);
-    if (this.map) {
-      this.map.destroy();
-      this.map = null;
-    }
-    unloadAMapV1();
   },
   methods: {
-    // MODIFIED: Updated InfoWindow content for better display
     drawParkingAreas() {
       const infoWindow = new window.AMap.InfoWindow({
-        offset: new window.AMap.Pixel(0, -20),
-        anchor: 'bottom-center' // Better positioning
+        offset: new window.AMap.Pixel(0, -20)
       });
       this.parkingAreas.forEach(area => {
         const polygon = new window.AMap.Polygon({
@@ -132,16 +127,8 @@ export default {
           cursor: "pointer"
         });
         this.map.add(polygon);
-
-        const infoContent = `
-          <div style="padding: 2px 5px;">
-            <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px;">${area.location}</div>
-            <div><b style="color: #555;">编号:</b> ${area.areaCode}</div>
-          </div>
-        `;
-
         polygon.on("mouseover", (e) => {
-          infoWindow.setContent(infoContent);
+          infoWindow.setContent(`<div style="min-width:160px;"><b>停车区域：</b>${area.location}-${area.areaCode}</div>`);
           infoWindow.open(this.map, e.lnglat);
         });
         polygon.on("mouseout", () => infoWindow.close());
@@ -150,9 +137,11 @@ export default {
     handleProfileSaved(formData) {
       this.form = { ...this.form, ...formData };
     },
+    // 新增：切换用户菜单
     toggleUserMenu() {
       this.userMenuOpen = !this.userMenuOpen;
     },
+    // 更新：处理外部点击，同时关闭两个菜单
     handleClickOutside(event) {
       const menuContainer = event.target.closest('.menu-container');
       const userMenuContainer = event.target.closest('.user-menu-container');
@@ -183,7 +172,7 @@ export default {
 </script>
 
 <style scoped>
-/* Styles are unchanged */
+/* 你的样式有所调整，以适应新控件 */
 html, body, #app, .dashboard-view-root {
   height: 100%;
   margin: 0;
