@@ -33,7 +33,7 @@ public class StaffController {
      * @param request HttpServletRequest，用于获取 Session 中的用户名
      * @return ResponseEntity 包含用户的个人资料或错误信息
      */
-    @GetMapping("/profile")
+    @GetMapping("/adminProfile")
     public ResponseEntity<?> getProfile(HttpServletRequest request) {
         // 1. 从 Session 中获取当前登录的用户名
         String username = (String) request.getSession().getAttribute("username");
@@ -62,6 +62,8 @@ public class StaffController {
         // 6. 返回成功响应
         return ResponseEntity.ok(profile);
     }
+
+
 
     // --- 新增的、根据传输用户名获取信息的接口 ---
     /**
@@ -100,4 +102,26 @@ public class StaffController {
 //        // 5. 返回成功响应
 //        return ResponseEntity.ok(profile);
 //    }
+
+    /**
+     * 获取所有工作人员信息
+     * URL: GET /staff/all
+     * @return ResponseEntity 包含所有工作人员信息的列表或错误信息
+     */
+    /**
+     * 获取所有工作人员信息（不包括管理员）
+     * URL: GET /staff/workers
+     * @return ResponseEntity 包含所有工作人员信息的列表或错误信息
+     */
+    @GetMapping("/workers")
+    public ResponseEntity<?> getAllWorkers() {
+        try {
+            List<Staff> staffList = staffService.getAllWorkers();
+            // 对返回的列表进行脱敏处理，移除密码哈希字段
+            staffList.forEach(staff -> staff.setPasswordHash(null));
+            return ResponseEntity.ok(staffList);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("获取工作人员信息失败: " + e.getMessage());
+        }
+    }
 }

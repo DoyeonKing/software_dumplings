@@ -5,6 +5,8 @@ import com.example.springboot.common.request.RegisterRequest;
 import com.example.springboot.entity.Staff;
 import com.example.springboot.exception.CustomException;
 
+import java.util.List;
+
 public interface IStaffService {
     /**
      * 处理工作人员登录逻辑
@@ -28,4 +30,10 @@ public interface IStaffService {
      * @return 员工对象或 null
      */
     Staff findByUsername(String username);
+
+    /**
+     * 获取所有工作人员信息（不包括管理员）
+     * @return 所有工作人员对象的列表
+     */
+    List<Staff> getAllWorkers();
 }
