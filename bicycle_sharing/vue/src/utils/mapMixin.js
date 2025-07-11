@@ -44,8 +44,8 @@ export const mapMixin = {
             });
 
 // 加载热力图插件
-            window.AMap.plugin(['AMap.Heatmap'], () => {
-                this.heatmap = new window.AMap.Heatmap(this.map, {
+            window.AMap.plugin(['AMap.HeatMap'], () => {
+                this.heatmap = new window.AMap.HeatMap(this.map, {
                     radius: 35,
                     opacity: [0.1, 0.9],
                     gradient: {
@@ -57,6 +57,7 @@ export const mapMixin = {
                     }
                 });
                 this.heatmapReady = true;
+                console.log('热力图初始化完成，可用方法：', Object.getOwnPropertyNames(this.heatmap));
             });
 
             return { map: this.map, yellowBikeIcon };
@@ -103,11 +104,27 @@ export const mapMixin = {
                     count: 80
                 }));
                 if (this.heatmapReady && this.heatmap) {
-                    this.heatmap.setDataSet({
-                        data: heatData,
-                        max: 100
-                    });
-                    this.heatmap.show();
+                    try {
+                        // 尝试不同的API方法
+                        if (typeof this.heatmap.setDataSet === 'function') {
+                            this.heatmap.setDataSet({
+                                data: heatData,
+                                max: 100
+                            });
+                        } else if (typeof this.heatmap.setData === 'function') {
+                            this.heatmap.setData({
+                                data: heatData,
+                                max: 100
+                            });
+                        } else if (typeof this.heatmap.setPoints === 'function') {
+                            this.heatmap.setPoints(heatData);
+                        } else {
+                            console.error('热力图API方法未找到，可用方法：', Object.getOwnPropertyNames(this.heatmap));
+                        }
+                        this.heatmap.show();
+                    } catch (error) {
+                        console.error('设置热力图数据失败：', error);
+                    }
                 }
             } else {
                 this.markers.forEach(m => m.show());
