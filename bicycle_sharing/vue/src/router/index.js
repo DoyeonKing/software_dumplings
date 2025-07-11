@@ -11,6 +11,7 @@ import locationView from "@/views/administrator/locationView.vue";
 import tasksView from "@/views/administrator/tasksView.vue";
 import helpView from "@/views/administrator/helpView.vue";
 import APITestView from '@/views/APITestView.vue'
+import newView from "@/views/administrator/newView.vue";
 
 
 const router = createRouter({
@@ -74,6 +75,11 @@ const router = createRouter({
       path: '/api-test',
       name: 'api-test',
       component: APITestView
+    },
+    {
+      path: '/new',
+      name: 'new',
+      component: newView
     }
   ]
 })
