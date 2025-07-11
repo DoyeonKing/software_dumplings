@@ -52,3 +52,5 @@ amap:
 # 新增JWT配置
 jwt:
   secret: "a2FzZGg4M2pkaGZnOTg0MzVoZ2tqZmQ5ODIzcmZrZGpoZ2ZkaG9pMzQ5ODVoZ2tmZGhqZ2ZkaGZnZGZnCg=="
+
+baseURL: import.meta.env.VITE_BASE_API  // 自动读取打包时注入的地址

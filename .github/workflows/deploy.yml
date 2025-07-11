@@ -16,18 +16,14 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
+          cache: 'maven'  # 缓存Maven依赖，加速构建
 
       - name: 检查运行器磁盘空间
         run: |
           df -h
-          # 获取可用磁盘空间
           available_space=$(df -h / | grep -v Filesystem | awk '{print $4}')
           echo "可用磁盘空间: $available_space"
-          
-          # 定义最小所需空间(GB)
           min_space=10G
-          
-          # 转换可用空间为GB并比较
           if [[ $(echo "$available_space < $min_space" | tr -d '[:alpha:]' | bc -l) -gt 0 ]]; then
             echo "错误: 可用磁盘空间小于 $min_space."
             exit 1
@@ -37,16 +33,25 @@ jobs:
 
       - name: 3. 清理不必要的文件和缓存
         run: |
-          # 清理不必要的文件和缓存
           sudo apt-get clean
           sudo rm -rf /usr/share/dotnet/sdk/* /usr/local/lib/ruby/gems/*/cache
           df -h
 
       - name: 4. 打包后端项目 (使用内存限制)
-        # 通过MAVEN_OPTS环境变量，限制Maven最大使用2GB内存
         env:
           MAVEN_OPTS: -Xmx2048m
         run: mvn -f bicycle_sharing/springboot/pom.xml clean package -DskipTests
+        # 打包后验证JAR包存在，避免空包上传
+        continue-on-error: false  # 打包失败直接终止
+
+      - name: 验证后端JAR包完整性
+        run: |
+          if [ ! -f "bicycle_sharing/springboot/target/springboot-0.0.1-SNAPSHOT.jar" ]; then
+            echo "错误：后端JAR包打包失败，文件不存在"
+            exit 1
+          else
+            echo "后端JAR包存在，大小为: $(du -h bicycle_sharing/springboot/target/springboot-0.0.1-SNAPSHOT.jar)"
+          fi
 
       - name: 5. 上传后端Jar包
         uses: appleboy/scp-action@master
@@ -57,6 +62,7 @@ jobs:
           source: "bicycle_sharing/springboot/target/springboot-0.0.1-SNAPSHOT.jar"
           target: "/app"
           strip_components: 3
+          timeout: 30s
 
       - name: 6. 优雅重启后端服务
         uses: appleboy/ssh-action@master
@@ -64,25 +70,19 @@ jobs:
           host: ${{ secrets.ECS_HOST }}
           username: ${{ secrets.ECS_USER }}
           password: ${{ secrets.ECS_PASSWORD }}
-          timeout: 5m  # 超时时间设置为5分钟
+          timeout: 5m
           script: |
             echo "准备重启后端服务..."
-            
-            # 定义应用目录和日志文件路径
             APP_DIR="/app"
             LOG_FILE="$APP_DIR/backend.log"
             JAR_FILE="$APP_DIR/springboot-0.0.1-SNAPSHOT.jar"
-            
-            # 切换到应用目录
             cd $APP_DIR
-            
-            # 检查应用是否正在运行，如果是，则优雅地停止它
+
+            # 停止服务（优化：使用kill -15优雅终止，支持Spring Boot优雅停机）
             PID=$(pgrep -f "$JAR_FILE")
             if [ -n "$PID" ]; then
-              echo "应用正在运行，PID: $PID，尝试优雅停止..."
-              kill $PID
-              
-              # 等待应用停止
+              echo "应用正在运行，PID: $PID，发送优雅停止信号..."
+              kill -15 $PID  # 优先使用SIGTERM信号
               for i in {1..30}; do
                 if ! ps -p $PID > /dev/null; then
                   echo "应用已成功停止"
@@ -91,49 +91,46 @@ jobs:
                 echo "等待应用停止...($i/30)"
                 sleep 1
               done
-              
-              # 如果应用仍在运行，则强制终止
               if ps -p $PID > /dev/null; then
-                echo "应用仍在运行，使用强制终止..."
+                echo "强制终止应用..."
                 kill -9 $PID
                 sleep 2
               fi
             else
               echo "应用未运行，无需停止"
             fi
-            
-            # 清理旧日志
+
+            # 清理旧日志（保留最近3个旧日志，避免磁盘占满）
             if [ -f "$LOG_FILE" ]; then
-              mv "$LOG_FILE" "$LOG_FILE.old"
-              echo "旧日志已重命名为 $LOG_FILE.old"
+              mv "$LOG_FILE" "$LOG_FILE.old.$(date +%Y%m%d%H%M)"
+              echo "旧日志已重命名为 $LOG_FILE.old.$(date +%Y%m%d%H%M)"
             fi
-            
-            # 启动应用，设置JVM内存限制为最大2GB
+            # 保留最近3个旧日志，删除更早的
+            ls -tp $APP_DIR/backend.log.old.* | grep -v '/$' | tail -n +4 | xargs -I {} rm -- {}
+
+            # 启动应用（新增：显式指定Spring Boot环境为prod，避免开发配置干扰）
             echo "启动应用，设置最大堆内存为2GB..."
-            nohup java -Xmx2048m -jar $JAR_FILE > $LOG_FILE 2>&1 &
-            
-            # 等待应用启动（修正判断条件）
+            nohup java -Xmx2048m -jar $JAR_FILE --spring.profiles.active=prod > $LOG_FILE 2>&1 &
+
+            # 等待启动（优化：增加端口监听检查，更可靠）
             echo "等待应用启动..."
             for i in {1..60}; do
-              # 匹配日志中实际出现的"Started SpringbootApplication"
-              if grep -q "Started SpringbootApplication" $LOG_FILE; then
+              if grep -q "Started SpringbootApplication" $LOG_FILE || nc -z localhost 8080; then
                 echo "应用已成功启动！"
                 exit 0
               fi
-              echo "检查应用启动状态...($i/60)"
+              echo "检查启动状态...($i/60)"
               sleep 1
             done
-            
-            # 如果超时仍未启动成功，输出错误信息和日志尾部
+
             echo "错误: 应用启动超时！"
-            echo "最近200行日志:"
             tail -n 200 $LOG_FILE
             exit 1
 
   # --- 任务二：部署前端 ---
   deploy-frontend:
     runs-on: ubuntu-latest
-    needs: deploy-backend  # 确保前端部署在后端成功部署后进行
+    needs: deploy-backend
     steps:
       - name: 1. 下载代码
         uses: actions/checkout@v4
@@ -142,12 +139,24 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+          cache: 'npm'  # 缓存npm依赖，加速构建
+          cache-dependency-path: bicycle_sharing/vue/package-lock.json
 
-      - name: 3. 打包前端项目
+      - name: 3. 打包前端项目（注入生产环境变量）
         working-directory: ./bicycle_sharing/vue
+        env:
+          # 关键：注入生产环境后端接口地址（从GitHub Secrets读取）
+          VITE_BASE_API: ${{ secrets.FRONTEND_API_URL }}  # 需在GitHub仓库设置此Secret
         run: |
-          npm install
+          npm install --registry=https://registry.npm.taobao.org  # 使用国内镜像加速
           npm run build
+          # 验证dist目录存在
+          if [ ! -d "dist" ]; then
+            echo "错误：前端打包失败，dist目录不存在"
+            exit 1
+          else
+            echo "前端打包成功，dist目录大小: $(du -sh dist)"
+          fi
 
       - name: 4. 清理服务器旧前端文件
         uses: appleboy/ssh-action@master
@@ -156,8 +165,8 @@ jobs:
           username: ${{ secrets.ECS_USER }}
           password: ${{ secrets.ECS_PASSWORD }}
           script: |
-            rm -rf /var/www/dist
-            echo "旧前端文件已移除."
+            rm -rf /var/www/dist/*  # 更安全的删除方式（保留dist目录）
+            echo "旧前端文件已清理"
 
       - name: 5. 上传新前端文件
         uses: appleboy/scp-action@master
@@ -165,15 +174,60 @@ jobs:
           host: ${{ secrets.ECS_HOST }}
           username: ${{ secrets.ECS_USER }}
           password: ${{ secrets.ECS_PASSWORD }}
-          source: "bicycle_sharing/vue/dist"
-          target: "/var/www"
+          source: "bicycle_sharing/vue/dist/*"  # 上传dist内的所有文件（不含dist目录本身）
+          target: "/var/www/dist"  # 直接放到/var/www/dist下，避免多层目录
+          strip_components: 3
+          timeout: 30s
 
-      - name: 6. 刷新Nginx
+      - name: 6. 配置Nginx（自动生成缺失的配置文件）
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.ECS_HOST }}
           username: ${{ secrets.ECS_USER }}
           password: ${{ secrets.ECS_PASSWORD }}
           script: |
-            systemctl reload nginx
-            echo "Nginx已重新加载."
+            # 检查Nginx配置目录，若不存在则创建
+            if [ ! -d "/etc/nginx/conf.d" ]; then
+              sudo mkdir -p /etc/nginx/conf.d
+            fi
+            # 写入前端+后端代理配置（解决之前配置文件缺失问题）
+            sudo tee /etc/nginx/conf.d/bicycle-sharing.conf <<-'EOF'
+              server {
+                listen 80;
+                server_name _;  # 匹配所有域名/IP
+
+                # 前端静态文件
+                root /var/www/dist;
+                index index.html;
+
+                # 前端路由支持（刷新不404）
+                location / {
+                  try_files $uri $uri/ /index.html;
+                }
+
+                # 后端接口代理（匹配前端VITE_BASE_API）
+                location /api/ {
+                  proxy_pass http://localhost:8080/;  # 转发到后端8080，去掉/api前缀
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                }
+              }
+            EOF
+            # 检查Nginx配置并重启
+            sudo nginx -t && sudo systemctl restart nginx
+            echo "Nginx配置已更新并重启"
+
+      - name: 7. 验证前端文件上传成功
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.ECS_HOST }}
+          username: ${{ secrets.ECS_USER }}
+          password: ${{ secrets.ECS_PASSWORD }}
+          script: |
+            if [ -f "/var/www/dist/index.html" ]; then
+              echo "前端文件上传成功，index.html存在"
+            else
+              echo "错误：前端文件上传失败，index.html不存在"
+              exit 1
+            fi
