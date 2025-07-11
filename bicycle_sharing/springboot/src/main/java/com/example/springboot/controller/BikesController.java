@@ -7,6 +7,7 @@ import com.example.springboot.exception.CustomException;
 import com.example.springboot.service.Interface.IBikesService;
 import com.github.pagehelper.PageInfo;
 import jakarta.annotation.Resource;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -132,17 +133,18 @@ public class BikesController { // 控制器类名与资源名复数形式保持�
     }
 
     /**
-     * 获取车辆使用率及其相关统计数据。
-     * URL: GET /api/bikes/utilization
+     * 根据区域编号获取单车使用率
+     * URL: GET /bikes/utilization/{geohash}
      *
+     * @param geohash 区域编码
      * @return ResponseEntity 包含 UtilizationResponse DTO
      */
-    @GetMapping("/bikes/utilization") // 新的接口路径
-    public ResponseEntity<UtilizationResponse> getBikeUtilization() {
-        UtilizationResponse utilization = bikesService.getVehicleUtilization();
-        // 如果 utilization 对象是空的或者数据不合理，可以返回 204 No Content 或 404 Not Found
-        // 但由于计算逻辑，它总会返回一个对象，即使所有计数都是0。
-        return ResponseEntity.ok(utilization);
+    @GetMapping("/utilization/{geohash}")
+    public ResponseEntity<UtilizationResponse> getBikeUtilizationByGeohash(@PathVariable String geohash) {
+
+            UtilizationResponse utilization = bikesService.getVehicleUtilizationByGeohash(geohash);
+            return ResponseEntity.ok(utilization);
+
     }
 
 }

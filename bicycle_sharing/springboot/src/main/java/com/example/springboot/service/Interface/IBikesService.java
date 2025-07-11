@@ -14,10 +14,12 @@ import java.util.List;
  */
 public interface IBikesService { // 接口名与实体类名保持一致，改为IBikesService/
     /**
-     * 获取车辆使用率及其相关统计数据。
+     * 根据区域编号获取单车使用率
+     *
+     * @param geohash 区域编码
      * @return UtilizationResponse 对象，包含使用率、在线数、使用中数和空闲数。
      */
-    UtilizationResponse getVehicleUtilization();
+    UtilizationResponse getVehicleUtilizationByGeohash(String geohash);
 
     /**
      * 根据 geohash 获取该区域内的所有车辆数量

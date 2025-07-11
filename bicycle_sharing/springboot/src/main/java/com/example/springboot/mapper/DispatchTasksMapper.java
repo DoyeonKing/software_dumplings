@@ -3,6 +3,7 @@ package com.example.springboot.mapper;
 import com.example.springboot.entity.DispatchTasks; // 导入纠正后的实体类名
 import org.apache.ibatis.annotations.*;
 
+import java.time.LocalDate;
 import java.util.List; // 导入必要的类
 
 /**
@@ -74,4 +75,20 @@ public interface DispatchTasksMapper { // 接口名与实体类名保持一致�
             "VALUES (#{startGeohash}, #{endGeohash}, #{bikeCount}, #{assignedTo}, #{status}, #{createdAt})")
     @Options(useGeneratedKeys = true, keyProperty = "taskId") // 主键名从id改为taskId
     int insertDispatchTask(DispatchTasks task);
+
+    /**
+     * 根据日期范围和工作人员ID获取任务信息
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @param assignedTo 工作人员ID
+     * @return 匹配的任务列表
+     */
+    @Select("SELECT " +
+            "task_id, start_geohash, end_geohash, bike_count, " +
+            "assigned_to, status, created_at, completed_at " +
+            "FROM dispatch_tasks " +
+            "WHERE assigned_to = #{assignedTo} AND created_at BETWEEN #{startDate} AND #{endDate}")
+    List<DispatchTasks> selectTasksByDateRangeAndAssignedTo(@Param("startDate") LocalDate startDate,
+                                                            @Param("endDate") LocalDate endDate,
+                                                            @Param("assignedTo") Integer assignedTo);
 }

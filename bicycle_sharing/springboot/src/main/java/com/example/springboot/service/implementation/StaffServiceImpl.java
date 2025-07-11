@@ -11,6 +11,8 @@ import com.example.springboot.service.Interface.IStaffService;
 import com.example.springboot.util.JwtTokenUtil;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 
 @Service
@@ -104,5 +106,67 @@ public class StaffServiceImpl implements IStaffService {
     @Override
     public List<Staff> getAllWorkers() {
         return staffMapper.findAllWorkers();
+    }
+
+    /**
+     * 更新工作人员的用户名
+     * @param staffId 工作人员ID (从Token解析而来)
+     * @param newUsername 新用户名
+     * @return 更新影响的行数
+     * @throws CustomException 如果新用户名已存在或用户不存在
+     */
+    @Override
+    @Transactional
+    public int updateUsername(Integer staffId, String newUsername) {
+        // 1. 确保要更新的staffId存在
+        Staff staffToUpdate = staffMapper.selectById(staffId);
+        if (staffToUpdate == null) {
+            throw new CustomException("要更新的员工不存在", "404");
+        }
+
+        // 2. 检查新用户名是否已被占用，且不是当前用户的旧用户名
+        // 如果新用户名与当前用户的旧用户名相同，则无需更新，直接返回成功
+        if (newUsername.equals(staffToUpdate.getUsername())) {
+            return 1; // 视为成功更新，因为结果是一样的
+        }
+
+        // 检查新用户名是否被其他用户占用
+        Staff existingStaffWithNewUsername = staffMapper.findByUsername(newUsername);
+        if (existingStaffWithNewUsername != null) {
+            throw new CustomException("新用户名 '" + newUsername + "' 已被占用", "409");
+        }
+
+        // 3. 执行更新
+        return staffMapper.updateUsername(staffId, newUsername);
+    }
+
+    /**
+     * 更新工作人员的密码
+     * @param staffId 工作人员ID (从Token解析而来)
+     * @param oldPassword 明文旧密码
+     * @param newPassword 明文新密码
+     * @return 更新影响的行数
+     * @throws CustomException 如果旧密码不正确或用户不存在
+     */
+    @Override
+    @Transactional
+    public int updatePassword(Integer staffId, String oldPassword, String newPassword) {
+        // 1. 根据 staffId 查询用户，获取其当前密码哈希
+        Staff staff = staffMapper.selectById(staffId);
+        if (staff == null) {
+            throw new CustomException("用户不存在", "404");
+        }
+
+        // 2. 校验旧密码
+        String hashedOldPassword = SecureUtil.sha256(oldPassword);
+        if (!hashedOldPassword.equals(staff.getPasswordHash())) {
+            throw new CustomException("旧密码不正确", "400");
+        }
+
+        // 3. 哈希新密码
+        String hashedNewPassword = SecureUtil.sha256(newPassword);
+
+        // 4. 执行密码更新
+        return staffMapper.updatePassword(staffId, hashedNewPassword);
     }
 }

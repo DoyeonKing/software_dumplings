@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service; // 导入Service注解
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List; // 导入List
 
@@ -113,5 +114,10 @@ public class DispatchTasksServiceImpl implements IDispatchTasksService { // 实�
     public List<DispatchTasks> getTasksByAssignedTo(Integer assignedTo) { // 新增实现
         // 调用 Mapper 获取指定工作人员的任务数据
         return dispatchTasksMapper.selectTasksByAssignedTo(assignedTo);
+    }
+
+    @Override
+    public List<DispatchTasks> getTasksByDateRangeAndAssignedTo(LocalDate startDate, LocalDate endDate, Integer assignedTo) {
+        return dispatchTasksMapper.selectTasksByDateRangeAndAssignedTo(startDate, endDate, assignedTo);
     }
 }

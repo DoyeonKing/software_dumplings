@@ -1,10 +1,7 @@
 package com.example.springboot.mapper;
 
 import com.example.springboot.entity.Staff;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
-import org.apache.ibatis.annotations.Insert;
+import org.apache.ibatis.annotations.*;
 
 import java.util.List;
 
@@ -41,4 +38,31 @@ public interface StaffMapper {
      */
     @Select("SELECT staff_id, username, password_hash, staff_type FROM staff WHERE staff_type = '工作人员'")
     List<Staff> findAllWorkers();
+
+    /**
+     * 更新工作人员的用户名
+     * @param staffId 工作人员ID
+     * @param newUsername 新用户名
+     * @return 更新影响的行数
+     */
+    @Update("UPDATE staff SET username = #{newUsername} WHERE staff_id = #{staffId}")
+    int updateUsername(@Param("staffId") Integer staffId, @Param("newUsername") String newUsername);
+
+    /**
+     * 更新工作人员的密码
+     * @param staffId 工作人员ID
+     * @param newPasswordHash 新密码哈希值
+     * @return 更新影响的行数
+     */
+    @Update("UPDATE staff SET password_hash = #{newPasswordHash} WHERE staff_id = #{staffId}")
+    int updatePassword(@Param("staffId") Integer staffId, @Param("newPasswordHash") String newPasswordHash);
+
+    /**
+     * 根据用户ID查询员工信息
+     * @param staffId 用户ID
+     * @return 对应的 Staff 对象，如果不存在则返回 null
+     */
+    // !!! 确保这一块代码在您的 StaffMapper 接口中 !!!
+    @Select("SELECT staff_id, username, password_hash, staff_type FROM staff WHERE staff_id = #{staffId}")
+    Staff selectById(@Param("staffId") Integer staffId);
 }
