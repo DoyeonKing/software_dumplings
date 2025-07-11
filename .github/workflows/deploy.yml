@@ -4,7 +4,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  # --- 任务一：部署后端 (带有内存优化) ---
+  # --- 任务一：部署后端 ---
   deploy-backend:
     runs-on: ubuntu-latest
     steps:
@@ -17,33 +17,33 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Check disk space on runner
+      - name: 检查运行器磁盘空间
         run: |
           df -h
-          # Get available disk space
-          available_space=$( df -h / | grep -v Filesystem | awk '{print $4}' )
-          echo "Available disk space: $available_space"
+          # 获取可用磁盘空间
+          available_space=$(df -h / | grep -v Filesystem | awk '{print $4}')
+          echo "可用磁盘空间: $available_space"
           
-          # Define the minimum required space in GB
+          # 定义最小所需空间(GB)
           min_space=10G
           
-          # Convert available space to GB and compare
+          # 转换可用空间为GB并比较
           if [[ $(echo "$available_space < $min_space" | tr -d '[:alpha:]' | bc -l) -gt 0 ]]; then
-            echo "Error: Available disk space is less than $min_space."
+            echo "错误: 可用磁盘空间小于 $min_space."
             exit 1
           else
-            echo "Sufficient disk space available."
+            echo "有足够的磁盘空间可用."
           fi
 
       - name: 3. 清理不必要的文件和缓存
         run: |
-          # Clean up unnecessary files and caches
+          # 清理不必要的文件和缓存
           sudo apt-get clean
           sudo rm -rf /usr/share/dotnet/sdk/* /usr/local/lib/ruby/gems/*/cache
           df -h
 
       - name: 4. 打包后端项目 (使用内存限制)
-        # 【关键修正】通过MAVEN_OPTS环境变量，限制Maven最大使用2GB内存
+        # 通过MAVEN_OPTS环境变量，限制Maven最大使用2GB内存
         env:
           MAVEN_OPTS: -Xmx2048m
         run: mvn -f bicycle_sharing/springboot/pom.xml clean package -DskipTests
@@ -58,39 +58,96 @@ jobs:
           target: "/app"
           strip_components: 3
 
-      - name: 6. 重启后端服务
+      - name: 6. 优雅重启后端服务
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.ECS_HOST }}
           username: ${{ secrets.ECS_USER }}
           password: ${{ secrets.ECS_PASSWORD }}
+          timeout: 300  # 设置SSH执行超时时间为5分钟
           script: |
-            PID=$(pgrep -f 'springboot-0.0.1-SNAPSHOT.jar')
+            echo "准备重启后端服务..."
+            
+            # 定义应用目录和日志文件路径
+            APP_DIR="/app"
+            LOG_FILE="$APP_DIR/backend.log"
+            JAR_FILE="$APP_DIR/springboot-0.0.1-SNAPSHOT.jar"
+            
+            # 切换到应用目录
+            cd $APP_DIR
+            
+            # 检查应用是否正在运行，如果是，则优雅地停止它
+            PID=$(pgrep -f "$JAR_FILE")
             if [ -n "$PID" ]; then
-              kill -9 $PID
+              echo "应用正在运行，PID: $PID，尝试优雅停止..."
+              kill $PID
+              
+              # 等待应用停止
+              for i in {1..30}; do
+                if ! ps -p $PID > /dev/null; then
+                  echo "应用已成功停止"
+                  break
+                fi
+                echo "等待应用停止...($i/30)"
+                sleep 1
+              done
+              
+              # 如果应用仍在运行，则强制终止
+              if ps -p $PID > /dev/null; then
+                echo "应用仍在运行，使用强制终止..."
+                kill -9 $PID
+                sleep 2
+              fi
+            else
+              echo "应用未运行，无需停止"
             fi
-            cd /app
-            nohup java -jar springboot-0.0.1-SNAPSHOT.jar > backend.log 2>&1 &
-            echo "Backend service restarted."
+            
+            # 清理旧日志
+            if [ -f "$LOG_FILE" ]; then
+              mv "$LOG_FILE" "$LOG_FILE.old"
+              echo "旧日志已重命名为 $LOG_FILE.old"
+            fi
+            
+            # 启动应用，设置JVM内存限制为最大2GB
+            echo "启动应用，设置最大堆内存为2GB..."
+            nohup java -Xmx2048m -jar $JAR_FILE > $LOG_FILE 2>&1 &
+            
+            # 等待应用启动
+            echo "等待应用启动..."
+            for i in {1..60}; do
+              if grep -q "Started Application" $LOG_FILE; then
+                echo "应用已成功启动！"
+                exit 0
+              fi
+              echo "检查应用启动状态...($i/60)"
+              sleep 1
+            done
+            
+            # 如果超时仍未启动成功，输出错误信息和日志尾部
+            echo "错误: 应用启动超时！"
+            echo "最近200行日志:"
+            tail -n 200 $LOG_FILE
+            exit 1
 
-  # --- 任务二：部署前端 (这个任务不变，它本身没有内存问题) ---
+  # --- 任务二：部署前端 ---
   deploy-frontend:
     runs-on: ubuntu-latest
+    needs: deploy-backend  # 确保前端部署在后端之后进行
     steps:
       - name: 1. 下载代码
         uses: actions/checkout@v4
-        
+
       - name: 2. 设置Node.js环境
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          
+
       - name: 3. 打包前端项目
         working-directory: ./bicycle_sharing/vue
         run: |
           npm install
           npm run build
-          
+
       - name: 4. 清理服务器旧前端文件
         uses: appleboy/ssh-action@master
         with:
@@ -99,8 +156,8 @@ jobs:
           password: ${{ secrets.ECS_PASSWORD }}
           script: |
             rm -rf /var/www/dist
-            echo "Old frontend files removed."
-            
+            echo "旧前端文件已移除."
+
       - name: 5. 上传新前端文件
         uses: appleboy/scp-action@master
         with:
@@ -109,7 +166,7 @@ jobs:
           password: ${{ secrets.ECS_PASSWORD }}
           source: "bicycle_sharing/vue/dist"
           target: "/var/www"
-          
+
       - name: 6. 刷新Nginx
         uses: appleboy/ssh-action@master
         with:
@@ -118,4 +175,4 @@ jobs:
           password: ${{ secrets.ECS_PASSWORD }}
           script: |
             systemctl reload nginx
-            echo "Nginx reloaded."
+            echo "Nginx已重新加载."
