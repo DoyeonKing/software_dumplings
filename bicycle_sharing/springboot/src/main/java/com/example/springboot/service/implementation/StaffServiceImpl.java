@@ -11,6 +11,7 @@ import com.example.springboot.service.Interface.IStaffService;
 import com.example.springboot.util.JwtTokenUtil;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
+import java.util.List;
 
 @Service
 public class StaffServiceImpl implements IStaffService {
@@ -98,5 +99,10 @@ public class StaffServiceImpl implements IStaffService {
     @Override
     public Staff findByUsername(String username) {
         return staffMapper.selectByUsername(username);
+    }
+
+    @Override
+    public List<Staff> getAllWorkers() {
+        return staffMapper.findAllWorkers();
     }
 }

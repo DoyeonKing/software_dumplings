@@ -6,6 +6,8 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Insert;
 
+import java.util.List;
+
 @Mapper
 public interface StaffMapper {
     /**
@@ -32,4 +34,11 @@ public interface StaffMapper {
     // 如果你有注册功能，也可以添加一个检查用户名是否存在的方法
     @Select("SELECT COUNT(*) FROM staff WHERE username = #{username}")
     int countByUsername(@Param("username") String username);
+
+    /**
+     * 查询所有工作人员（不包括管理员）
+     * @return 所有工作人员对象的列表
+     */
+    @Select("SELECT staff_id, username, password_hash, staff_type FROM staff WHERE staff_type = '工作人员'")
+    List<Staff> findAllWorkers();
 }
