@@ -66,21 +66,39 @@ public interface BikesMapper { // 接口名与实体类名保持一致，改为B
      */
     List<Bikes> findAllByStatus(@Param("status") String status);
 
-/**
- * 查询指定地理范围内（视口内）的单车列表，支持按状态筛选
- * @param minLat 最小纬度
- * @param maxLat 最大纬度
- * @param minLon 最小经度
- * @param maxLon 最大经度
- * @param bikeStatus 单车状态 (可选，如果为null则查询所有状态)
- * @return 指定范围内的单车列表
- */
-List<Bikes> findInViewport(
-        @Param("minLat") BigDecimal minLat,
-        @Param("maxLat") BigDecimal maxLat,
-        @Param("minLon") BigDecimal minLon,
-        @Param("maxLon") BigDecimal maxLon,
-        @Param("bikeStatus") String bikeStatus); // 新增方法
+    /**
+     * 查询指定地理范围内（视口内）的单车列表，支持按状态筛选
+     * @param minLat 最小纬度
+     * @param maxLat 最大纬度
+     * @param minLon 最小经度
+     * @param maxLon 最大经度
+     * @param bikeStatus 单车状态 (可选，如果为null则查询所有状态)
+     * @return 指定范围内的单车列表
+     */
+    List<Bikes> findInViewport(
+            @Param("minLat") BigDecimal minLat,
+            @Param("maxLat") BigDecimal maxLat,
+            @Param("minLon") BigDecimal minLon,
+            @Param("maxLon") BigDecimal maxLon,
+            @Param("bikeStatus") String bikeStatus); // 新增方法
 
 
+    /**
+     * 统计指定地理范围内（视口内）的单车数量 (不区分状态)
+     * @param minLat 最小纬度
+     * @param maxLat 最大纬度
+     * @param minLon 最小经度
+     * @param maxLon 最大经度
+     * @return 指定范围内的单车数量
+     */
+    @Select({
+            "SELECT COUNT(*) FROM bikes",
+            "WHERE current_lat BETWEEN #{minLat} AND #{maxLat}",
+            "AND current_lon BETWEEN #{minLon} AND #{maxLon}"
+    })
+    int countInViewport(
+            @Param("minLat") BigDecimal minLat,
+            @Param("maxLat") BigDecimal maxLat,
+            @Param("minLon") BigDecimal minLon,
+            @Param("maxLon") BigDecimal maxLon);
 }

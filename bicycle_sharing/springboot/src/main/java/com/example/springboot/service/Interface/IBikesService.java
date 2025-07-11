@@ -1,9 +1,13 @@
 package com.example.springboot.service.Interface;
 
+import com.example.springboot.controller.BikesController;
+import com.example.springboot.dto.HeatCell;
 import com.example.springboot.dto.UtilizationResponse;
 import com.example.springboot.entity.Bikes;
 import com.example.springboot.exception.CustomException;
+import com.example.springboot.mapper.BikesMapper;
 import com.github.pagehelper.PageInfo;
+import jakarta.annotation.Resource;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -58,16 +62,35 @@ public interface IBikesService { // 接口名与实体类名保持一致，改�
     Bikes getBikeDetails(String bikeId);
 
 
-    /**
- * 获取指定地理范围内（视口内）的单车列表，支持按状态筛选
- * @param minLat 最小纬度
- * @param maxLat 最大纬度
- * @param minLon 最小经度
- * @param maxLon 最大经度
- * @param bikeStatus 单车状态 (可选，如果为null则查询所有状态)
- * @return 指定范围内的单车列表
- * @throws CustomException 如果获取失败
- */
-List<Bikes> getBikesInViewport(BigDecimal minLat, BigDecimal maxLat, BigDecimal minLon, BigDecimal maxLon, String bikeStatus);
+        /**
+     * 获取指定地理范围内（视口内）的单车列表，支持按状态筛选
+     * @param minLat 最小纬度
+     * @param maxLat 最大纬度
+     * @param minLon 最小经度
+     * @param maxLon 最大经度
+     * @param bikeStatus 单车状态 (可选，如果为null则查询所有状态)
+     * @return 指定范围内的单车列表
+     * @throws CustomException 如果获取失败
+     */
+    List<Bikes> getBikesInViewport(BigDecimal minLat, BigDecimal maxLat, BigDecimal minLon, BigDecimal maxLon, String bikeStatus);
 
+
+    /**
+     * 生成指定区域内的单车分布热力图数据 (统计每个网格单元内的所有单车)
+     * @param minLat 整个大区域的最小纬度
+     * @param maxLat 整个大区域的最大纬度
+     * @param minLon 整个大区域的最小经度
+     * @param maxLon 整个大区域的最大经度
+     * @param gridCellsX 横向网格单元数量 (例如 50)
+     * @param gridCellsY 纵向网格单元数量 (例如 50)
+     * @return 包含热力图数据的列表
+     * @throws CustomException 如果获取失败
+     */
+    List<HeatCell> generateBikeHeatmap(
+            BigDecimal minLat,
+            BigDecimal maxLat,
+            BigDecimal minLon,
+            BigDecimal maxLon,
+            Integer gridCellsX,
+            Integer gridCellsY);
 }
