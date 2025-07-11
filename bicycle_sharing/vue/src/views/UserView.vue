@@ -15,6 +15,7 @@
       <div class="feature-item" @click="handleFeature('stations')">停车点位置</div>
       <div class="feature-item" @click="handleFeature('navigation')">导航</div>
       <div class="feature-item" @click="handleFeature('return')">还车</div>
+      <div class="feature-item" @click="handleFeature('heatmap')">热力图</div>
       <div class="feature-item" @click="toggleMapSettings">地图设置</div>
     </div>
 
@@ -77,6 +78,7 @@
       :showBicycles="showBicycles"
       :showParkingAreas="showParkingAreas"
       :showNavigation="showNavigation"
+      :showHeatmap="showHeatmap"
       @update:showNavigation="showNavigation = $event"
       ref="mapComponentRef"
     />
@@ -97,6 +99,7 @@ const mapComponentRef = ref(null);
 const showBicycles = ref(false);
 const showParkingAreas = ref(false);
 const showNavigation = ref(false);
+const showHeatmap = ref(false);
 
 const mapStyles = [
   { label: '标准', value: 'normal' },
@@ -138,6 +141,10 @@ const handleFeature = (feature) => {
   }
   if (feature === 'navigation') {
     showNavigation.value = !showNavigation.value;
+    return;
+  }
+  if (feature === 'heatmap') {
+    showHeatmap.value = !showHeatmap.value;
     return;
   }
   // 这里添加各个功能的处理逻辑
