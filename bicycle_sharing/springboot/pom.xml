@@ -40,6 +40,12 @@
             </exclusions>
         </dependency>
 
+        <dependency>
+            <groupId>ch.hsr</groupId>
+            <artifactId>geohash</artifactId>
+            <version>1.4.0</version>
+        </dependency>
+
         <!--
           REMOVED: The SQL Server (mssql-jdbc) dependency was here.
           ADDED: The MySQL Connector/J dependency for MySQL 8.0+.

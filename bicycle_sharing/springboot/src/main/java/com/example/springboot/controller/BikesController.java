@@ -1,6 +1,7 @@
 package com.example.springboot.controller;
 
 import com.example.springboot.common.Result;
+import com.example.springboot.dto.HeatCell;
 import com.example.springboot.dto.UtilizationResponse;
 import com.example.springboot.entity.Bikes;
 import com.example.springboot.exception.CustomException;
@@ -145,6 +146,39 @@ public class BikesController { // 控制器类名与资源名复数形式保持�
             UtilizationResponse utilization = bikesService.getVehicleUtilizationByGeohash(geohash);
             return ResponseEntity.ok(utilization);
 
+    }
+
+    /**
+     * 生成指定区域内的单车分布热力图数据 (统计每个网格单元内的所有单车)
+     * Endpoint: GET /bikes/heatmap
+     *
+     * @param minLat 整个大区域的最小纬度
+     * @param maxLat 整个大区域的最大纬度
+     * @param minLon 整个大区域的最小经度
+     * @param maxLon 整个大区域的最大经度
+     * @param gridCellsX 横向网格单元数量 (可选，默认50)
+     * @param gridCellsY 纵向网格单元数量 (可选，默认50)
+     * @return 统一响应结果，包含热力图数据的列表 (List<HeatCell>)
+     */
+    @GetMapping("/heatmap")
+    public Result getBikeHeatmap(
+            @RequestParam BigDecimal minLat,
+            @RequestParam BigDecimal maxLat,
+            @RequestParam BigDecimal minLon,
+            @RequestParam BigDecimal maxLon,
+            @RequestParam(defaultValue = "50") Integer gridCellsX, // 默认网格横向密度
+            @RequestParam(defaultValue = "50") Integer gridCellsY) { // 默认网格纵向密度 // 修改：移除 searchRadiusDegrees 参数
+        try {
+            List<HeatCell> heatmapData = bikesService.generateBikeHeatmap(
+                    minLat, maxLat, minLon, maxLon,
+                    gridCellsX, gridCellsY); // 修改：移除 searchRadiusDegrees 参数
+            return Result.success(heatmapData);
+        } catch (CustomException e) {
+            return Result.error(e.getCode(), e.getMsg());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("500", "生成单车热力图失败: " + e.getMessage());
+        }
     }
 
 }
