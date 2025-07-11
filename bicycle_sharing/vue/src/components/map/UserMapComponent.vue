@@ -1,7 +1,7 @@
- // 高德地图 API Keys 说明：
+// 高德地图 API Keys 说明：
 // 1. Web端 Key (key-webJS): 7a9ebfd8db9264a7f90b65369bd2970a
 //    用于前端地图显示和基础交互功能（JavaScript API、地图组件等）
-// 
+//
 // 2. Web服务 Key (key-web): 4c4409cdbe818ceb94f8660e2e111563
 //    用于后端服务调用（路径规划、搜索、地理编码等），不要在前端直接使用
 
@@ -18,38 +18,38 @@
         <div class="location-inputs">
           <div class="start-point">
             <span>起点：</span>
-            <el-button 
-              size="small" 
-              :type="isSelectingStart ? 'primary' : 'default'"
-              @click="startSelectingPoint('start')"
+            <el-button
+                size="small"
+                :type="isSelectingStart ? 'primary' : 'default'"
+                @click="startSelectingPoint('start')"
             >
               {{ startPoint ? '已选择' : '在地图上选择' }}
             </el-button>
-            <el-button 
-              size="small"
-              type="primary"
-              plain
-              @click="selectCurrentPositionAsStart"
+            <el-button
+                size="small"
+                type="primary"
+                plain
+                @click="selectCurrentPositionAsStart"
             >
               选择当前位置
             </el-button>
           </div>
           <div class="end-point">
             <span>终点：</span>
-            <el-button 
-              size="small" 
-              :type="isSelectingEnd ? 'primary' : 'default'"
-              @click="startSelectingPoint('end')"
+            <el-button
+                size="small"
+                :type="isSelectingEnd ? 'primary' : 'default'"
+                @click="startSelectingPoint('end')"
             >
               {{ endPoint ? '已选择' : '在地图上选择' }}
             </el-button>
           </div>
         </div>
         <div class="navigation-actions">
-          <el-button 
-            type="primary" 
-            :disabled="!startPoint || !endPoint"
-            @click="calculateRoute" 
+          <el-button
+              type="primary"
+              :disabled="!startPoint || !endPoint"
+              @click="calculateRoute"
           >
             开始导航
           </el-button>
@@ -100,6 +100,10 @@ export default {
     hideUI: {
       type: Boolean,
       default: false
+    },
+    mapType: {
+      type: String,
+      default: 'normal'
     },
     mapStyle: {
       type: String,
@@ -154,13 +158,103 @@ export default {
       grey: 'amap://styles/grey'
     };
 
+    // 初始化高德地图
+    const initMap = async () => {
+      try {
+        const AMap = await AMapLoader.load({
+          key: '7a9ebfd8db9264a7f90b65369bd2970a',  // Web端 Key
+          version: '2.0',
+          plugins: [
+            'AMap.ControlBar',  // 指南针控件
+            'AMap.Scale',       // 比例尺控件
+            'AMap.Riding',      // 骑行路线规划
+            'AMap.LngLat'       // 经纬度转换
+          ],
+          securityJsCode: '1751964054605',  // 添加安全密钥
+          security: {
+            serviceHost: 'https://restapi.amap.com'  // 设置安全域名
+          }
+        });
+
+        // 创建地图实例
+        map.value = new AMap.Map('map', {
+          zoom: 13,
+          center: [114.085947, 22.547],  // 深圳市中心
+          viewMode: '2D',
+          mapStyle: styleMapping[props.mapStyle]
+        });
+
+        // 添加指南针（放在右下角）
+        const controlBar = new AMap.ControlBar({
+          position: { bottom: '20px', right: '20px' },
+          showZoomBar: false,  // 不显示缩放按钮
+          showControlButton: true  // 显示指南针
+        });
+        map.value.addControl(controlBar);
+
+        // 添加比例尺（放在左下角）
+        const scale = new AMap.Scale({
+          position: { bottom: '20px', left: '20px' }
+        });
+        map.value.addControl(scale);
+
+        // 初始化骑行规划插件
+        riding.value = new AMap.Riding({
+          map: map.value,
+          panel: false,  // 不使用默认面板
+          hideMarkers: false,  // 显示起终点标记
+          key: '4c4409cdbe818ceb94f8660e2e111563'  // Web服务 Key [[memory:2538380]]
+        });
+
+        // 初始化用户位置为地图中心点
+        userPosition.value = [114.085947, 22.547];
+
+        // 创建用户位置标记
+        userPositionMarker.value = new AMap.Marker({
+          map: map.value,
+          position: userPosition.value,
+          icon: new AMap.Icon({
+            size: new AMap.Size(24, 24),
+            imageSize: new AMap.Size(24, 24),
+            image: 'https://webapi.amap.com/theme/v1.3/markers/n/loc.png'
+          }),
+          offset: new AMap.Pixel(-12, -12),
+          zIndex: 200
+        });
+
+        // 添加自定义按钮
+        const locationButton = document.createElement('div');
+        locationButton.className = 'location-button';
+        locationButton.innerHTML = `
+          <button class="custom-button" title="设置当前位置">
+            <svg viewBox="0 0 24 24" width="22" height="22">
+              <path fill="currentColor" d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
+            </svg>
+          </button>
+        `;
+        map.value.getContainer().appendChild(locationButton);
+
+        // 添加按钮点击事件
+        locationButton.addEventListener('click', () => {
+          isSettingUserPosition.value = true;
+          isSelectingStart.value = false;
+          isSelectingEnd.value = false;
+          map.value.setDefaultCursor('crosshair');
+          ElMessage.info('点击地图设置当前位置');
+        });
+
+        // 添加地图点击事件
+        map.value.on('click', handleMapClick);
+
+      } catch (error) {
+        console.error('地图加载失败：', error);
+        ElMessage.error('地图加载失败');
+      }
+    };
+
     // 获取单车数据（直接使用模拟数据）
     const fetchBicyclesData = async () => {
       try {
-        // 如果已经加载过数据，直接返回
-        if (bicyclesData.value.length > 0) {
-          return;
-        }
         const response = await getAllBicycles();
         bicyclesData.value = response.data;
       } catch (error) {
@@ -172,23 +266,21 @@ export default {
     // 显示单车位置
     const showBicycleMarkers = async () => {
       if (!map.value) return;
-      
-      try {
-        // 如果已经创建了标记，只需要切换显示状态
-        if (bicycleMarkers.value.length > 0) {
-          bicycleMarkers.value.forEach(marker => {
-            marker.setMap(props.showBicycles ? map.value : null);
-          });
-          return;
-        }
 
-        // 获取数据
+      try {
+        // 使用模拟数据
         await fetchBicyclesData();
 
         const AMap = await AMapLoader.load({
           key: '7a9ebfd8db9264a7f90b65369bd2970a',
           version: '2.0'
         });
+
+        // 清除现有的单车标记
+        if (bicycleMarkers.value.length) {
+          map.value.remove(bicycleMarkers.value);
+          bicycleMarkers.value = [];
+        }
 
         // 创建单车图标
         const icon = new AMap.Icon({
@@ -204,8 +296,7 @@ export default {
               position: bike.location,
               icon: icon,
               title: `单车编号: ${bike.id}`,
-              offset: new AMap.Pixel(-16, -16),
-              map: props.showBicycles ? map.value : null  // 根据当前显示状态决定是否添加到地图
+              offset: new AMap.Pixel(-16, -16)
             });
 
             // 添加点击事件
@@ -220,20 +311,23 @@ export default {
                   <p><strong>总里程：</strong>${bike.totalMileage.toFixed(1)}km</p>
                 </div>
               `;
-              
+
               if (!infoWindow.value) {
                 infoWindow.value = new AMap.InfoWindow({
                   closeWhenClickMap: true,
                   offset: new AMap.Pixel(0, -30)
                 });
               }
-              
+
               infoWindow.value.setContent(content);
               infoWindow.value.open(map.value, marker.getPosition());
             });
-            
+
             bicycleMarkers.value.push(marker);
           });
+
+          // 将所有标记添加到地图上
+          map.value.add(bicycleMarkers.value);
         } else {
           console.error('没有可用的单车数据');
           ElMessage.warning('没有可用的单车数据');
@@ -247,9 +341,8 @@ export default {
     // 隐藏单车位置
     const hideBicycleMarkers = () => {
       if (!map.value || !bicycleMarkers.value.length) return;
-      bicycleMarkers.value.forEach(marker => {
-        marker.setMap(null);
-      });
+      map.value.remove(bicycleMarkers.value);
+      bicycleMarkers.value = [];
     };
 
     // 监听 showBicycles 属性变化
@@ -264,7 +357,7 @@ export default {
     // 监听 hideUI 属性变化
     watch(() => props.hideUI, (newValue) => {
       if (!map.value) return;
-      
+
       mapControls.value.forEach(control => {
         if (newValue) {
           control.hide();
@@ -272,6 +365,19 @@ export default {
           control.show();
         }
       });
+    });
+
+    // 监听地图类型变化
+    watch(() => props.mapType, (newType) => {
+      if (!map.value) return;
+
+      if (newType === 'satellite') {
+        // 切换到卫星图
+        map.value.setLayers([new AMap.TileLayer.Satellite()]);
+      } else {
+        // 切换到普通地图
+        map.value.setLayers([new AMap.TileLayer()]);
+      }
     });
 
     // 监听地图样式变化
@@ -283,7 +389,7 @@ export default {
     // 监听地图移动事件，更新单车数据
     const setupMapEventListeners = () => {
       if (!map.value) return;
-      
+
       // 当地图移动结束时，重新显示单车
       map.value.on('moveend', () => {
         if (props.showBicycles) {
@@ -318,18 +424,11 @@ export default {
     };
 
     // 获取停车点数据
-    const fetchParkingAreas = async () => {
-      try {
-        // 如果已经加载过数据，直接返回
-        if (parkingAreas.value.length > 0) {
-          return;
-        }
-        const response = await getAllParkingAreas();
+    const fetchParkingAreas = () => {
+      // 直接使用模拟数据
+      return getAllParkingAreas().then(response => {
         parkingAreas.value = response.data;
-      } catch (error) {
-        console.error('获取停车点数据失败：', error);
-        ElMessage.error('获取停车点数据失败');
-      }
+      });
     };
 
     // 显示停车点区域
@@ -337,47 +436,50 @@ export default {
       if (!map.value) return;
 
       try {
-        // 如果已经创建了标记和多边形，只需要切换显示状态
-        if (parkingPolygons.value.length > 0 && parkingMarkers.value.length > 0) {
-          parkingPolygons.value.forEach(polygon => {
-            polygon.setMap(map.value);
-          });
-          parkingMarkers.value.forEach(marker => {
-            marker.setMap(map.value);
-          });
-          return;
-        }
-
         await fetchParkingAreas();
+
+        const AMap = await AMapLoader.load({
+          key: '7a9ebfd8db9264a7f90b65369bd2970a',
+          version: '2.0'
+        });
+
+        // 清除现有的停车区域和标记
+        if (parkingPolygons.value.length) {
+          map.value.remove(parkingPolygons.value);
+          parkingPolygons.value = [];
+        }
+        if (parkingMarkers.value.length) {
+          map.value.remove(parkingMarkers.value);
+          parkingMarkers.value = [];
+        }
 
         // 创建停车场图标
         const parkingIcon = new AMap.Icon({
           image: '/src/components/icons/parking_area.png',
-          size: new AMap.Size(40, 40),
-          imageSize: new AMap.Size(40, 40)
+          size: new AMap.Size(40, 40),    // 图标大小
+          imageSize: new AMap.Size(40, 40) // 图片大小
         });
 
         // 为每个停车点创建矩形区域和图标
         parkingAreas.value.forEach(area => {
           // 创建矩形的四个顶点
           const path = [
-            [area.bounds.southwest[1], area.bounds.southwest[0]],
-            [area.bounds.northeast[1], area.bounds.southwest[0]],
-            [area.bounds.northeast[1], area.bounds.northeast[0]],
-            [area.bounds.southwest[1], area.bounds.northeast[0]],
-            [area.bounds.southwest[1], area.bounds.southwest[0]]
+            [area.bounds.southwest[1], area.bounds.southwest[0]],  // 左下角
+            [area.bounds.northeast[1], area.bounds.southwest[0]],  // 右下角
+            [area.bounds.northeast[1], area.bounds.northeast[0]],  // 右上角
+            [area.bounds.southwest[1], area.bounds.northeast[0]],  // 左上角
+            [area.bounds.southwest[1], area.bounds.southwest[0]]   // 闭合多边形
           ];
 
           // 创建多边形
           const polygon = new AMap.Polygon({
             path: path,
-            strokeColor: parkingStatusColors[area.status] || '#4CAF50',
+            strokeColor: parkingStatusColors[area.status] || '#4CAF50',  // 根据状态设置颜色
             strokeWeight: 3,
             strokeOpacity: 1,
             fillColor: parkingStatusColors[area.status] || '#4CAF50',
             fillOpacity: 0.4,
-            cursor: 'pointer',
-            map: null  // 初始不添加到地图
+            cursor: 'pointer'
           });
 
           // 创建图标标记（放在区域中心）
@@ -385,118 +487,57 @@ export default {
             (area.bounds.southwest[1] + area.bounds.northeast[1]) / 2,
             (area.bounds.southwest[0] + area.bounds.northeast[0]) / 2
           ];
-          
+
           const marker = new AMap.Marker({
             position: center,
             icon: parkingIcon,
             offset: new AMap.Pixel(-20, -20),
-            cursor: 'pointer',
-            map: null  // 初始不添加到地图
+            cursor: 'pointer'
           });
 
           // 添加图标点击事件
           marker.on('click', () => {
+            const content = `
+              <div class="parking-info">
+                <h4>${area.name}</h4>
+                <p><strong>编号：</strong>${area.id}</p>
+                <p><strong>状态：</strong>${parkingStatusText[area.status]}</p>
+              </div>
+            `;
+
             if (!infoWindow.value) {
               infoWindow.value = new AMap.InfoWindow({
                 closeWhenClickMap: true,
                 offset: new AMap.Pixel(0, -30)
               });
             }
-            
-            const content = `
-              <div class="parking-info">
-                <h4>${area.name}</h4>
-                <p><strong>编号：</strong>${area.id}</p>
-                <p><strong>状态：</strong>${parkingStatusText[area.status]}</p>
-                <p><strong>可用车位：</strong>${area.available_spots}个</p>
-                <p><strong>总车位：</strong>${area.total_spots}个</p>
-              </div>
-            `;
-            
+
             infoWindow.value.setContent(content);
             infoWindow.value.open(map.value, marker.getPosition());
           });
 
-          // 添加多边形点击事件
-          polygon.on('click', () => {
-            if (!infoWindow.value) {
-              infoWindow.value = new AMap.InfoWindow({
-                closeWhenClickMap: true,
-                offset: new AMap.Pixel(0, -30)
-              });
-            }
-            
-            const content = `
-              <div class="parking-info">
-                <h4>${area.name}</h4>
-                <p><strong>编号：</strong>${area.id}</p>
-                <p><strong>状态：</strong>${parkingStatusText[area.status]}</p>
-                <p><strong>可用车位：</strong>${area.available_spots}个</p>
-                <p><strong>总车位：</strong>${area.total_spots}个</p>
-              </div>
-            `;
-            
-            infoWindow.value.setContent(content);
-            infoWindow.value.open(map.value, center);
-          });
-
           // 添加多边形鼠标悬停效果
-          let originalOptions = null;
-          
           polygon.on('mouseover', () => {
-            originalOptions = {
-              fillOpacity: polygon.getOptions().fillOpacity,
-              strokeWeight: polygon.getOptions().strokeWeight
-            };
-            
             polygon.setOptions({
               fillOpacity: 0.6,
               strokeWeight: 4
             });
-            
-            marker.setzIndex(110);
           });
 
           polygon.on('mouseout', () => {
-            if (originalOptions) {
-              polygon.setOptions(originalOptions);
-            }
-            marker.setzIndex(100);
-          });
-
-          // 添加标记鼠标悬停效果
-          marker.on('mouseover', () => {
-            if (!originalOptions) {
-              originalOptions = {
-                fillOpacity: polygon.getOptions().fillOpacity,
-                strokeWeight: polygon.getOptions().strokeWeight
-              };
-            }
-            
             polygon.setOptions({
-              fillOpacity: 0.6,
-              strokeWeight: 4
+              fillOpacity: 0.4,
+              strokeWeight: 3
             });
-            
-            marker.setzIndex(110);
-          });
-
-          marker.on('mouseout', () => {
-            if (originalOptions) {
-              polygon.setOptions(originalOptions);
-            }
-            marker.setzIndex(100);
           });
 
           parkingPolygons.value.push(polygon);
           parkingMarkers.value.push(marker);
         });
 
-        // 如果需要显示，一次性添加所有标记到地图
-        if (props.showParkingAreas) {
-          parkingPolygons.value.forEach(polygon => polygon.setMap(map.value));
-          parkingMarkers.value.forEach(marker => marker.setMap(map.value));
-        }
+        // 将所有多边形和标记添加到地图上
+        map.value.add(parkingPolygons.value);
+        map.value.add(parkingMarkers.value);
       } catch (error) {
         console.error('加载停车区域失败：', error);
         ElMessage.error('加载停车区域失败');
@@ -506,14 +547,20 @@ export default {
     // 隐藏停车点区域
     const hideParkingAreas = () => {
       if (!map.value) return;
-      parkingPolygons.value.forEach(polygon => polygon.setMap(null));
-      parkingMarkers.value.forEach(marker => marker.setMap(null));
+      if (parkingPolygons.value.length) {
+        map.value.remove(parkingPolygons.value);
+        parkingPolygons.value = [];
+      }
+      if (parkingMarkers.value.length) {
+        map.value.remove(parkingMarkers.value);
+        parkingMarkers.value = [];
+      }
     };
 
     // 监听 showParkingAreas 属性变化
-    watch(() => props.showParkingAreas, async (show) => {
-      if (show) {
-        await showParkingAreas();
+    watch(() => props.showParkingAreas, (newValue) => {
+      if (newValue) {
+        showParkingAreas();
       } else {
         hideParkingAreas();
       }
@@ -584,9 +631,9 @@ export default {
         icon: new AMap.Icon({
           size: new AMap.Size(25, 34),
           imageSize: new AMap.Size(25, 34),
-          image: type === 'start' ? 
-            'https://webapi.amap.com/theme/v1.3/markers/n/start.png' : 
-            'https://webapi.amap.com/theme/v1.3/markers/n/end.png'
+          image: type === 'start' ?
+              'https://webapi.amap.com/theme/v1.3/markers/n/start.png' :
+              'https://webapi.amap.com/theme/v1.3/markers/n/end.png'
         }),
         offset: new AMap.Pixel(-12, -34)
       });
@@ -642,9 +689,9 @@ export default {
 
           // 更新路线信息
           routeInfo.value = {
-            distance: result.route.distance < 1000 ? 
-              `${Math.round(result.route.distance)}米` : 
-              `${(result.route.distance / 1000).toFixed(2)}公里`,
+            distance: result.route.distance < 1000 ?
+                `${Math.round(result.route.distance)}米` :
+                `${(result.route.distance / 1000).toFixed(2)}公里`,
             time: Math.ceil(result.route.duration / 60)  // 转换为分钟
           };
 
@@ -666,7 +713,7 @@ export default {
         map.value.remove(routePath.value);
         routePath.value = null;
       }
-      
+
       // 清除路线信息
       routeInfo.value = null;
     };
@@ -678,7 +725,7 @@ export default {
         map.value.remove(routePath.value);
         routePath.value = null;
       }
-      
+
       // 清除起终点标记
       if (navigationMarkers.value.length) {
         navigationMarkers.value.forEach(marker => {
@@ -748,114 +795,6 @@ export default {
       }
     `;
     document.head.appendChild(style);
-
-    // 初始化地图
-    const initMap = async () => {
-      try {
-        const AMap = await AMapLoader.load({
-          key: '7a9ebfd8db9264a7f90b65369bd2970a',
-          version: '2.0',
-          plugins: [
-            'AMap.ControlBar',
-            'AMap.Scale',
-            'AMap.Riding',
-            'AMap.LngLat'
-          ],
-          securityJsCode: '1751964054605',
-          security: {
-            serviceHost: 'https://restapi.amap.com'
-          }
-        });
-
-        // 创建地图实例
-        map.value = new AMap.Map('map', {
-          zoom: 13,
-          center: [114.085947, 22.547],
-          viewMode: '2D',
-          mapStyle: styleMapping[props.mapStyle]
-        });
-
-        // 添加指南针（放在右下角）
-        const controlBar = new AMap.ControlBar({
-          position: { bottom: '20px', right: '20px' },
-          showZoomBar: false,  // 不显示缩放按钮
-          showControlButton: true  // 显示指南针
-        });
-        map.value.addControl(controlBar);
-
-        // 添加比例尺（放在左下角）
-        const scale = new AMap.Scale({
-          position: { bottom: '20px', left: '20px' }
-        });
-        map.value.addControl(scale);
-
-        // 初始化骑行规划插件
-        riding.value = new AMap.Riding({
-          map: map.value,
-          panel: false,  // 不使用默认面板
-          hideMarkers: false,  // 显示起终点标记
-          key: '4c4409cdbe818ceb94f8660e2e111563'  // Web服务 Key [[memory:2538380]]
-        });
-
-        // 初始化用户位置为地图中心点
-        userPosition.value = [114.085947, 22.547];
-        
-        // 创建用户位置标记
-        userPositionMarker.value = new AMap.Marker({
-          map: map.value,
-          position: userPosition.value,
-          icon: new AMap.Icon({
-            size: new AMap.Size(24, 24),
-            imageSize: new AMap.Size(24, 24),
-            image: 'https://webapi.amap.com/theme/v1.3/markers/n/loc.png'
-          }),
-          offset: new AMap.Pixel(-12, -12),
-          zIndex: 200
-        });
-
-        // 添加自定义按钮
-        const locationButton = document.createElement('div');
-        locationButton.className = 'location-button';
-        locationButton.innerHTML = `
-          <button class="custom-button" title="设置当前位置">
-            <svg viewBox="0 0 24 24" width="22" height="22">
-              <path fill="currentColor" d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
-            </svg>
-          </button>
-        `;
-        map.value.getContainer().appendChild(locationButton);
-
-        // 添加按钮点击事件
-        locationButton.addEventListener('click', () => {
-          isSettingUserPosition.value = true;
-          isSelectingStart.value = false;
-          isSelectingEnd.value = false;
-          map.value.setDefaultCursor('crosshair');
-          ElMessage.info('点击地图设置当前位置');
-        });
-
-        // 添加地图点击事件
-        map.value.on('click', handleMapClick);
-
-        // 预加载数据但不显示
-        await Promise.all([
-          fetchBicyclesData(),
-          fetchParkingAreas()
-        ]);
-
-        // 根据初始状态显示标记
-        if (props.showBicycles) {
-          await showBicycleMarkers();
-        }
-        if (props.showParkingAreas) {
-          await showParkingAreas();
-        }
-
-      } catch (error) {
-        console.error('地图加载失败：', error);
-        ElMessage.error('地图加载失败');
-      }
-    };
 
     onMounted(() => {
       initMap().then(() => {
