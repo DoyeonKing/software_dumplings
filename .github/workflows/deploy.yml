@@ -78,4 +78,4 @@ jobs:
       
             # 重新加载Nginx配置，使前端更新生效
             systemctl reload nginx
-            echo "Nginx reloaded."
+            echo "Nginx reloaded."//改了一下
