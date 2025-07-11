@@ -52,16 +52,30 @@ jobs:
           source: "bicycle_sharing/vue/dist"
           target: "/var/www"
 
+      # === 【最终修正版】在服务器上执行重启命令 ===
       - name: Restart Services on ECS
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.ECS_HOST }}
           username: ${{ secrets.ECS_USER }}
           password: ${{ secrets.ECS_PASSWORD }}
+          port: 22
           script: |
-            PID=$(ps -ef | grep 'springboot-0.0.1-SNAPSHOT.jar' | grep -v grep | awk '{print $2}')
+            # 使用更可靠的 pgrep 命令来查找PID
+            PID=$(pgrep -f 'springboot-0.0.1-SNAPSHOT.jar')
+      
+            # 如果找到了，就杀掉它
             if [ -n "$PID" ]; then
               kill -9 $PID
+              echo "Killed old process with PID: $PID"
             fi
-            nohup java -jar /app/springboot-0.0.1-SNAPSHOT.jar > /app/backend.log 2>&1 &
+      
+            # 在后台启动新的后端程序
+            # 为了确保启动，我们先进入/app目录
+            cd /app
+            nohup java -jar springboot-0.0.1-SNAPSHOT.jar > backend.log 2>&1 &
+            echo "Started new backend process."
+      
+            # 重新加载Nginx配置，使前端更新生效
             systemctl reload nginx
+            echo "Nginx reloaded."
