@@ -13,65 +13,66 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # === 后端部分 ===
+    # === 后端部分 (这部分不变) ===
     - name: Set up JDK 21
       uses: actions/setup-java@v4
       with:
-        java-version: '21' # 根据你的pom.xml，Java版本是21
+        java-version: '21'
         distribution: 'temurin'
-    - name: Build Backend with Maven
-      # 【修正】提供了正确的 pom.xml 文件路径
+    - name: Build Backend
       run: mvn -f bicycle_sharing/springboot/pom.xml clean package -DskipTests
-    - name: Upload Backend to ECS
+    - name: Upload Backend
       uses: appleboy/scp-action@master
       with:
         host: ${{ secrets.ECS_HOST }}
         username: ${{ secrets.ECS_USER }}
         password: ${{ secrets.ECS_PASSWORD }}
-        port: 22
-        # 【修正】提供了正确的 .jar 文件源路径
         source: "bicycle_sharing/springboot/target/springboot-0.0.1-SNAPSHOT.jar"
         target: "/app"
-        strip_components: 3 # 这一步会移除前面的3层目录，只把jar包本身放进/app
+        strip_components: 3
 
-    # === 前端部分 ===
+    # === 前端部分 (这里有关键修改) ===
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-    - name: Install and Build Frontend
-      # 【修正】指定了正确的前端工作目录
+    - name: Build Frontend
       working-directory: ./bicycle_sharing/vue
       run: |
         npm install
         npm run build
+
+    # 【关键修正：第1步 - 清理】在上传新文件之前，先登录服务器删除旧的前端文件夹
+    - name: Clean Old Frontend Files
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.ECS_HOST }}
+        username: ${{ secrets.ECS_USER }}
+        password: ${{ secrets.ECS_PASSWORD }}
+        script: |
+          rm -rf /var/www/dist
+
+    # 【关键修正：第2步 - 上传】在一个干净的环境上，上传全新的dist文件夹
     - name: Upload Frontend to ECS
       uses: appleboy/scp-action@master
       with:
         host: ${{ secrets.ECS_HOST }}
         username: ${{ secrets.ECS_USER }}
         password: ${{ secrets.ECS_PASSWORD }}
-        port: 22
-        # 【修正】上传打包好的dist文件夹到/var/www/目录下
         source: "bicycle_sharing/vue/dist"
         target: "/var/www"
 
-    # === 在服务器上执行重启命令 ===
+    # === 在服务器上执行重启命令 (这部分不变) ===
     - name: Restart Services on ECS
       uses: appleboy/ssh-action@master
       with:
         host: ${{ secrets.ECS_HOST }}
         username: ${{ secrets.ECS_USER }}
         password: ${{ secrets.ECS_PASSWORD }}
-        port: 22
         script: |
-          # 1. 找到正在运行的旧后端程序的进程ID
           PID=$(ps -ef | grep 'springboot-0.0.1-SNAPSHOT.jar' | grep -v grep | awk '{print $2}')
-          # 2. 如果找到了，就杀掉它
           if [ -n "$PID" ]; then
             kill -9 $PID
           fi
-          # 3. 在后台启动新的后端程序
           nohup java -jar /app/springboot-0.0.1-SNAPSHOT.jar > /app/backend.log 2>&1 &
-          # 4. 重新加载Nginx配置，使前端更新生效
           systemctl reload nginx
