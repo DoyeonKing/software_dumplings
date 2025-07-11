@@ -17,13 +17,21 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: 3. 打包后端项目 (使用内存限制)
+      - name: 3. 检查磁盘空间
+        run: |
+          df -h
+          if [ $(df -h / | grep -v Filesystem | awk '{print $4}') -lt 10G ]; then
+            echo "Disk space is less than 10GB, exiting."
+            exit 1
+          fi
+
+      - name: 4. 打包后端项目 (使用内存限制)
         # 【关键修正】通过MAVEN_OPTS环境变量，限制Maven最大使用2GB内存
         env:
           MAVEN_OPTS: -Xmx2048m
         run: mvn -f bicycle_sharing/springboot/pom.xml clean package -DskipTests
 
-      - name: 4. 上传后端Jar包
+      - name: 5. 上传后端Jar包
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.ECS_HOST }}
@@ -33,7 +41,7 @@ jobs:
           target: "/app"
           strip_components: 3
 
-      - name: 5. 重启后端服务
+      - name: 6. 重启后端服务
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.ECS_HOST }}
