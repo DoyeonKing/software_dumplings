@@ -21,11 +21,17 @@
       <div class="right-section">
         <div class="login-box">
           <form @submit.prevent="handleLogin" class="login-form">
+            <!-- 错误信息显示 -->
+            <div v-if="errorMessage" class="error-message">
+              {{ errorMessage }}
+            </div>
+
             <div class="form-group">
               <input 
-                type="email" 
-                v-model="formData.email" 
-                placeholder="Your email address"
+                type="text" 
+                v-model="formData.username" 
+                placeholder="用户名"
+                required
               />
             </div>
             
@@ -33,25 +39,26 @@
               <input 
                 type="password" 
                 v-model="formData.password" 
-                placeholder="Password"
+                placeholder="密码"
+                required
               />
-              <a href="#" class="recovery-link">Recovery password</a>
+              <a href="#" class="recovery-link">忘记密码？</a>
             </div>
 
             <div class="form-group role-select">
-              <label>Sign in as:</label>
+              <label>登录身份:</label>
               <div class="role-options">
                 <label class="role-option">
                   <input type="radio" v-model="selectedRole" value="user" name="role">
-                  <span class="role-text">User</span>
+                  <span class="role-text">普通用户</span>
                 </label>
                 <label class="role-option">
                   <input type="radio" v-model="selectedRole" value="admin" name="role">
-                  <span class="role-text">Admin</span>
+                  <span class="role-text">管理员</span>
                 </label>
                 <label class="role-option">
                   <input type="radio" v-model="selectedRole" value="worker" name="role">
-                  <span class="role-text">Worker</span>
+                  <span class="role-text">调度员</span>
                 </label>
               </div>
             </div>
@@ -61,11 +68,11 @@
               class="sign-in-btn"
               :disabled="isLoading"
             >
-              {{ isLoading ? 'Signing in...' : 'Sign In' }}
+              {{ isLoading ? '登录中...' : '登录' }}
             </button>
 
             <div class="divider">
-              <span>or continue with</span>
+              <span>或者使用以下方式登录</span>
             </div>
 
             <div class="social-login">
@@ -98,6 +105,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { login } from '@/api/account/login.js'
 
 const router = useRouter()
 const selectedRole = ref('user')
@@ -105,18 +113,56 @@ const errorMessage = ref('')
 const isLoading = ref(false)
 
 const formData = ref({
-  email: '',
+  username: '',
   password: ''
 })
 
-const handleLogin = () => {
-  const roleRoutes = {
-    user: '/user',
-    admin: '/admin',
-    worker: '/worker'
+const handleLogin = async () => {
+  // 清空之前的错误信息
+  errorMessage.value = ''
+  
+  // 验证表单
+  if (!formData.value.username || !formData.value.password) {
+    errorMessage.value = '请填写用户名和密码'
+    return
   }
   
-  router.push(roleRoutes[selectedRole.value])
+  isLoading.value = true
+  
+  try {
+    const response = await login({
+      username: formData.value.username,
+      password: formData.value.password,
+      role: selectedRole.value
+    })
+    
+    // 检查响应状态
+    if (response.code === '200' || response.code === 200) {
+      // 登录成功，获取token和用户信息
+      const { token, user } = response.data
+      
+      // 将token存储到sessionStorage，方便各个页面使用
+      sessionStorage.setItem('authToken', token)
+      sessionStorage.setItem('userInfo', JSON.stringify(user))
+      sessionStorage.setItem('userRole', selectedRole.value)
+      
+      // 根据用户角色跳转到相应页面
+      const roleRoutes = {
+        user: '/user',
+        admin: '/admin', 
+        worker: '/worker'
+      }
+      
+      router.push(roleRoutes[selectedRole.value])
+    } else {
+      errorMessage.value = response.msg || '登录失败，请检查用户名和密码'
+    }
+  } catch (error) {
+    console.error('登录错误:', error)
+    errorMessage.value = '网络错误，请稍后重试'
+  } finally {
+    isLoading.value = false
+  }
 }
 </script>
 
@@ -347,10 +393,15 @@ input:focus {
   object-fit: contain;
 }
 
+/* 错误信息样式 */
 .error-message {
-  color: #ff4d4f;
-  margin-bottom: 16px;
-  font-size: 14px;
+  background: #fee;
+  color: #d33;
+  padding: 10px 15px;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  border: 1px solid #fcc;
+  font-size: 0.9rem;
   text-align: center;
 }
 

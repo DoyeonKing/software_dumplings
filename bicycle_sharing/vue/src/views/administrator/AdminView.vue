@@ -69,6 +69,11 @@ export default {
   mixins: [mapMixin],
   data() {
     return {
+      // 用户认证信息
+      authToken: '',
+      userInfo: null,
+      userRole: '',
+      
       menuOpen: false,
       userMenuOpen: false, // 新增：控制用户菜单的开关
       showProfile: false,
@@ -96,6 +101,27 @@ export default {
     };
   },
   mounted() {
+    // 获取存储的认证信息
+    this.authToken = sessionStorage.getItem('authToken') || ''
+    const storedUserInfo = sessionStorage.getItem('userInfo')
+    if (storedUserInfo) {
+      this.userInfo = JSON.parse(storedUserInfo)
+    }
+    this.userRole = sessionStorage.getItem('userRole') || ''
+    
+    // 如果没有token，重定向到登录页
+    if (!this.authToken) {
+      this.$router.push('/login')
+      return
+    }
+    
+    // 检查用户角色是否为admin
+    if (this.userRole !== 'admin') {
+      alert('权限不足，请使用管理员账号登录')
+      this.$router.push('/login')
+      return
+    }
+
     AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
       const { yellowBikeIcon } = this.initMap();
       this.map.setZoomAndCenter(15, [114.0588, 22.5368]);

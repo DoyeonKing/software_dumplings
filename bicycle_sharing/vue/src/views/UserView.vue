@@ -67,10 +67,111 @@
         <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23666' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/%3E%3C/svg%3E" alt="Avatar" />
       </div>
       <div v-if="showDropdown" class="dropdown-menu">
-        <router-link to="/profile" class="dropdown-item">个人信息</router-link>
+        <div class="dropdown-item" @click="showProfileModal">个人信息</div>
         <router-link to="/login" class="dropdown-item">切换账号</router-link>
       </div>
     </div>
+
+    <!-- 个人信息弹窗 -->
+    <div v-if="showProfile" class="profile-modal-overlay" @click="closeProfileModal">
+      <div class="profile-modal" @click.stop>
+        <div class="profile-card">
+          <div class="profile-header">
+            <div class="profile-avatar">
+              <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23666' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/%3E%3C/svg%3E" alt="用户头像" />
+            </div>
+            <div>
+              <div class="profile-name">{{ profileData?.username || '用户' }}</div>
+              <div class="profile-username">用户ID：{{ profileData?.userid || '-' }}</div>
+            </div>
+            <button class="close-btn" @click="closeProfileModal">×</button>
+          </div>
+
+          <div v-if="profileLoading" class="loading-section">
+            <div class="loading-spinner"></div>
+            <p>正在加载个人信息...</p>
+          </div>
+
+          <div v-else-if="profileData" class="profile-content">
+            <!-- 用户基本信息 -->
+            <div class="info-section">
+              <h4>用户基本信息</h4>
+              <div class="info-grid">
+                <div class="info-item">
+                  <span class="info-label">用户ID</span>
+                  <span class="info-value primary">{{ profileData.userid }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">用户名</span>
+                  <span class="info-value success">{{ profileData.username }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">手机号码</span>
+                  <span class="info-value info">{{ profileData.phoneNumber }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 骑行统计信息 -->
+            <div class="info-section">
+              <h4>骑行统计信息</h4>
+              <div class="stat-grid">
+                <div class="stat-item">
+                  <div class="stat-icon">🚴</div>
+                  <div class="stat-content">
+                    <div class="stat-value">{{ profileData.totalRides }}</div>
+                    <div class="stat-label">总骑行次数</div>
+                  </div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-icon">⏱️</div>
+                  <div class="stat-content">
+                    <div class="stat-value">{{ profileData.totalDurationMinutes }}</div>
+                    <div class="stat-label">总骑行时长(分钟)</div>
+                  </div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-icon">💰</div>
+                  <div class="stat-content">
+                    <div class="stat-value">¥{{ profileData.totalCost?.toFixed(2) }}</div>
+                    <div class="stat-label">总消费金额</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 数据统计卡片 -->
+            <div class="info-section">
+              <h4>平均数据统计</h4>
+              <div class="stat-cards">
+                <div class="stat-card">
+                  <div class="stat-card-value">{{ getAverageRideDuration() }}</div>
+                  <div class="stat-card-label">平均每次骑行时长(分钟)</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-card-value">¥{{ getAverageCost() }}</div>
+                  <div class="stat-card-label">平均每次消费</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-card-value">¥{{ getCostPerMinute() }}</div>
+                  <div class="stat-card-label">平均每分钟费用</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-else class="error-section">
+            <p>{{ profileError || '获取个人信息失败' }}</p>
+            <button class="retry-btn" @click="fetchUserProfile">重试</button>
+          </div>
+
+          <div class="button-row">
+            <button class="action-btn" @click="closeProfileModal">关闭</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <UserMapComponent 
       :hideUI="hideUI" 
       :mapType="mapType"
@@ -86,8 +187,46 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import UserMapComponent from '@/components/map/UserMapComponent.vue';
+import { getUserProfile } from '@/api/account/profile.js';
+
+const router = useRouter()
+
+// 用户认证信息
+const authToken = ref('')
+const userInfo = ref(null)
+const userRole = ref('')
+
+// 个人信息弹窗相关
+const showProfile = ref(false)
+const profileData = ref(null)
+const profileLoading = ref(false)
+const profileError = ref('')
+
+// 获取存储的认证信息
+onMounted(() => {
+  authToken.value = sessionStorage.getItem('authToken') || ''
+  const storedUserInfo = sessionStorage.getItem('userInfo')
+  if (storedUserInfo) {
+    userInfo.value = JSON.parse(storedUserInfo)
+  }
+  userRole.value = sessionStorage.getItem('userRole') || ''
+  
+  // 如果没有token，重定向到登录页
+  if (!authToken.value) {
+    router.push('/login')
+    return
+  }
+  
+  // 检查用户角色是否为user
+  if (userRole.value !== 'user') {
+    alert('权限不足，请使用普通用户账号登录')
+    router.push('/login')
+    return
+  }
+})
 
 const showDropdown = ref(false);
 const showFeatureBar = ref(false);
@@ -166,6 +305,62 @@ const handleZoom = (type) => {
   } else {
     mapComponentRef.value.zoomOut();
   }
+};
+
+// 个人信息弹窗相关方法
+const showProfileModal = () => {
+  showProfile.value = true;
+  showDropdown.value = false; // 关闭下拉菜单
+  fetchUserProfile();
+};
+
+const closeProfileModal = () => {
+  showProfile.value = false;
+  profileData.value = null;
+  profileError.value = '';
+};
+
+const fetchUserProfile = async () => {
+  if (!authToken.value) {
+    profileError.value = '未找到认证令牌，请重新登录';
+    return;
+  }
+
+  profileLoading.value = true;
+  profileError.value = '';
+  
+  try {
+    const response = await getUserProfile(authToken.value);
+    
+    if (response.code === 200 || response.code === '200') {
+      profileData.value = response.data;
+    } else {
+      profileError.value = response.msg || '获取个人信息失败';
+    }
+  } catch (error) {
+    console.error('获取个人信息失败:', error);
+    profileError.value = '网络错误，请稍后重试';
+  } finally {
+    profileLoading.value = false;
+  }
+};
+
+// 计算平均每次骑行时长
+const getAverageRideDuration = () => {
+  if (!profileData.value || profileData.value.totalRides === 0) return '0';
+  return (profileData.value.totalDurationMinutes / profileData.value.totalRides).toFixed(1);
+};
+
+// 计算平均每次消费
+const getAverageCost = () => {
+  if (!profileData.value || profileData.value.totalRides === 0) return '0.00';
+  return (profileData.value.totalCost / profileData.value.totalRides).toFixed(2);
+};
+
+// 计算平均每分钟费用
+const getCostPerMinute = () => {
+  if (!profileData.value || profileData.value.totalDurationMinutes === 0) return '0.000';
+  return (profileData.value.totalCost / profileData.value.totalDurationMinutes).toFixed(3);
 };
 </script>
 
@@ -418,5 +613,308 @@ const handleZoom = (type) => {
 .no-ui-button:hover {
   transform: scale(1.05);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* 个人信息弹窗样式 */
+.profile-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  backdrop-filter: blur(2px);
+}
+
+.profile-modal {
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.profile-card {
+  width: 600px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  padding: 24px;
+  position: relative;
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.profile-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin-right: 16px;
+  border: 2px solid #4F6EF7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+}
+
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+}
+
+.profile-name {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.profile-username {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  background: #ff4757;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-btn:hover {
+  background: #ff3742;
+}
+
+.loading-section {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #4F6EF7;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.profile-content {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.info-section {
+  margin-bottom: 24px;
+}
+
+.info-section h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.info-label {
+  font-weight: 500;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.info-value {
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.info-value.primary {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.info-value.success {
+  background: #e8f5e8;
+  color: #2e7d32;
+}
+
+.info-value.info {
+  background: #e0f7fa;
+  color: #0097a7;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+  border: 1px solid #dee2e6;
+}
+
+.stat-icon {
+  font-size: 2rem;
+  margin-right: 12px;
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.stat-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.stat-card {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.stat-card-value {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #4F6EF7;
+  margin-bottom: 4px;
+}
+
+.stat-card-label {
+  font-size: 0.75rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.error-section {
+  text-align: center;
+  padding: 40px 20px;
+  color: #d32f2f;
+}
+
+.retry-btn {
+  background: #4F6EF7;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 12px;
+}
+
+.retry-btn:hover {
+  background: #3d5af5;
+}
+
+.button-row {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+
+.action-btn {
+  padding: 10px 24px;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  background: #6c757d;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  background: #5a6268;
+  transform: translateY(-1px);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .profile-card {
+    width: 95vw;
+    padding: 20px;
+  }
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+  .stat-grid {
+    grid-template-columns: 1fr;
+  }
+  .stat-cards {
+    grid-template-columns: 1fr;
+  }
 }
 </style> 
