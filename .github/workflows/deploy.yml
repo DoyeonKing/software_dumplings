@@ -19,20 +19,28 @@ jobs:
 
       - name: Check disk space on runner
         run: |
+          df -h
           # Get available disk space
           available_space=$( df -h / | grep -v Filesystem | awk '{print $4}' )
           echo "Available disk space: $available_space"
           
           # Define the minimum required space in GB
-          min_space=10
+          min_space=10G
           
           # Convert available space to GB and compare
-          if [[ $(echo "$available_space < ${min_space}G" | bc -l) -eq 1 ]]; then
-            echo "Error: Available disk space is less than $min_space GB."
+          if [[ $(echo "$available_space < $min_space" | tr -d '[:alpha:]' | bc -l) -gt 0 ]]; then
+            echo "Error: Available disk space is less than $min_space."
             exit 1
           else
             echo "Sufficient disk space available."
           fi
+
+      - name: 3. 清理不必要的文件和缓存
+        run: |
+          # Clean up unnecessary files and caches
+          sudo apt-get clean
+          sudo rm -rf /usr/share/dotnet/sdk/* /usr/local/lib/ruby/gems/*/cache
+          df -h
 
       - name: 4. 打包后端项目 (使用内存限制)
         # 【关键修正】通过MAVEN_OPTS环境变量，限制Maven最大使用2GB内存
