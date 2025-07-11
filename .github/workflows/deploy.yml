@@ -14,13 +14,14 @@ jobs:
       uses: actions/checkout@v4
 
     # === 后端部分 ===
-    - name: Set up JDK 17
+    - name: Set up JDK 21
       uses: actions/setup-java@v4
       with:
-        java-version: '17'
+        java-version: '21' # 根据你的pom.xml，Java版本是21
         distribution: 'temurin'
     - name: Build Backend with Maven
-      run: mvn -f springboot/pom.xml clean package -DskipTests
+      # 【修正】提供了正确的 pom.xml 文件路径
+      run: mvn -f bicycle_sharing/springboot/pom.xml clean package -DskipTests
     - name: Upload Backend to ECS
       uses: appleboy/scp-action@master
       with:
@@ -28,9 +29,10 @@ jobs:
         username: ${{ secrets.ECS_USER }}
         password: ${{ secrets.ECS_PASSWORD }}
         port: 22
-        source: "springboot/target/springboot-0.0.1-SNAPSHOT.jar"
+        # 【修正】提供了正确的 .jar 文件源路径
+        source: "bicycle_sharing/springboot/target/springboot-0.0.1-SNAPSHOT.jar"
         target: "/app"
-        strip_components: 3
+        strip_components: 3 # 这一步会移除前面的3层目录，只把jar包本身放进/app
 
     # === 前端部分 ===
     - name: Set up Node.js
@@ -38,7 +40,8 @@ jobs:
       with:
         node-version: '18'
     - name: Install and Build Frontend
-      working-directory: ./vue
+      # 【修正】指定了正确的前端工作目录
+      working-directory: ./bicycle_sharing/vue
       run: |
         npm install
         npm run build
@@ -49,11 +52,11 @@ jobs:
         username: ${{ secrets.ECS_USER }}
         password: ${{ secrets.ECS_PASSWORD }}
         port: 22
-        source: "vue/dist"
+        # 【修正】上传打包好的dist文件夹到/var/www/目录下
+        source: "bicycle_sharing/vue/dist"
         target: "/var/www"
-        strip_components: 1
 
-    # === 【新增】在服务器上执行重启命令 ===
+    # === 在服务器上执行重启命令 ===
     - name: Restart Services on ECS
       uses: appleboy/ssh-action@master
       with:
