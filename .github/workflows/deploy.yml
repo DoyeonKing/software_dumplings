@@ -64,7 +64,7 @@ jobs:
           host: ${{ secrets.ECS_HOST }}
           username: ${{ secrets.ECS_USER }}
           password: ${{ secrets.ECS_PASSWORD }}
-          timeout: 5m  # 修正：添加时间单位 "m" 表示分钟
+          timeout: 5m  # 超时时间设置为5分钟
           script: |
             echo "准备重启后端服务..."
             
@@ -112,10 +112,11 @@ jobs:
             echo "启动应用，设置最大堆内存为2GB..."
             nohup java -Xmx2048m -jar $JAR_FILE > $LOG_FILE 2>&1 &
             
-            # 等待应用启动
+            # 等待应用启动（修正判断条件）
             echo "等待应用启动..."
             for i in {1..60}; do
-              if grep -q "Started Application" $LOG_FILE; then
+              # 匹配日志中实际出现的"Started SpringbootApplication"
+              if grep -q "Started SpringbootApplication" $LOG_FILE; then
                 echo "应用已成功启动！"
                 exit 0
               fi
@@ -132,7 +133,7 @@ jobs:
   # --- 任务二：部署前端 ---
   deploy-frontend:
     runs-on: ubuntu-latest
-    needs: deploy-backend  # 确保前端部署在后端之后进行
+    needs: deploy-backend  # 确保前端部署在后端成功部署后进行
     steps:
       - name: 1. 下载代码
         uses: actions/checkout@v4
