@@ -14,19 +14,26 @@
       <div class="right-section">
         <div class="register-box">
           <form @submit.prevent="handleRegister" class="register-form">
+            <!-- 错误信息显示 -->
+            <div v-if="errorMessage" class="error-message">
+              {{ errorMessage }}
+            </div>
+
             <div class="form-group">
               <input 
                 type="text" 
-                v-model="formData.name" 
-                placeholder="Your name"
+                v-model="formData.username" 
+                placeholder="用户名"
+                required
               />
             </div>
 
             <div class="form-group">
               <input 
-                type="email" 
-                v-model="formData.email" 
-                placeholder="Your email address"
+                type="tel" 
+                v-model="formData.phoneNumber" 
+                placeholder="手机号码"
+                required
               />
             </div>
             
@@ -34,7 +41,8 @@
               <input 
                 type="password" 
                 v-model="formData.password" 
-                placeholder="Password"
+                placeholder="密码"
+                required
               />
             </div>
 
@@ -42,24 +50,25 @@
               <input 
                 type="password" 
                 v-model="formData.confirmPassword" 
-                placeholder="Confirm password"
+                placeholder="确认密码"
+                required
               />
             </div>
 
             <div class="form-group role-select">
-              <label>Register as:</label>
+              <label>注册身份:</label>
               <div class="role-options">
                 <label class="role-option">
                   <input type="radio" v-model="selectedRole" value="user" name="role">
-                  <span class="role-text">User</span>
+                  <span class="role-text">普通用户</span>
                 </label>
                 <label class="role-option">
                   <input type="radio" v-model="selectedRole" value="admin" name="role">
-                  <span class="role-text">Admin</span>
+                  <span class="role-text">管理员</span>
                 </label>
                 <label class="role-option">
                   <input type="radio" v-model="selectedRole" value="worker" name="role">
-                  <span class="role-text">Worker</span>
+                  <span class="role-text">调度员</span>
                 </label>
               </div>
             </div>
@@ -69,11 +78,11 @@
               class="register-btn"
               :disabled="isLoading"
             >
-              {{ isLoading ? 'Registering...' : 'Register' }}
+              {{ isLoading ? '注册中...' : '注册' }}
             </button>
 
             <div class="divider">
-              <span>or register with</span>
+              <span>或者使用以下方式注册</span>
             </div>
 
             <div class="social-login">
@@ -106,6 +115,8 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { register } from '@/api/account/register.js'
+import { login } from '@/api/account/login.js'
 
 const router = useRouter()
 const selectedRole = ref('user')
@@ -113,20 +124,90 @@ const errorMessage = ref('')
 const isLoading = ref(false)
 
 const formData = ref({
-  name: '',
-  email: '',
+  username: '',
+  phoneNumber: '',
   password: '',
   confirmPassword: ''
 })
 
-const handleRegister = () => {
-  const roleRoutes = {
-    user: '/user',
-    admin: '/admin',
-    worker: '/worker'
+const handleRegister = async () => {
+  // 清空之前的错误信息
+  errorMessage.value = ''
+  
+  // 验证表单
+  if (!formData.value.username || !formData.value.phoneNumber || 
+      !formData.value.password || !formData.value.confirmPassword) {
+    errorMessage.value = '请填写所有必填字段'
+    return
   }
   
-  router.push(roleRoutes[selectedRole.value])
+  if (formData.value.password !== formData.value.confirmPassword) {
+    errorMessage.value = '两次输入的密码不一致'
+    return
+  }
+  
+  if (formData.value.password.length < 6) {
+    errorMessage.value = '密码长度至少为6位'
+    return
+  }
+  
+  isLoading.value = true
+  
+  try {
+    // 先调用注册接口
+    const registerResponse = await register({
+      username: formData.value.username,
+      phoneNumber: formData.value.phoneNumber,
+      password: formData.value.password,
+      confirmPassword: formData.value.confirmPassword,
+      role: selectedRole.value
+    })
+    
+    // 检查注册是否成功
+    if (registerResponse.code === 200 || registerResponse.code === '200') {
+      // 注册成功，自动调用登录获取token
+      const loginResponse = await login({
+        username: formData.value.username,
+        password: formData.value.password,
+        role: selectedRole.value
+      })
+      
+      if (loginResponse.code === '200' || loginResponse.code === 200) {
+        // 登录成功，获取token和用户信息
+        const { token, user } = loginResponse.data
+        
+        // 将token存储到sessionStorage
+        sessionStorage.setItem('authToken', token)
+        sessionStorage.setItem('userInfo', JSON.stringify(user))
+        sessionStorage.setItem('userRole', selectedRole.value)
+        
+        // 根据用户角色跳转到相应页面
+        const roleRoutes = {
+          user: '/user',
+          admin: '/admin',
+          worker: '/worker'
+        }
+        
+        router.push(roleRoutes[selectedRole.value])
+      } else {
+        errorMessage.value = '注册成功但自动登录失败，请手动登录'
+        setTimeout(() => {
+          router.push('/login')
+        }, 2000)
+      }
+    } else {
+      errorMessage.value = registerResponse.msg || '注册失败，请检查输入信息'
+    }
+  } catch (error) {
+    console.error('注册错误:', error)
+    if (error.response && error.response.data) {
+      errorMessage.value = error.response.data.msg || '注册失败，请稍后重试'
+    } else {
+      errorMessage.value = '网络错误，请稍后重试'
+    }
+  } finally {
+    isLoading.value = false
+  }
 }
 </script>
 
@@ -347,10 +428,15 @@ input:focus {
   object-fit: contain;
 }
 
+/* 错误信息样式 */
 .error-message {
-  color: #ff4d4f;
-  margin-bottom: 16px;
-  font-size: 14px;
+  background: #fee;
+  color: #d33;
+  padding: 10px 15px;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  border: 1px solid #fcc;
+  font-size: 0.9rem;
   text-align: center;
 }
 
