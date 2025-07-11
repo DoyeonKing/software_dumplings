@@ -29,38 +29,42 @@ public class BikesServiceImpl implements IBikesService { // 实现接口名纠�
         return bikesMapper.countAllByCurrentGeohash(geohash);
     }
 
+    /**
+     * 根据区域编号获取单车使用率
+     *
+     * @param geohash 区域编码
+     * @return UtilizationResponse 对象，包含使用率、在线数、使用中数和空闲数。
+     */
     @Override
-    public UtilizationResponse getVehicleUtilization() {
-        // 1. 获取所有车辆的总数 (在线车辆)
-        int onlineVehicles = bikesMapper.countAllBikes();
+    public UtilizationResponse getVehicleUtilizationByGeohash(String geohash) {
+        // 1. 获取该区域内的所有车辆总数
+        int totalVehicles = bikesMapper.countAllByCurrentGeohash(geohash);
 
-        // 2. 获取 '使用中' 车辆数
-        int inUseVehicles = bikesMapper.countByStatus("使用中");
+        // 2. 获取该区域内 '使用中' 车辆数
+        int inUseVehicles = bikesMapper.countByCurrentGeohashAndBikeStatus(geohash, "使用中");
 
         // 3. 计算 '空闲' 车辆数
-        int idleVehicles = onlineVehicles - inUseVehicles;
-        // 确保空闲车辆不为负数，尽管在正常逻辑下不会出现
+        int idleVehicles = totalVehicles - inUseVehicles;
         if (idleVehicles < 0) {
             idleVehicles = 0;
         }
 
         // 4. 计算使用率
         double utilizationRatePercentage;
-        if (onlineVehicles == 0) {
-            utilizationRatePercentage = 0.0; // 避免除以零
+        if (totalVehicles == 0) {
+            utilizationRatePercentage = 0.0;
         } else {
-            // 使用 BigDecimal 进行精确计算，避免浮点数精度问题，并四舍五入到两位小数
             BigDecimal inUseBd = new BigDecimal(inUseVehicles);
-            BigDecimal onlineBd = new BigDecimal(onlineVehicles);
-            utilizationRatePercentage = inUseBd.divide(onlineBd, 4, RoundingMode.HALF_UP) // 计算到4位小数
+            BigDecimal totalBd = new BigDecimal(totalVehicles);
+            utilizationRatePercentage = inUseBd.divide(totalBd, 4, RoundingMode.HALF_UP)
                     .multiply(new BigDecimal(100))
-                    .doubleValue(); // 转换为double
+                    .doubleValue();
         }
 
         // 5. 构建并返回响应 DTO
         return new UtilizationResponse(
                 utilizationRatePercentage,
-                onlineVehicles,
+                totalVehicles,
                 inUseVehicles,
                 idleVehicles
         );
