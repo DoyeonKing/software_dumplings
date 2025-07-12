@@ -5,6 +5,7 @@ import com.example.springboot.entity.DispatchTasks; // 导入纠正后的实体�
 import com.example.springboot.exception.CustomException; // 导入自定义异常
 import com.github.pagehelper.PageInfo; // 导入分页类
 
+import java.time.LocalDate;
 import java.util.List; // 导入List
 
 /**
@@ -56,4 +57,13 @@ public interface IDispatchTasksService { // 接口名与实体类名保持一致
      * @return 包含该工作人员所有分配任务的列表
      */
     List<DispatchTasks> getTasksByAssignedTo(Integer assignedTo); // 新增方法
+
+    /**
+     * 根据日期范围和工作人员ID获取任务信息
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @param assignedTo 工作人员ID
+     * @return 匹配的任务列表
+     */
+    List<DispatchTasks> getTasksByDateRangeAndAssignedTo(LocalDate startDate, LocalDate endDate, Integer assignedTo);
 }

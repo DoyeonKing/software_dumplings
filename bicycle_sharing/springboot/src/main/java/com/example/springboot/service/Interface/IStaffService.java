@@ -36,4 +36,21 @@ public interface IStaffService {
      * @return 所有工作人员对象的列表
      */
     List<Staff> getAllWorkers();
+
+    /**
+     * 更新工作人员的用户名
+     * @param staffId 工作人员ID (从Token解析而来)
+     * @param newUsername 新用户名
+     * @return 更新影响的行数
+     */
+    int updateUsername(Integer staffId, String newUsername);
+
+    /**
+     * 更新工作人员的密码
+     * @param staffId 工作人员ID (从Token解析而来)
+     * @param oldPassword 明文旧密码
+     * @param newPassword 明文新密码 (Service层负责哈希)
+     * @return 更新影响的行数
+     */
+    int updatePassword(Integer staffId, String oldPassword, String newPassword);
 }

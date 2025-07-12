@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*; // 导入Spring Web注解
 
+import java.time.LocalDate;
 import java.util.List; // 导入List
 import java.util.Map; // 导入Map
 
@@ -106,5 +107,25 @@ public class DispatchTasksController { // 控制器类名与资源名复数形�
     public List<DispatchTasks> getTasksByAssignedTo(@PathVariable Integer assignedToId) {
         // 调用 Service 层获取数据
         return dispatchTasksService.getTasksByAssignedTo(assignedToId);
+    }
+
+    /**
+     * 根据日期范围和工作人员ID获取任务信息
+     * URL: GET /dispatchTasks/tasks-by-date-range-and-staff
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @param assignedTo 工作人员ID
+     * @return ResponseEntity 包含任务信息的列表或错误信息
+     */
+    @GetMapping("/tasks-by-date-range-and-staff")
+    public ResponseEntity<?> getTasksByDateRangeAndStaff(@RequestParam LocalDate startDate,
+                                                         @RequestParam LocalDate endDate,
+                                                         @RequestParam Integer assignedTo) {
+        try {
+            List<DispatchTasks> tasks = dispatchTasksService.getTasksByDateRangeAndAssignedTo(startDate, endDate, assignedTo);
+            return ResponseEntity.ok(tasks);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("获取任务信息失败: " + e.getMessage());
+        }
     }
 }
