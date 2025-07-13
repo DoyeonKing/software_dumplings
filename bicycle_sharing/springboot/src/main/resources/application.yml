@@ -5,7 +5,7 @@ spring:
     # The URL for connecting to a MySQL 8.0 database.
     # Replace 'your_database_name' with your actual database schema name.
     # The parameters are recommended for MySQL 8+ to handle timezone and character encoding correctly.
-    url: jdbc:mysql://127.0.0.1:3306/bicycle_sharing?useSSL=false&serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8
+    url: jdbc:mysql://127.0.0.1:3306/new_bike_sharing?useSSL=false&serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8
     # Replace with your MySQL username and password
     username: bike_user
     password: bicycle_sharing
