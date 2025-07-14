@@ -227,6 +227,11 @@ import { useRouter } from 'vue-router';
 
 const router = useRouter();
 
+// 用户认证信息
+const authToken = ref('')
+const userInfo = ref(null)
+const userRole = ref('')
+
 // 状态
 const showWorkbench = ref(true); // 默认显示工作台
 const showBicycles = ref(false);
@@ -345,6 +350,27 @@ const navigateToTask = (task) => {
 
 // 初始化
 onMounted(() => {
+  // 获取存储的认证信息
+  authToken.value = sessionStorage.getItem('authToken') || ''
+  const storedUserInfo = sessionStorage.getItem('userInfo')
+  if (storedUserInfo) {
+    userInfo.value = JSON.parse(storedUserInfo)
+  }
+  userRole.value = sessionStorage.getItem('userRole') || ''
+  
+  // 如果没有token，重定向到登录页
+  if (!authToken.value) {
+    router.push('/login')
+    return
+  }
+  
+  // 检查用户角色是否为worker
+  if (userRole.value !== 'worker') {
+    ElMessage.error('权限不足，请使用工作人员账号登录')
+    router.push('/login')
+    return
+  }
+  
   refreshTasks();
 });
 </script>

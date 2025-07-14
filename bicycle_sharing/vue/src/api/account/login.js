@@ -11,6 +11,23 @@ export function login(data) {
       role: data.role
     }
   })
+  // 返回数据格式
+  // {
+  //   "code": "200",
+  //   "msg": "请求成功",
+  //   "data": {
+  //     "user": {
+  //       "userid": "eeaf930b6643ed567ccd2a",
+  //       "username": "eeaf930b6643ed567ccd2a",
+  //       "passwordHash": null,
+  //       "phoneNumber": "18806141291",
+  //       "totalRides": 1,
+  //       "totalDurationMinutes": 5,
+  //       "totalCost": 1.25
+  //     },
+  //     "token": "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoidXNlciIsInVzZXJJZCI6ImVlYWY5MzBiNjY0M2VkNTY3Y2NkMmEiLCJzdWIiOiJlZWFmOTMwYjY2NDNlZDU2N2NjZDJhIiwiaWF0IjoxNzUyMjIzNDE1LCJleHAiOjE3NTIyNDE0MTV9.MCinoSIVV5m4RHG6rc_gY45u5R730hEPnfjT1Bitb-s"
+  //   }
+  // }
 }
 
 
