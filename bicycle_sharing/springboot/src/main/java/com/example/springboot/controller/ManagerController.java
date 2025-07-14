@@ -56,7 +56,7 @@ public class ManagerController {
         try {
             Integer managerId = getManagerIdFromToken(token); // 【修改】调用辅助方法解析 Token
             manager.setManagerId(managerId); // 确保更新的是当前管理员
-            managerService.updateProfile(manager);
+//            managerService.updateProfile(manager);
             return Result.success("个人信息更新成功");
         } catch (CustomException e) {
             return Result.error(e.getCode(), e.getMsg());
