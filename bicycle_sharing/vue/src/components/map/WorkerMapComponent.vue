@@ -54,7 +54,7 @@ import bicycleIcon from '@/components/icons/bicycle.png';
 import { getAllTasks, acceptTask, completeTask } from '@/api/assignment/task';
 import { getAllParkingAreas, getParkingAreasInBounds, convertParkingAreaData } from '@/api/map/parking';
 import { getMapAreaBicycles } from '@/api/map/bicycle';
-import { getHeatMapData } from '@/api/map/heat';
+import { getHeatMapData, convertHeatMapData } from '@/api/map/heat';
 import { ElMessage } from 'element-plus';
 import { Close } from '@element-plus/icons-vue';
 
@@ -468,6 +468,50 @@ const loadTasks = async () => {
   }
 };
 
+// 更新热力图数据
+const updateHeatmapData = async () => {
+  if (!map.value || !heatmap.value) return;
+
+  try {
+    // 获取当前地图边界
+    const bounds = map.value.getBounds();
+    const params = {
+      minLat: bounds.getSouthWest().lat,
+      maxLat: bounds.getNorthEast().lat,
+      minLon: bounds.getSouthWest().lng,
+      maxLon: bounds.getNorthEast().lng
+    };
+
+    // 获取热力图数据（基于单车数据）
+    const response = await getHeatMapData(params);
+    
+    // 处理单车API的响应格式
+    let bicycleData = [];
+    if (response && Array.isArray(response.data)) {
+      bicycleData = response.data;
+    } else if (Array.isArray(response)) {
+      bicycleData = response;
+    } else {
+      console.error('获取单车数据格式错误：', response);
+      return;
+    }
+
+    // 转换单车数据为热力图格式
+    const heatmapData = convertHeatMapData(bicycleData);
+    
+    // 设置热力图数据
+    heatmap.value.setDataSet({
+      data: heatmapData,
+      max: 10 // 调整最大权重值，因为每个单车权重为1
+    });
+
+    console.log('工作人员热力图数据已更新，单车数量：', bicycleData.length, '热力图点数：', heatmapData.length);
+  } catch (error) {
+    console.error('更新热力图数据失败：', error);
+    ElMessage.error('获取热力图数据失败');
+  }
+};
+
 // 初始化热力图
 const initHeatmap = async () => {
   if (!map.value) return;
@@ -490,29 +534,14 @@ const initHeatmap = async () => {
     }
 
     // 获取并设置热力图数据
-    try {
-      const response = await getHeatMapData();
-      if (response.code === 200 && Array.isArray(response.data)) {
-        heatmap.value.setDataSet({
-          data: response.data,
-          max: 100 // 最大权重值
-        });
+    await updateHeatmapData();
 
-        // 初始时隐藏热力图
-        heatmap.value.hide();
-        
-        // 只有在props.showHeatmap为true时才显示
-        if (props.showHeatmap) {
-          heatmap.value.show();
-        }
-        console.log('工作人员热力图数据已更新，数据点数：', response.data.length);
-      } else {
-        console.error('获取热力图数据格式错误：', response);
-        ElMessage.error('获取热力图数据格式错误');
-      }
-    } catch (error) {
-      console.error('获取热力图数据失败：', error);
-      ElMessage.error('获取热力图数据失败');
+    // 初始时隐藏热力图
+    heatmap.value.hide();
+    
+    // 只有在props.showHeatmap为true时才显示
+    if (props.showHeatmap) {
+      heatmap.value.show();
     }
   } catch (error) {
     console.error('初始化热力图失败：', error);
@@ -574,6 +603,8 @@ watch(() => props.showHeatmap, async (newVal) => {
     await initHeatmap();
     if (heatmap.value) {
       heatmap.value.show();
+      // 更新热力图数据
+      await updateHeatmapData();
     }
   } else if (heatmap.value) {
     // 如果关闭热力图，隐藏热力图层
@@ -720,6 +751,9 @@ const initMap = async () => {
       if (props.showParkingAreas) {
         loadParkingAreas();
       }
+      if (props.showHeatmap) {
+        updateHeatmapData();
+      }
     });
 
     map.value.on('zoomend', () => {
@@ -728,6 +762,9 @@ const initMap = async () => {
       }
       if (props.showParkingAreas) {
         loadParkingAreas();
+      }
+      if (props.showHeatmap) {
+        updateHeatmapData();
       }
     });
 

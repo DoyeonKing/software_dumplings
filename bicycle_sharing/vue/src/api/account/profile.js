@@ -29,3 +29,33 @@ export function getUserProfile(token) {
   //      }
   //   }
 } 
+
+/**
+ * 获取工作人员个人信息
+ * @param {string} token - Authorization token
+ * @returns {Promise} 工作人员个人信息数据
+ */
+export function getStaffProfile(token) {
+  return request({
+    url: '/staff/profile',
+    method: 'get',
+    headers: {
+      'Authorization': 'Bearer ' + token
+    }
+  })
+
+  // 返回数据格式
+  // {
+  //   "code": "200",
+  //   "msg": "string",
+  //   "data": {
+  //       "staffId": "string",
+  //       "username": "string",
+  //       "phoneNumber": "string",
+  //       "workArea": "string",
+  //       "completedTasks": 0,
+  //       "workingHours": 0.0,
+  //       "performanceRating": 0.0
+  //      }
+  //   }
+} 

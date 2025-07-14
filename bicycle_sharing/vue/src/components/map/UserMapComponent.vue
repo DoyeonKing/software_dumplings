@@ -174,7 +174,7 @@ import AMapLoader from '@amap/amap-jsapi-loader';
 // 导入单车数据API
 import { getMapAreaBicycles } from '@/api/map/bicycle';
 import { getAllParkingAreas, getParkingAreasInBounds, convertParkingAreaData } from '@/api/map/parking';
-import { getHeatMapData } from '@/api/map/heat';
+import { getHeatMapData, convertHeatMapData } from '@/api/map/heat';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getRidingRoute } from '@/utils/amap';
 
@@ -306,6 +306,50 @@ export default {
       }
     };
 
+    // 更新热力图数据
+    const updateHeatmapData = async () => {
+      if (!map.value || !heatmap.value) return;
+
+      try {
+        // 获取当前地图边界
+        const bounds = map.value.getBounds();
+        const params = {
+          minLat: bounds.getSouthWest().lat,
+          maxLat: bounds.getNorthEast().lat,
+          minLon: bounds.getSouthWest().lng,
+          maxLon: bounds.getNorthEast().lng
+        };
+
+        // 获取热力图数据（基于单车数据）
+        const response = await getHeatMapData(params);
+        
+        // 处理单车API的响应格式
+        let bicycleData = [];
+        if (response && Array.isArray(response.data)) {
+          bicycleData = response.data;
+        } else if (Array.isArray(response)) {
+          bicycleData = response;
+        } else {
+          console.error('获取单车数据格式错误：', response);
+          return;
+        }
+
+        // 转换单车数据为热力图格式
+        const heatmapData = convertHeatMapData(bicycleData);
+        
+        // 设置热力图数据
+        heatmap.value.setDataSet({
+          data: heatmapData,
+          max: 10 // 调整最大权重值，因为每个单车权重为1
+        });
+
+        console.log('热力图数据已更新，单车数量：', bicycleData.length, '热力图点数：', heatmapData.length);
+      } catch (error) {
+        console.error('更新热力图数据失败：', error);
+        ElMessage.error('获取热力图数据失败');
+      }
+    };
+
     // 初始化热力图
     const initHeatmap = async () => {
       if (!map.value) return;
@@ -338,29 +382,14 @@ export default {
         }
 
         // 获取并设置热力图数据
-        try {
-          const response = await getHeatMapData();
-          if (response.code === 200 && Array.isArray(response.data)) {
-            heatmap.value.setDataSet({
-              data: response.data,
-              max: 100 // 最大权重值
-            });
+        await updateHeatmapData();
 
-            // 初始时隐藏热力图
-            heatmap.value.hide();
-            
-            // 只有在props.showHeatmap为true时才显示
-            if (props.showHeatmap) {
-              heatmap.value.show();
-            }
-            console.log('热力图数据已更新，数据点数：', response.data.length);
-          } else {
-            console.error('获取热力图数据格式错误：', response);
-            ElMessage.error('获取热力图数据格式错误');
-          }
-        } catch (error) {
-          console.error('获取热力图数据失败：', error);
-          ElMessage.error('获取热力图数据失败');
+        // 初始时隐藏热力图
+        heatmap.value.hide();
+        
+        // 只有在props.showHeatmap为true时才显示
+        if (props.showHeatmap) {
+          heatmap.value.show();
         }
       } catch (error) {
         console.error('初始化热力图失败：', error);
@@ -377,6 +406,8 @@ export default {
         await initHeatmap();
         if (heatmap.value) {
           heatmap.value.show();
+          // 更新热力图数据
+          await updateHeatmapData();
         }
       } else if (heatmap.value) {
         // 如果关闭热力图，隐藏热力图层
@@ -507,17 +538,20 @@ export default {
       map.value.setMapStyle(styleMapping[newStyle]);
     });
 
-    // 监听地图移动事件，更新单车和停车点数据
+    // 监听地图移动事件，更新单车、停车点和热力图数据
     const setupMapEventListeners = () => {
       if (!map.value) return;
 
-      // 当地图移动结束时，重新显示单车和停车点
+      // 当地图移动结束时，重新显示单车、停车点和热力图
       map.value.on('moveend', () => {
         if (props.showBicycles) {
           showBicycleMarkers();
         }
         if (props.showParkingAreas) {
           showParkingAreas();
+        }
+        if (props.showHeatmap) {
+          updateHeatmapData();
         }
       });
     };
@@ -1002,7 +1036,7 @@ export default {
 
         map.value = new AMap.Map('map', {
           zoom: 17, // 增加初始缩放级别
-          center: [114.00, 22.55],
+          center: [114.04346, 22.51351],
           mapStyle: styleMapping[props.mapStyle] || 'amap://styles/normal',
           zooms: [3, 20] // 设置地图缩放范围
         });

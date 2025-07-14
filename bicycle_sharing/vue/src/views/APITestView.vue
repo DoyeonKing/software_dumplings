@@ -195,62 +195,137 @@
       <div class="test-result">
         <p><strong>状态码：</strong>{{ loginResult.code }}</p>
         <p><strong>消息：</strong>{{ loginResult.msg }}</p>
+        
+        <!-- 调试：显示完整的响应数据 -->
+        <div v-if="loginResult.code" class="debug-section" style="margin: 15px 0; padding: 15px; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px;">
+          <h4 style="margin: 0 0 10px 0; color: #0369a1;">🔍 完整响应数据（调试用）</h4>
+          <pre style="background: #f8fafc; padding: 12px; border-radius: 6px; font-size: 11px; max-height: 300px; overflow-y: auto;">{{ JSON.stringify(loginResult, null, 2) }}</pre>
+        </div>
+        
         <div v-if="loginResult.data" class="data-detail">
           <!-- 用户基本信息 -->
-          <el-descriptions title="用户基本信息" :column="2" border>
-            <el-descriptions-item label="用户ID">
-              <el-tag type="primary">{{ loginResult.data.user.userid }}</el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="用户名">
-              <el-tag type="success">{{ loginResult.data.user.username }}</el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="手机号码">
-              <el-tag type="info">{{ loginResult.data.user.phoneNumber }}</el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="总骑行次数">
-              <el-statistic :value="loginResult.data.user.totalRides" suffix="次">
-                <template #prefix>
-                  <span style="color: #409EFF;">🚴</span>
-                </template>
-              </el-statistic>
-            </el-descriptions-item>
-            <el-descriptions-item label="总骑行时长">
-              <el-statistic :value="loginResult.data.user.totalDurationMinutes" suffix="分钟">
-                <template #prefix>
-                  <span style="color: #67C23A;">⏱️</span>
-                </template>
-              </el-statistic>
-            </el-descriptions-item>
-            <el-descriptions-item label="总消费">
-              <el-statistic :value="loginResult.data.user.totalCost" suffix="元" :precision="2">
-                <template #prefix>
-                  <span style="color: #E6A23C;">💰</span>
-                </template>
-              </el-statistic>
-            </el-descriptions-item>
-          </el-descriptions>
+          <div v-if="loginResult.data.user">
+            <el-descriptions title="用户基本信息" :column="2" border>
+              <el-descriptions-item label="用户ID">
+                <el-tag type="primary">{{ loginResult.data.user.userid }}</el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="用户名">
+                <el-tag type="success">{{ loginResult.data.user.username }}</el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="手机号码">
+                <el-tag type="info">{{ loginResult.data.user.phoneNumber }}</el-tag>
+              </el-descriptions-item>
+              <el-descriptions-item label="总骑行次数">
+                <el-statistic :value="loginResult.data.user.totalRides" suffix="次">
+                  <template #prefix>
+                    <span style="color: #409EFF;">🚴</span>
+                  </template>
+                </el-statistic>
+              </el-descriptions-item>
+              <el-descriptions-item label="总骑行时长">
+                <el-statistic :value="loginResult.data.user.totalDurationMinutes" suffix="分钟">
+                  <template #prefix>
+                    <span style="color: #67C23A;">⏱️</span>
+                  </template>
+                </el-statistic>
+              </el-descriptions-item>
+              <el-descriptions-item label="总消费">
+                <el-statistic :value="loginResult.data.user.totalCost" suffix="元" :precision="2">
+                  <template #prefix>
+                    <span style="color: #E6A23C;">💰</span>
+                  </template>
+                </el-statistic>
+              </el-descriptions-item>
+            </el-descriptions>
+          </div>
 
-          <!-- Token信息 -->
-          <el-descriptions title="🔑 认证Token信息" :column="1" border class="mt-4">
-            <el-descriptions-item label="JWT Token">
-              <div style="display: flex; align-items: center; gap: 10px;">
+          <!-- Token信息 - 重点突出显示 -->
+          <div v-if="loginResult.data.token">
+            <el-card class="token-card mt-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+              <template #header>
+                <div style="display: flex; align-items: center; justify-content: space-between; color: white;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 20px;">🔑</span>
+                    <span style="font-weight: bold; font-size: 16px;">JWT认证Token</span>
+                  </div>
+                  <el-tag type="success" effect="plain" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);">
+                    长度: {{ loginResult.data.token.length }} 字符
+                  </el-tag>
+                </div>
+              </template>
+              
+              <!-- Token显示区域 -->
+              <div style="background: rgba(255,255,255,0.95); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
                 <el-input
                   type="textarea"
-                  :rows="4"
+                  :rows="5"
                   :value="loginResult.data.token"
                   readonly
-                  style="flex: 1; font-family: 'Courier New', monospace; font-size: 12px;"
+                  style="font-family: 'Courier New', monospace; font-size: 11px;"
+                  :autosize="{ minRows: 5, maxRows: 8 }"
                 />
+              </div>
+              
+              <!-- 操作按钮区域 -->
+              <div style="display: flex; gap: 10px; justify-content: center;">
                 <el-button 
                   type="primary" 
-                  size="small" 
                   @click="copyTokenToClipboard(loginResult.data.token)"
+                  style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white;"
                 >
+                  <span style="margin-right: 5px;">📋</span>
                   复制Token
                 </el-button>
+                <el-button 
+                  type="info" 
+                  @click="copyTokenFromLogin"
+                  style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white;"
+                >
+                  <span style="margin-right: 5px;">📤</span>
+                  复制到个人信息测试
+                </el-button>
+                <el-button 
+                  type="warning" 
+                  @click="copyTokenToStaffProfile"
+                  style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white;"
+                >
+                  <span style="margin-right: 5px;">👷</span>
+                  复制到工作人员测试
+                </el-button>
               </div>
-            </el-descriptions-item>
-          </el-descriptions>
+              
+              <!-- Token信息说明 -->
+              <el-alert 
+                title="💡 Token使用说明" 
+                type="info" 
+                :closable="false"
+                style="margin-top: 15px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);"
+              >
+                <template #default>
+                  <div style="color: rgba(255,255,255,0.9); font-size: 13px;">
+                    <p style="margin: 5px 0;">• 此Token用于API身份验证，请妥善保管</p>
+                    <p style="margin: 5px 0;">• 发送请求时会自动添加 "Bearer " 前缀</p>
+                    <p style="margin: 5px 0;">• Token有过期时间，请及时重新登录获取新Token</p>
+                  </div>
+                </template>
+              </el-alert>
+            </el-card>
+          </div>
+          
+          <!-- 当有data但没有token时的提示 -->
+          <div v-else-if="!loginResult.data.token" class="no-token-warning">
+            <el-alert 
+              title="⚠️ 未找到Token" 
+              type="warning" 
+              :closable="false"
+              style="margin: 15px 0;"
+            >
+              <template #default>
+                <p>登录响应中包含用户数据，但未找到Token字段。</p>
+                <p>请检查后端返回的数据结构中是否包含token字段。</p>
+              </template>
+            </el-alert>
+          </div>
 
           <!-- 完整数据结构（折叠显示） -->
           <el-collapse class="mt-4">
@@ -258,6 +333,21 @@
               <pre style="background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;">{{ JSON.stringify(loginResult.data, null, 2) }}</pre>
             </el-collapse-item>
           </el-collapse>
+        </div>
+        
+        <!-- 当登录成功但没有data时的提示 -->
+        <div v-else-if="(loginResult.code === 200 || loginResult.code === '200') && !loginResult.data" class="empty-data">
+          <el-alert 
+            title="⚠️ 登录响应异常" 
+            type="warning" 
+            :closable="false"
+            style="margin: 15px 0;"
+          >
+            <template #default>
+              <p>登录状态码显示成功，但未返回用户数据和Token。</p>
+              <p>请检查上方的完整响应数据，确认后端返回的数据结构。</p>
+            </template>
+          </el-alert>
         </div>
       </div>
     </el-card>
@@ -488,6 +578,131 @@
        </div>
      </el-card>
 
+    <!-- 工作人员个人信息 API 测试 -->
+    <el-card class="test-card">
+      <template #header>
+        <div class="card-header">
+          <span>工作人员个人信息 API 测试</span>
+          <div>
+            <el-button type="info" @click="copyTokenToStaffProfile" style="margin-right: 10px">
+              复制登录Token
+            </el-button>
+            <el-button type="primary" @click="testStaffProfileAPI">获取工作人员个人信息</el-button>
+          </div>
+        </div>
+      </template>
+      <div class="test-form">
+        <el-form :model="staffProfileForm" label-width="120px">
+          <el-form-item label="JWT Token">
+            <el-input 
+              v-model="staffProfileForm.token" 
+              type="textarea"
+              :rows="3"
+              placeholder="请输入JWT Token (不需要Bearer前缀，系统会自动添加) 或点击上方按钮复制登录Token"
+            />
+          </el-form-item>
+          <el-form-item label="发送的头部" v-if="staffProfileForm.token">
+            <el-input 
+              :value="'Bearer ' + staffProfileForm.token" 
+              type="textarea"
+              :rows="2"
+              readonly
+              style="background-color: #f5f5f5;"
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+      <div class="test-result">
+        <p><strong>状态码：</strong>{{ staffProfileResult.code }}</p>
+        <p><strong>消息：</strong>{{ staffProfileResult.msg }}</p>
+        <div v-if="staffProfileResult.data" class="data-detail">
+          <!-- 工作人员基本信息 -->
+          <el-descriptions title="工作人员基本信息" :column="2" border>
+            <el-descriptions-item label="工作人员ID">
+              <el-tag type="primary">{{ staffProfileResult.data.staffId }}</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="用户名">
+              <el-tag type="success">{{ staffProfileResult.data.username }}</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="手机号码">
+              <el-tag type="info">{{ staffProfileResult.data.phoneNumber }}</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="工作区域">
+              <el-tag type="warning">{{ staffProfileResult.data.workArea }}</el-tag>
+            </el-descriptions-item>
+          </el-descriptions>
+
+          <!-- 工作统计信息 -->
+          <el-descriptions title="工作统计信息" :column="2" border class="mt-4">
+            <el-descriptions-item label="已完成任务数">
+              <el-statistic :value="staffProfileResult.data.completedTasks" suffix="项">
+                <template #prefix>
+                  <span style="color: #409EFF;">✅</span>
+                </template>
+              </el-statistic>
+            </el-descriptions-item>
+            <el-descriptions-item label="总工作时长">
+              <el-statistic :value="staffProfileResult.data.workingHours" suffix="小时" :precision="1">
+                <template #prefix>
+                  <span style="color: #67C23A;">⏰</span>
+                </template>
+              </el-statistic>
+            </el-descriptions-item>
+            <el-descriptions-item label="绩效评级" :span="2">
+              <el-statistic :value="staffProfileResult.data.performanceRating" suffix="分" :precision="1">
+                <template #prefix>
+                  <span style="color: #E6A23C;">⭐</span>
+                </template>
+              </el-statistic>
+            </el-descriptions-item>
+          </el-descriptions>
+
+          <!-- 工作效率数据统计卡片 -->
+          <div class="statistics-cards mt-4" v-if="staffProfileResult.data.completedTasks > 0">
+            <el-row :gutter="16">
+              <el-col :span="8">
+                <el-card class="stat-card">
+                  <el-statistic 
+                    title="平均每小时任务数" 
+                    :value="staffProfileResult.data.workingHours > 0 ? (staffProfileResult.data.completedTasks / staffProfileResult.data.workingHours).toFixed(2) : 0" 
+                    suffix="项/小时" 
+                  />
+                </el-card>
+              </el-col>
+              <el-col :span="8">
+                <el-card class="stat-card">
+                  <el-statistic 
+                    title="平均任务效率" 
+                    :value="staffProfileResult.data.completedTasks > 0 ? (staffProfileResult.data.workingHours / staffProfileResult.data.completedTasks).toFixed(2) : 0" 
+                    suffix="小时/项" 
+                  />
+                </el-card>
+              </el-col>
+              <el-col :span="8">
+                <el-card class="stat-card">
+                  <el-statistic 
+                    title="绩效等级" 
+                    :value="getPerformanceLevel(staffProfileResult.data.performanceRating)"
+                    class="performance-level"
+                  />
+                </el-card>
+              </el-col>
+            </el-row>
+          </div>
+
+          <!-- 完整数据结构（折叠显示） -->
+          <el-collapse class="mt-4">
+            <el-collapse-item title="查看完整工作人员数据结构（调试用）" name="debug">
+              <pre style="background: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;">{{ JSON.stringify(staffProfileResult.data, null, 2) }}</pre>
+            </el-collapse-item>
+          </el-collapse>
+        </div>
+        <div v-else-if="staffProfileResult.code === 200 || staffProfileResult.code === '200'" class="empty-data">
+          <el-empty description="暂无工作人员个人信息数据" />
+        </div>
+      </div>
+    </el-card>
+
     <!-- 修改密码 API 测试 -->
     <el-card class="test-card">
       <template #header>
@@ -647,7 +862,7 @@ import { getAllBicycles, getMapAreaBicycles, getBikeDetails } from '@/api/map/bi
 import { getAllParkingAreas, getParkingAreasInBounds, convertParkingAreaData } from '@/api/map/parking'
 import { login, changePassword } from '@/api/account/login'
 import { getWeatherRecord } from '@/api/weather'
-import { getUserProfile } from '@/api/account/profile'
+import { getUserProfile, getStaffProfile } from '@/api/account/profile'
 import { register } from '@/api/account/register'
 import { ElMessage } from 'element-plus'
 
@@ -748,6 +963,18 @@ const profileForm = ref({
 
 // 个人信息结果
 const profileResult = ref({
+  code: null,
+  msg: '',
+  data: null
+})
+
+// 工作人员个人信息表单数据
+const staffProfileForm = ref({
+  token: ''
+})
+
+// 工作人员个人信息结果
+const staffProfileResult = ref({
   code: null,
   msg: '',
   data: null
@@ -1030,7 +1257,8 @@ const testLogin = async () => {
     const response = await login(loginForm.value)
     console.log('登录响应:', response)
     loginResult.value = response
-    if (response.code === '200') {
+    // 修正状态码判断，兼容数字和字符串
+    if (response.code === '200' || response.code === 200) {
       ElMessage.success('登录成功')
     } else {
       ElMessage.warning(`登录失败: ${response.msg}`)
@@ -1104,6 +1332,43 @@ const copyTokenFromLogin = () => {
   }
 }
 
+// 测试工作人员个人信息API
+const testStaffProfileAPI = async () => {
+  if (!staffProfileForm.value.token) {
+    ElMessage.warning('请输入Authorization Token')
+    return
+  }
+  try {
+    console.log('发送的Authorization头部:', 'Bearer ' + staffProfileForm.value.token)
+    const response = await getStaffProfile(staffProfileForm.value.token)
+    console.log('工作人员个人信息响应:', response)
+    staffProfileResult.value = response
+    if (response.code === '200' || response.code === 200) {
+      ElMessage.success('获取工作人员个人信息成功')
+    } else {
+      ElMessage.warning(`获取工作人员个人信息失败: ${response.msg}`)
+    }
+  } catch (error) {
+    console.error('获取工作人员个人信息失败：', error)
+    staffProfileResult.value = {
+      code: 500,
+      msg: '网络请求失败',
+      data: null
+    }
+    ElMessage.error('获取工作人员个人信息失败')
+  }
+}
+
+// 从登录结果复制Token到工作人员个人信息
+const copyTokenToStaffProfile = () => {
+  if (loginResult.value.data && loginResult.value.data.token) {
+    staffProfileForm.value.token = loginResult.value.data.token
+    ElMessage.success('已复制登录Token到工作人员个人信息')
+  } else {
+    ElMessage.warning('请先成功登录获取Token')
+  }
+}
+
 // 计算平均每次骑行时长
 const getAverageRideDuration = () => {
   const data = profileResult.value.data
@@ -1123,6 +1388,15 @@ const getCostPerMinute = () => {
   const data = profileResult.value.data
   if (!data || data.totalDurationMinutes === 0) return 0
   return (data.totalCost / data.totalDurationMinutes).toFixed(3)
+}
+
+// 计算绩效等级
+const getPerformanceLevel = (rating) => {
+  if (rating >= 90) return '优秀'
+  if (rating >= 80) return '良好'
+  if (rating >= 70) return '合格'
+  if (rating >= 60) return '待改进'
+  return '不合格'
 }
 
 // 测试修改密码API
@@ -1402,5 +1676,45 @@ code {
   line-height: 1.4;
   white-space: pre-wrap;
   word-wrap: break-word;
+}
+
+/* Token卡片样式 */
+.token-card {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.token-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+.token-card .el-card__header {
+  padding: 15px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.token-card .el-card__body {
+  padding: 20px;
+}
+
+/* Token输入框样式 */
+.token-card .el-textarea__inner {
+  background: rgba(248, 250, 252, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: #2d3748;
+  font-weight: 500;
+  line-height: 1.6;
+  border-radius: 6px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+/* 按钮hover效果 */
+.token-card .el-button:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 </style>
