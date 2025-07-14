@@ -15,7 +15,7 @@
       </router-link>
 
       <router-link to="/location" class="menu-item" @click="closeMenu">
-        <span class="menu-item-text">车辆定位</span>
+        <span class="menu-item-text">车辆投放</span>
       </router-link>
 
       <router-link to="/tasks" class="menu-item" @click="closeMenu">
@@ -55,7 +55,7 @@ export default {
         gender: '男',
         education: '硕士研究生',
         organization: '共享单车科技有限公司',
-        workArea: '上海市浦东新区',
+        workArea: '深圳市南山区',
         idNumber: '310101199001011234',
         phone: '138-1234-5678',
         email: 'admin@bikeshare.com',

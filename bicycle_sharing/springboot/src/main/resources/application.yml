@@ -5,10 +5,10 @@ spring:
     # The URL for connecting to a MySQL 8.0 database.
     # Replace 'your_database_name' with your actual database schema name.
     # The parameters are recommended for MySQL 8+ to handle timezone and character encoding correctly.
-    url: jdbc:mysql://127.0.0.1:3306/sharing-bicycle?useSSL=false&serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8
+    url: jdbc:mysql://124.71.227.243:3306/new_bike_sharing?useSSL=false&serverTimezone=UTC&useUnicode=true&characterEncoding=utf-8
     # Replace with your MySQL username and password
-    username: root
-    password: 23301144
+    username: bike_user
+    password: bicycle_sharing
     # The driver class name for MySQL Connector/J 8+
     driver-class-name: com.mysql.cj.jdbc.Driver
 
@@ -52,3 +52,5 @@ amap:
 # 新增JWT配置
 jwt:
   secret: "a2FzZGg4M2pkaGZnOTg0MzVoZ2tqZmQ5ODIzcmZrZGpoZ2ZkaG9pMzQ5ODVoZ2tmZGhqZ2ZkaGZnZGZnCg=="
+
+baseURL: import.meta.env.VITE_BASE_API  // 自动读取打包时注入的地址
