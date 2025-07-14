@@ -5,6 +5,9 @@
     <MenuComponent @profile-saved="handleProfileSaved" />
 
     <div class="top-right-btn-group btn-group">
+      <button class="yellow-btn" @click="onToggleBikes">
+        {{ showBikes ? '隐藏单车' : '显示单车' }}
+      </button>
       <button class="yellow-btn icon-list" @click="listCollapsed = !listCollapsed">
         {{ listCollapsed ? '展开任务列表' : '收起任务列表' }}
       </button>
@@ -51,7 +54,7 @@
               <div class="task-row"><span class="label">工作人员：</span>{{ task.workerName }}</div>
               <div class="task-row"><span class="label">联系电话：</span>{{ task.workerPhone }}</div>
               <div class="task-row"><span class="label">调度数量：</span>{{ task.deployAmount }}</div>
-              
+
             </div>
             <div class="task-action-col">
               <div class="task-status-tag" :class="statusClass(task.status)">
@@ -102,6 +105,9 @@
 import MenuComponent from '@/components/admin/menuComponent.vue';
 import { mapMixin } from '@/utils/mapMixin.js';
 import AMapLoader from '@/utils/loadAMap.js';
+// 新增：导入所需模块
+import bicycleIcon from '@/components/icons/bicycle.png';
+import { getMapAreaBicycles } from '@/api/map/bicycle';
 
 export default {
   name: "TasksView",
@@ -135,10 +141,10 @@ export default {
         { id: 3, location: "深圳市-福田区-滨河大道", areaCode: "区域C", polygon: [ [114.0560, 22.5365], [114.0590, 22.5365], [114.0590, 22.5395], [114.0560, 22.5395] ], currentBikes: 10, availableSpots: 20 },
         { id: 4, location: "深圳市-福田区-会展中心", areaCode: "区域D", polygon: [ [114.0595, 22.5365], [114.0625, 22.5365], [114.0625, 22.5395], [114.0595, 22.5395] ], currentBikes: 30, availableSpots: 0 }
       ],
-      bikeList: [
-        { id: "SZ1001", lng: 114.057868, lat: 22.53445, status: "正常", address: "深圳市-福田区-福华三路" },
-        { id: "SZ1002", lng: 114.060868, lat: 22.53495, status: "故障", address: "深圳市-福田区-金田路" },
-      ],
+      // 移除：硬编码的 bikeList
+      // 新增：用于存储和控制单车数据的属性
+      bikes: [],
+      showBikes: true,
       polygons: []
     };
   },
@@ -161,6 +167,44 @@ export default {
     }
   },
   methods: {
+    // --- 新增和修改的地图相关方法 ---
+    async loadBicycles() {
+      try {
+        const bounds = this.map.getBounds();
+        const params = { minLat: bounds.getSouthWest().lat, maxLat: bounds.getNorthEast().lat, minLng: bounds.getSouthWest().lng, maxLng: bounds.getNorthEast().lng };
+        const response = await getMapAreaBicycles(params);
+        const bikesForMixin = response.data.map(bike => ({ ...bike, lng: bike.currentLon, lat: bike.currentLat, id: bike.bikeId }));
+        this.bikes = bikesForMixin;
+        const bikeMarkerIcon = new window.AMap.Icon({ image: bicycleIcon, size: new window.AMap.Size(32, 32), imageSize: new window.AMap.Size(32, 32) });
+        this.addBikeMarkers(this.bikes, bikeMarkerIcon);
+        if (!this.showBikes) { this.markers.forEach(marker => marker.hide()); }
+      } catch (error) { console.error("加载单车数据失败:", error); }
+    },
+
+    addBikeMarkers(bikeList, bikeIcon) {
+      this.markers.forEach(marker => marker.setMap(null));
+      this.markers = [];
+      bikeList.forEach(bike => {
+        const marker = new window.AMap.Marker({ position: [bike.lng, bike.lat], map: this.map, icon: bikeIcon, title: `单车编号: ${bike.id}` });
+        marker.on('mouseover', () => {
+          this.infoWindow.setContent(`<div style="padding: 8px 12px; font-size: 14px;"><b>单车编号：</b>${bike.id}</div>`);
+          this.infoWindow.open(this.map, marker.getPosition());
+        });
+        marker.on('mouseout', () => this.infoWindow.close());
+        this.markers.push(marker);
+      });
+    },
+
+    onToggleBikes() {
+      this.showBikes = !this.showBikes;
+      if (this.markers && this.markers.length > 0) {
+        this.markers.forEach(marker => {
+          this.showBikes ? marker.show() : marker.hide();
+        });
+      }
+    },
+
+    // --- 保留和未修改的方法 ---
     handleProfileSaved(formData) {
       console.log('个人资料已保存:', formData);
       window.alert('个人信息已在控制台输出。');
@@ -174,7 +218,6 @@ export default {
       });
       this.map.remove(this.polygons);
       this.polygons = [];
-
       this.parkingAreas.forEach(area => {
         const polygon = new window.AMap.Polygon({
           path: area.polygon.map(([lng, lat]) => [lng, lat]),
@@ -186,7 +229,6 @@ export default {
           cursor: "pointer"
         });
         polygon.setMap(this.map);
-
         polygon.on("mouseover", (e) => {
           infoWindow.setContent(`
             <div style="min-width:160px;">
@@ -237,11 +279,16 @@ export default {
   },
   mounted() {
     AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
-      const { yellowBikeIcon } = this.initMap();
+      this.initMap();
       this.map.setZoomAndCenter(15, [114.0588, 22.5368]);
       this.drawParkingAreas();
-      this.addBikeMarkers(this.bikeList, yellowBikeIcon);
+      // 调用新的方法加载真实单车数据
+      this.loadBicycles();
       this.searchKey = "";
+
+      // 新增地图交互监听
+      this.map.on('moveend', this.loadBicycles);
+      this.map.on('zoomend', this.loadBicycles);
     }).catch(err => {
       alert('地图加载失败: ' + err.message);
     });
@@ -249,6 +296,9 @@ export default {
   beforeDestroy() {
     if (this.map) {
       this.map.destroy();
+      // 移除监听器
+      this.map.off('moveend', this.loadBicycles);
+      this.map.off('zoomend', this.loadBicycles);
     }
   }
 };

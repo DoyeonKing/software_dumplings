@@ -38,6 +38,10 @@
     </div>
 
     <div class="top-right-controls">
+      <button class="toggle-btn" @click="onToggleBikes">
+        {{ showBikes ? '隐藏单车' : '显示单车' }}
+      </button>
+
       <button class="toggle-btn" @click="onToggleHeatmap">
         {{ showHeatmap ? '显示普通地图' : '显示热力图' }}
       </button>
@@ -62,6 +66,9 @@
 import MenuComponent from '@/components/admin/menuComponent.vue'
 import { mapMixin } from '@/utils/mapMixin.js'
 import AMapLoader from '@/utils/loadAMap.js'
+import bicycleIcon from '@/components/icons/bicycle.png';
+import { getMapAreaBicycles } from '@/api/map/bicycle';
+
 
 export default {
   name: "DashboardView",
@@ -69,8 +76,11 @@ export default {
   mixins: [mapMixin],
   data() {
     return {
+      authToken: '',
+      userInfo: null,
+      userRole: '',
       menuOpen: false,
-      userMenuOpen: false, // 新增：控制用户菜单的开关
+      userMenuOpen: false,
       showProfile: false,
       editMode: false,
       form: {
@@ -79,39 +89,119 @@ export default {
         gender: '男',
         education: '硕士研究生',
         organization: '共享单车科技有限公司',
-        workArea: '上海市浦东新区',
+        workArea: '深圳市南山区',
         idNumber: '310101199001011234',
         phone: '138-1234-5678',
         email: 'admin@bikeshare.com',
         birth: '1990-01-01'
       },
-      parkingAreas: [
-        { id: 1, location: "深圳市-福田区-福华三路", areaCode: "区域A", polygon: [ [114.0560, 22.5330], [114.0590, 22.5330], [114.0590, 22.5360], [114.0560, 22.5360] ] },
-        { id: 2, location: "深圳市-福田区-金田路", areaCode: "区域B", polygon: [ [114.0595, 22.5330], [114.0625, 22.5330], [114.0625, 22.5360], [114.0595, 22.5360] ] },
+      parkingAreas:[
+        { id: 1, location: "深圳市-福田区-福华三路", areaCode: "P10001", polygon: [ [114.0560, 22.5330], [114.0590, 22.5330], [114.0590, 22.5360], [114.0560, 22.5360] ] },
+        { id: 2, location: "深圳市-福田区-金田路", areaCode: "P10002", polygon: [ [114.0595, 22.5330], [114.0625, 22.5330], [114.0625, 22.5360], [114.0595, 22.5360] ] },
+        { id: 3, location: "深圳市-福田区-滨河大道", areaCode: "P10003", polygon: [ [114.0560, 22.5365], [114.0590, 22.5365], [114.0590, 22.5395], [114.0560, 22.5395] ] }
       ],
-      bikeList: [
-        { id: "SZ1001", lng: 114.057868, lat: 22.53445, status: "正常", address: "深圳市-福田区-福华三路" },
-        { id: "SZ1002", lng: 114.060868, lat: 22.53495, status: "故障", address: "深圳市-福田区-金田路" },
-      ]
+      bikes: [],
+      showBikes: true,
     };
   },
   mounted() {
+    this.authToken = sessionStorage.getItem('authToken') || ''
+    const storedUserInfo = sessionStorage.getItem('userInfo')
+    if (storedUserInfo) {
+      this.userInfo = JSON.parse(storedUserInfo)
+    }
+    this.userRole = sessionStorage.getItem('userRole') || ''
+
     AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
-      const { yellowBikeIcon } = this.initMap();
+      this.initMap();
       this.map.setZoomAndCenter(15, [114.0588, 22.5368]);
-      this.addBikeMarkers(this.bikeList, yellowBikeIcon);
+
+      this.loadBicycles();
       this.drawParkingAreas();
+
+      this.map.on('moveend', this.loadBicycles);
+      this.map.on('zoomend', this.loadBicycles);
+
     }).catch(err => {
       alert('地图加载失败: ' + err.message);
     });
-    // 增加对两个菜单的外部点击监听
     document.addEventListener('click', this.handleClickOutside);
   },
   beforeUnmount() {
-    // 移除监听
     document.removeEventListener('click', this.handleClickOutside);
+    if (this.map) {
+      this.map.off('moveend', this.loadBicycles);
+      this.map.off('zoomend', this.loadBicycles);
+    }
   },
   methods: {
+    async loadBicycles() {
+      try {
+        const bounds = this.map.getBounds();
+        const params = {
+          minLat: bounds.getSouthWest().lat,
+          maxLat: bounds.getNorthEast().lat,
+          minLng: bounds.getSouthWest().lng,
+          maxLng: bounds.getNorthEast().lng
+        };
+        const response = await getMapAreaBicycles(params);
+
+        const bikesForMixin = response.data.map(bike => ({
+          ...bike,
+          lng: bike.currentLon,
+          lat: bike.currentLat,
+          // 依然需要转换id，因为我们覆盖的方法里会用到 bike.id
+          id: bike.bikeId,
+        }));
+
+        this.bikes = bikesForMixin;
+
+        const bikeMarkerIcon = new window.AMap.Icon({
+          image: bicycleIcon,
+          size: new window.AMap.Size(32, 32),
+          imageSize: new window.AMap.Size(32, 32)
+        });
+
+        this.addBikeMarkers(this.bikes, bikeMarkerIcon);
+
+        if (!this.showBikes) {
+          this.markers.forEach(marker => marker.hide());
+        }
+
+      } catch (error) {
+        console.error("加载单车数据失败:", error);
+      }
+    },
+
+    // [核心修改] 在此组件中覆盖 Mixin 的 addBikeMarkers 方法
+    addBikeMarkers(bikeList, bikeIcon) {
+      // 清除现有标记
+      this.markers.forEach(marker => marker.setMap(null));
+      this.markers = [];
+
+      bikeList.forEach(bike => {
+        const marker = new window.AMap.Marker({
+          position: [bike.lng, bike.lat],
+          map: this.map,
+          icon: bikeIcon, // 使用传入的正确图标
+          title: `单车编号: ${bike.id}`
+        });
+
+        marker.on('mouseover', () => {
+          // 自定义弹窗内容，只显示单车编号
+          this.infoWindow.setContent(`
+                    <div style="padding: 8px 12px; font-size: 14px;">
+                        <b>单车编号：</b>${bike.id}
+                    </div>
+                `);
+          this.infoWindow.open(this.map, marker.getPosition());
+        });
+        marker.on('mouseout', () => this.infoWindow.close());
+
+        this.markers.push(marker);
+      });
+    },
+
     drawParkingAreas() {
       const infoWindow = new window.AMap.InfoWindow({
         offset: new window.AMap.Pixel(0, -20)
@@ -134,14 +224,34 @@ export default {
         polygon.on("mouseout", () => infoWindow.close());
       });
     },
+    onToggleBikes() {
+      this.showBikes = !this.showBikes;
+      if (this.markers && this.markers.length > 0) {
+        if (this.showBikes && this.showHeatmap) {
+          this.toggleHeatmap(this.bikes);
+        } else {
+          this.markers.forEach(marker => {
+            this.showBikes ? marker.show() : marker.hide();
+          });
+        }
+      }
+    },
+    onToggleHeatmap() {
+      if (!this.showHeatmap) {
+        this.showBikes = false;
+      }
+      this.toggleHeatmap(this.bikes);
+
+      if (!this.showHeatmap && !this.showBikes) {
+        this.markers.forEach(marker => marker.hide());
+      }
+    },
     handleProfileSaved(formData) {
       this.form = { ...this.form, ...formData };
     },
-    // 新增：切换用户菜单
     toggleUserMenu() {
       this.userMenuOpen = !this.userMenuOpen;
     },
-    // 更新：处理外部点击，同时关闭两个菜单
     handleClickOutside(event) {
       const menuContainer = event.target.closest('.menu-container');
       const userMenuContainer = event.target.closest('.user-menu-container');
@@ -164,15 +274,12 @@ export default {
       this.editMode = false;
       window.alert('信息已保存！');
     },
-    onToggleHeatmap() {
-      this.toggleHeatmap(this.bikeList);
-    }
   }
 };
 </script>
 
 <style scoped>
-/* 你的样式有所调整，以适应新控件 */
+/* 样式部分保持不变 */
 html, body, #app, .dashboard-view-root {
   height: 100%;
   margin: 0;
@@ -194,7 +301,6 @@ html, body, #app, .dashboard-view-root {
   z-index: 1;
 }
 
-/* 右上角控件容器 */
 .top-right-controls {
   position: fixed;
   top: 20px;
@@ -205,7 +311,6 @@ html, body, #app, .dashboard-view-root {
   gap: 16px;
 }
 
-/* 热力图切换按钮 */
 .toggle-btn {
   background: #ffd600;
   color: #222;
@@ -223,7 +328,6 @@ html, body, #app, .dashboard-view-root {
   background: #ffe066;
 }
 
-/* 新增：用户菜单容器 */
 .user-menu-container {
   position: relative;
 }
@@ -241,10 +345,9 @@ html, body, #app, .dashboard-view-root {
   transform: scale(1.1);
 }
 
-/* 新增：用户下拉菜单 */
 .user-dropdown {
   position: absolute;
-  top: 54px; /* 在头像下方 */
+  top: 54px;
   right: 0;
   background: white;
   border-radius: 8px;
@@ -277,8 +380,6 @@ html, body, #app, .dashboard-view-root {
   background: #f5f5f5;
 }
 
-
-/* 个人资料浮窗 (样式保持不变) */
 .profile-modal-overlay {
   position: fixed;
   top: 0;
@@ -419,7 +520,6 @@ html, body, #app, .dashboard-view-root {
   color: #222;
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
   .top-right-controls {
     top: 15px;

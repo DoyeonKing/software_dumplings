@@ -5,6 +5,9 @@
     <MenuComponent @profile-saved="handleProfileSaved" />
 
     <div class="top-right-btn-group btn-group">
+      <button class="yellow-btn" @click="onToggleBikes">
+        {{ showBikes ? '隐藏单车' : '显示单车' }}
+      </button>
       <button class="yellow-btn" @click="onToggleHeatmap">
         {{ showHeatmap ? '显示普通地图' : '显示热力图' }}
       </button>
@@ -159,6 +162,15 @@
 import MenuComponent from '@/components/admin/menuComponent.vue';
 import { mapMixin } from '@/utils/mapMixin.js';
 import AMapLoader from '@/utils/loadAMap.js';
+import bicycleIcon from '@/components/icons/bicycle.png';
+import { getMapAreaBicycles } from '@/api/map/bicycle';
+
+// [核心修改] 采用与 dashboardView.vue 一致的颜色定义方式
+const HIGHLIGHT_COLORS = {
+  DEFAULT: { fillColor: "#FFD600", fillOpacity: 0.2, strokeColor: "#FFD600" },
+  START:   { fillColor: "#ef5350", fillOpacity: 0.35, strokeColor: "#ef5350" }, // 半透明浅红色
+  END:     { fillColor: "#66bb6a", fillOpacity: 0.35, strokeColor: "#66bb6a" }, // 半透明浅绿色
+};
 
 export default {
   name: "LocationView",
@@ -168,24 +180,15 @@ export default {
   mixins: [mapMixin],
   data() {
     return {
-      // General State
       taskPanelCollapsed: false,
       polygons: [],
-
-      // Map & Left Panel Data
-      currentArea: {
-        location: "请在地图上选择区域",
-        areaCode: "",
-        currentBikes: 0,
-        availableSpots: 0
-      },
+      polygonMap: {},
+      currentArea: { location: "请在地图上选择区域", areaCode: "", currentBikes: 0, availableSpots: 0 },
       predictHour: 1,
       predictData: { take: 0, park: 0, total: 0 },
-
-      // Task Panel Data
-      selectingFor: null, // 'start', 'end', or null
-      startSelectionActive: false, // NEW: Controls visibility of start selection box
-      endSelectionActive: false,   // NEW: Controls visibility of end selection box
+      selectingFor: null,
+      startSelectionActive: false,
+      endSelectionActive: false,
       selectedStartArea: null,
       selectedEndArea: null,
       startPredictHour: 1,
@@ -194,12 +197,10 @@ export default {
       endPredictData: { take: 0, park: 0, total: 0 },
       selectedWorker: null,
       dispatchAmount: 1,
-
-      // Static Data
       parkingAreas: [
-        { id: 1, location: "深圳市-福田区-福华三路", areaCode: "区域A", polygon: [[114.0575, 22.5342], [114.0582, 22.5342], [114.0582, 22.5348], [114.0575, 22.5348]], currentBikes: 23, availableSpots: 7, baseTakeRate: 3, baseParkRate: 5 },
-        { id: 2, location: "深圳市-福田区-金田路", areaCode: "区域B", polygon: [[114.0605, 22.5347], [114.0612, 22.5347], [114.0612, 22.5353], [114.0605, 22.5353]], currentBikes: 15, availableSpots: 15, baseTakeRate: 2, baseParkRate: 4 },
-        { id: 3, location: "深圳市-福田区-滨河大道", areaCode: "区域C", polygon: [[114.0585, 22.5360], [114.0592, 22.5360], [114.0592, 22.5366], [114.0585, 22.5366]], currentBikes: 30, availableSpots: 5, baseTakeRate: 6, baseParkRate: 3 }
+        { id: 1, location: "深圳市-福田区-福华三路", areaCode: "P10001", polygon: [[114.0575, 22.5342], [114.0582, 22.5342], [114.0582, 22.5348], [114.0575, 22.5348]], currentBikes: 23, availableSpots: 7, baseTakeRate: 3, baseParkRate: 5 },
+        { id: 2, location: "深圳市-福田区-金田路", areaCode: "P10002", polygon: [[114.0605, 22.5347], [114.0612, 22.5347], [114.0612, 22.5353], [114.0605, 22.5353]], currentBikes: 15, availableSpots: 15, baseTakeRate: 2, baseParkRate: 4 },
+        { id: 3, location: "深圳市-福田区-滨河大道", areaCode: "P10003", polygon: [[114.0585, 22.5360], [114.0592, 22.5360], [114.0592, 22.5366], [114.0585, 22.5366]], currentBikes: 30, availableSpots: 5, baseTakeRate: 6, baseParkRate: 3 }
       ],
       workers: [
         { id: "W001", name: "李明", phone: "13800000001", avatar: "https://api.dicebear.com/7.x/miniavs/svg?seed=1" },
@@ -207,10 +208,8 @@ export default {
         { id: "W003", name: "张伟", phone: "13800000003", avatar: "https://api.dicebear.com/7.x/miniavs/svg?seed=3" },
         { id: "W004", name: "赵强", phone: "13800000004", avatar: "https://api.dicebear.com/7.x/miniavs/svg?seed=4" }
       ],
-      bikeList: [
-        { id: "SZ1001", lng: 114.057868, lat: 22.53445, status: "正常", address: "深圳市-福田区-福华三路" },
-        { id: "SZ1002", lng: 114.060868, lat: 22.53495, status: "故障", address: "深圳市-福田区-金田路" },
-      ],
+      bikes: [],
+      showBikes: true,
     };
   },
   watch: {
@@ -220,26 +219,96 @@ export default {
     currentArea() { this.updatePrediction(this.currentArea, this.predictHour, 'predictData'); }
   },
   methods: {
-    handleProfileSaved(formData) {
-      console.log('个人资料已保存:', formData);
-      window.alert('个人信息已在控制台输出。');
+    async loadBicycles() {
+      try {
+        const bounds = this.map.getBounds();
+        const params = { minLat: bounds.getSouthWest().lat, maxLat: bounds.getNorthEast().lat, minLng: bounds.getSouthWest().lng, maxLng: bounds.getNorthEast().lng };
+        const response = await getMapAreaBicycles(params);
+        const bikesForMixin = response.data.map(bike => ({ ...bike, lng: bike.currentLon, lat: bike.currentLat, id: bike.bikeId }));
+        this.bikes = bikesForMixin;
+        const bikeMarkerIcon = new window.AMap.Icon({ image: bicycleIcon, size: new window.AMap.Size(32, 32), imageSize: new window.AMap.Size(32, 32) });
+        this.addBikeMarkers(this.bikes, bikeMarkerIcon);
+        if (!this.showBikes) { this.markers.forEach(marker => marker.hide()); }
+      } catch (error) { console.error("加载单车数据失败:", error); }
     },
-    goHome() { this.$router.push('/admin'); },
-    onToggleHeatmap() { this.toggleHeatmap(this.bikeList); },
+
+    addBikeMarkers(bikeList, bikeIcon) {
+      this.markers.forEach(marker => marker.setMap(null));
+      this.markers = [];
+      bikeList.forEach(bike => {
+        const marker = new window.AMap.Marker({ position: [bike.lng, bike.lat], map: this.map, icon: bikeIcon, title: `单车编号: ${bike.id}` });
+        marker.on('mouseover', () => {
+          this.infoWindow.setContent(`<div style="padding: 8px 12px; font-size: 14px;"><b>单车编号：</b>${bike.id}</div>`);
+          this.infoWindow.open(this.map, marker.getPosition());
+        });
+        marker.on('mouseout', () => this.infoWindow.close());
+        this.markers.push(marker);
+      });
+    },
+
+    onToggleBikes() {
+      this.showBikes = !this.showBikes;
+      if (this.markers && this.markers.length > 0) {
+        if (this.showBikes && this.showHeatmap) { this.toggleHeatmap(this.bikes); }
+        else { this.markers.forEach(marker => { this.showBikes ? marker.show() : marker.hide(); }); }
+      }
+    },
+
+    updatePolygonStyles() {
+      this.parkingAreas.forEach(area => {
+        const polygon = this.polygonMap[area.id];
+        if (!polygon) return;
+
+        let colors = HIGHLIGHT_COLORS.DEFAULT;
+        if (this.selectedStartArea && this.selectedStartArea.id === area.id) {
+          colors = HIGHLIGHT_COLORS.START;
+        } else if (this.selectedEndArea && this.selectedEndArea.id === area.id) {
+          colors = HIGHLIGHT_COLORS.END;
+        }
+
+        polygon.setOptions({
+          fillColor: colors.fillColor,
+          fillOpacity: colors.fillOpacity,
+          strokeColor: colors.strokeColor
+        });
+      });
+    },
+
     drawParkingAreas() {
       if (this.polygons && this.polygons.length) this.map.remove(this.polygons);
       this.polygons = [];
+      this.polygonMap = {};
       this.parkingAreas.forEach(area => {
         const polygon = new window.AMap.Polygon({
           path: area.polygon.map(([lng, lat]) => [lng, lat]),
-          fillColor: "#FFD600", fillOpacity: 0.3, strokeColor: "#FFD600",
-          strokeWeight: 2, zIndex: 50, cursor: "pointer"
+          // [核心修改] 使用与 dashboardView.vue 一致的样式定义
+          fillColor: HIGHLIGHT_COLORS.DEFAULT.fillColor,
+          fillOpacity: HIGHLIGHT_COLORS.DEFAULT.fillOpacity,
+          strokeColor: HIGHLIGHT_COLORS.DEFAULT.strokeColor,
+          strokeWeight: 2,
+          zIndex: 50,
+          cursor: "pointer"
         });
         polygon.setMap(this.map);
+
+        polygon.on("mouseover", () => {
+          this.infoWindow.setContent(`
+            <div style="min-width:160px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+              <b>停车区域：</b>${area.location}-${area.areaCode}
+            </div>`);
+          this.infoWindow.open(this.map, polygon.getBounds().getCenter());
+        });
+
+        polygon.on("mouseout", () => {
+          this.infoWindow.close();
+        });
+
         polygon.on("click", () => this.handlePolygonClick(area));
         this.polygons.push(polygon);
+        this.polygonMap[area.id] = polygon;
       });
     },
+
     handlePolygonClick(area) {
       if (this.selectingFor === 'start') {
         this.selectedStartArea = area;
@@ -252,26 +321,9 @@ export default {
       } else {
         this.currentArea = area;
       }
+      this.updatePolygonStyles();
     },
-    updatePrediction(area, hour, dataProperty) {
-      if (!area || !area.id) {
-        this[dataProperty] = { take: 0, park: 0, total: 0 };
-        return;
-      }
-      const take = Math.round(area.baseTakeRate * hour * (Math.random() * 0.4 + 0.8));
-      const park = Math.round(area.baseParkRate * hour * (Math.random() * 0.4 + 0.8));
-      const total = area.currentBikes + park - take;
-      this[dataProperty] = { take, park, total };
-    },
-    activateSelection(type) {
-      if (type === 'start') {
-        this.startSelectionActive = true;
-        this.selectingFor = 'start';
-      } else if (type === 'end') {
-        this.endSelectionActive = true;
-        this.selectingFor = 'end';
-      }
-    },
+
     cancelOrClearSelection(type) {
       if (type === 'start') {
         this.startSelectionActive = false;
@@ -282,6 +334,36 @@ export default {
         this.selectedEndArea = null;
         this.selectingFor = null;
       }
+      this.updatePolygonStyles();
+    },
+
+    publishTask() {
+      if (!this.selectedStartArea || !this.selectedEndArea || !this.selectedWorker || this.dispatchAmount < 1) return;
+      alert(`调度任务已发布！\n\n` + `起点：${this.selectedStartArea.location}\n` + `终点：${this.selectedEndArea.location}\n` + `调度数量：${this.dispatchAmount}\n` + `工作人员：${this.selectedWorker.name} (${this.selectedWorker.phone})`);
+      this.cancelOrClearSelection('start');
+      this.cancelOrClearSelection('end');
+      this.selectedWorker = null;
+      this.dispatchAmount = 1;
+    },
+
+    onToggleHeatmap() {
+      if (!this.showHeatmap) { this.showBikes = false; }
+      this.toggleHeatmap(this.bikes);
+      if (!this.showHeatmap && !this.showBikes) { this.markers.forEach(marker => marker.hide()); }
+    },
+
+    handleProfileSaved(formData) { console.log('个人资料已保存:', formData); window.alert('个人信息已在控制台输出。'); },
+    goHome() { this.$router.push('/admin'); },
+    updatePrediction(area, hour, dataProperty) {
+      if (!area || !area.id) { this[dataProperty] = { take: 0, park: 0, total: 0 }; return; }
+      const take = Math.round(area.baseTakeRate * hour * (Math.random() * 0.4 + 0.8));
+      const park = Math.round(area.baseParkRate * hour * (Math.random() * 0.4 + 0.8));
+      const total = area.currentBikes + park - take;
+      this[dataProperty] = { take, park, total };
+    },
+    activateSelection(type) {
+      if (type === 'start') { this.startSelectionActive = true; this.selectingFor = 'start'; }
+      else if (type === 'end') { this.endSelectionActive = true; this.selectingFor = 'end'; }
     },
     selectWorker(worker) { this.selectedWorker = worker; },
     changeDispatchAmount(delta) {
@@ -289,34 +371,25 @@ export default {
       if (next < 1) next = 1;
       this.dispatchAmount = next;
     },
-    publishTask() {
-      if (!this.selectedStartArea || !this.selectedEndArea || !this.selectedWorker || this.dispatchAmount < 1) return;
-      alert(
-          `调度任务已发布！\n\n` +
-          `起点：${this.selectedStartArea.location}\n` +
-          `终点：${this.selectedEndArea.location}\n` +
-          `调度数量：${this.dispatchAmount}\n` +
-          `工作人员：${this.selectedWorker.name} (${this.selectedWorker.phone})`
-      );
-      this.cancelOrClearSelection('start');
-      this.cancelOrClearSelection('end');
-      this.selectedWorker = null;
-      this.dispatchAmount = 1;
-    },
   },
   mounted() {
     AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
-      const { yellowBikeIcon } = this.initMap();
+      this.initMap();
       this.map.setZoomAndCenter(17, [114.0598, 22.5350]);
-      this.addBikeMarkers(this.bikeList, yellowBikeIcon);
+      this.loadBicycles();
       this.drawParkingAreas();
       if (this.parkingAreas.length > 0) { this.currentArea = this.parkingAreas[0]; }
-    }).catch(err => {
-      alert('地图加载失败: ' + err.message);
-    });
+
+      this.map.on('moveend', this.loadBicycles);
+      this.map.on('zoomend', this.loadBicycles);
+    }).catch(err => { alert('地图加载失败: ' + err.message); });
   },
   beforeDestroy() {
-    if (this.map) { this.map.destroy(); }
+    if (this.map) {
+      this.map.destroy();
+      this.map.off('moveend', this.loadBicycles);
+      this.map.off('zoomend', this.loadBicycles);
+    }
   }
 };
 </script>
@@ -354,9 +427,9 @@ export default {
 .location-details { display: flex; flex-direction: column; gap: 10px; }
 .location-name { font-weight: bold; color: #e65100; font-size: 1rem; }
 .predict-stats-horizontal { display: flex; justify-content: space-around; align-items: center; font-size: 0.95rem; font-weight: 600; }
-.predict-take { color: #2e7d32; } /* Green */
-.predict-park { color: #d32f2f; } /* Red */
-.predict-total { color: #1976d2; } /* Blue */
+.predict-take { color: #2e7d32; }
+.predict-park { color: #d32f2f; }
+.predict-total { color: #1976d2; }
 
 .task-workers-list { display: flex; flex-direction: column; gap: 10px; max-height: 180px; overflow-y: auto; padding-right: 5px; }
 .worker-card { border: 2px solid #eee; border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; cursor: pointer; transition: border 0.2s, box-shadow 0.2s, background 0.2s; }
