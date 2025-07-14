@@ -20,14 +20,14 @@
       <div class="info-card">
         <div class="info-title">停车区域位置</div>
         <div class="info-content">
-          <div>{{ currentArea.location }} - {{ currentArea.areaCode }}</div>
+          <div>{{ currentArea.geohash || "请在地图上选择区域" }}</div>
         </div>
       </div>
       <div class="info-card">
         <div class="info-title">现有停车数量</div>
         <div class="info-content">
-          <div>现有车辆：<span class="info-number">{{ currentArea.currentBikes }}</span></div>
-          <div>预估可用车位：<span class="info-number">{{ currentArea.availableSpots }}</span></div>
+          <div>现有车辆：<span class="info-number">{{ currentArea.currentBikes || 0 }}</span></div>
+          <div>预估可用车位：<span class="info-number">{{ currentArea.availableSpots || 0 }}</span></div>
         </div>
       </div>
       <div class="info-card">
@@ -69,7 +69,7 @@
                   请在地图上选择起点区域...
                 </div>
                 <div v-if="selectedStartArea" class="location-details">
-                  <div class="location-name">{{ selectedStartArea.location }} - {{ selectedStartArea.areaCode }}</div>
+                  <div class="location-name">{{ selectedStartArea.geohash }}</div>
                   <div class="predict-filter">
                     <select v-model="startPredictHour" class="yellow-select small-select">
                       <option :value="1">未来1小时</option>
@@ -99,7 +99,7 @@
                   请在地图上选择终点区域...
                 </div>
                 <div v-if="selectedEndArea" class="location-details">
-                  <div class="location-name">{{ selectedEndArea.location }} - {{ selectedEndArea.areaCode }}</div>
+                  <div class="location-name">{{ selectedEndArea.geohash }}</div>
                   <div class="predict-filter">
                     <select v-model="endPredictHour" class="yellow-select small-select">
                       <option :value="1">未来1小时</option>
@@ -164,12 +164,15 @@ import { mapMixin } from '@/utils/mapMixin.js';
 import AMapLoader from '@/utils/loadAMap.js';
 import bicycleIcon from '@/components/icons/bicycle.png';
 import { getMapAreaBicycles } from '@/api/map/bicycle';
+// 【已引入】导入停车区域相关的API函数
+import { getParkingAreasInBounds, convertParkingAreaData } from '@/api/map/parking.js';
 
-// [核心修改] 采用与 dashboardView.vue 一致的颜色定义方式
+
+// 颜色定义
 const HIGHLIGHT_COLORS = {
   DEFAULT: { fillColor: "#FFD600", fillOpacity: 0.2, strokeColor: "#FFD600" },
-  START:   { fillColor: "#ef5350", fillOpacity: 0.35, strokeColor: "#ef5350" }, // 半透明浅红色
-  END:     { fillColor: "#66bb6a", fillOpacity: 0.35, strokeColor: "#66bb6a" }, // 半透明浅绿色
+  START:   { fillColor: "#ef5350", fillOpacity: 0.35, strokeColor: "#ef5350" },
+  END:     { fillColor: "#66bb6a", fillOpacity: 0.35, strokeColor: "#66bb6a" },
 };
 
 export default {
@@ -183,7 +186,7 @@ export default {
       taskPanelCollapsed: false,
       polygons: [],
       polygonMap: {},
-      currentArea: { location: "请在地图上选择区域", areaCode: "", currentBikes: 0, availableSpots: 0 },
+      currentArea: { geohash: "请在地图上选择区域", currentBikes: 0, availableSpots: 0 },
       predictHour: 1,
       predictData: { take: 0, park: 0, total: 0 },
       selectingFor: null,
@@ -197,11 +200,8 @@ export default {
       endPredictData: { take: 0, park: 0, total: 0 },
       selectedWorker: null,
       dispatchAmount: 1,
-      parkingAreas: [
-        { id: 1, location: "深圳市-福田区-福华三路", areaCode: "P10001", polygon: [[114.0575, 22.5342], [114.0582, 22.5342], [114.0582, 22.5348], [114.0575, 22.5348]], currentBikes: 23, availableSpots: 7, baseTakeRate: 3, baseParkRate: 5 },
-        { id: 2, location: "深圳市-福田区-金田路", areaCode: "P10002", polygon: [[114.0605, 22.5347], [114.0612, 22.5347], [114.0612, 22.5353], [114.0605, 22.5353]], currentBikes: 15, availableSpots: 15, baseTakeRate: 2, baseParkRate: 4 },
-        { id: 3, location: "深圳市-福田区-滨河大道", areaCode: "P10003", polygon: [[114.0585, 22.5360], [114.0592, 22.5360], [114.0592, 22.5366], [114.0585, 22.5366]], currentBikes: 30, availableSpots: 5, baseTakeRate: 6, baseParkRate: 3 }
-      ],
+      // 【修改】初始化为空数组以接收动态数据
+      parkingAreas: [],
       workers: [
         { id: "W001", name: "李明", phone: "13800000001", avatar: "https://api.dicebear.com/7.x/miniavs/svg?seed=1" },
         { id: "W002", name: "王芳", phone: "13800000002", avatar: "https://api.dicebear.com/7.x/miniavs/svg?seed=2" },
@@ -219,6 +219,44 @@ export default {
     currentArea() { this.updatePrediction(this.currentArea, this.predictHour, 'predictData'); }
   },
   methods: {
+    // 【已修改】实现了从API加载和转换停车区域数据的完整逻辑
+    async loadParkingAreas() {
+      if (!this.map) return;
+      try {
+        const bounds = this.map.getBounds();
+        const params = {
+          minLat: bounds.getSouthWest().lat,
+          maxLat: bounds.getNorthEast().lat,
+          minLon: bounds.getSouthWest().lng,
+          maxLon: bounds.getNorthEast().lng
+        };
+        const response = await getParkingAreasInBounds(params);
+
+        // 健壮地处理多种可能的API响应格式
+        let rawData = null;
+        if (response && Array.isArray(response)) {
+          rawData = response;
+        } else if (response && response.data && Array.isArray(response.data)) {
+          rawData = response.data;
+        } else if (response && response.code === 200 && Array.isArray(response.data)) {
+          rawData = response.data;
+        }
+
+        if (rawData) {
+          // 使用 parking.js 中的转换函数处理数据
+          this.parkingAreas = convertParkingAreaData(rawData);
+        } else {
+          console.warn('停车区域数据格式异常或为空:', response);
+          this.parkingAreas = [];
+        }
+      } catch (error) {
+        console.error("加载停车区域数据失败:", error);
+        this.parkingAreas = [];
+      } finally {
+        // 无论成功或失败，都重新绘制图层（失败时会清空）
+        this.drawParkingAreas();
+      }
+    },
     async loadBicycles() {
       try {
         const bounds = this.map.getBounds();
@@ -274,14 +312,15 @@ export default {
       });
     },
 
+    // 【已修改】确保此方法能正确处理动态获取并转换后的数据
     drawParkingAreas() {
       if (this.polygons && this.polygons.length) this.map.remove(this.polygons);
       this.polygons = [];
       this.polygonMap = {};
       this.parkingAreas.forEach(area => {
         const polygon = new window.AMap.Polygon({
-          path: area.polygon.map(([lng, lat]) => [lng, lat]),
-          // [核心修改] 使用与 dashboardView.vue 一致的样式定义
+          // 使用从 convertParkingAreaData 函数获得的精确多边形路径
+          path: area.polygonPath,
           fillColor: HIGHLIGHT_COLORS.DEFAULT.fillColor,
           fillOpacity: HIGHLIGHT_COLORS.DEFAULT.fillOpacity,
           strokeColor: HIGHLIGHT_COLORS.DEFAULT.strokeColor,
@@ -294,9 +333,11 @@ export default {
         polygon.on("mouseover", () => {
           this.infoWindow.setContent(`
             <div style="min-width:160px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
-              <b>停车区域：</b>${area.location}-${area.areaCode}
+              <b>停车区域：</b>${area.geohash}
             </div>`);
-          this.infoWindow.open(this.map, polygon.getBounds().getCenter());
+          // 使用转换后数据中的中心点坐标，更精确
+          const centerPosition = area.center ? [area.center[1], area.center[0]] : polygon.getBounds().getCenter();
+          this.infoWindow.open(this.map, centerPosition);
         });
 
         polygon.on("mouseout", () => {
@@ -305,16 +346,26 @@ export default {
 
         polygon.on("click", () => this.handlePolygonClick(area));
         this.polygons.push(polygon);
-        this.polygonMap[area.id] = polygon;
+        this.polygonMap[area.id] = polygon; // area.id 即 area.geohash
       });
+      // 绘制完成后，立即根据当前选择状态更新样式
+      this.updatePolygonStyles();
     },
 
     handlePolygonClick(area) {
       if (this.selectingFor === 'start') {
+        if (this.selectedEndArea && this.selectedEndArea.id === area.id) {
+          alert('起点和终点不能是同一个区域！');
+          return;
+        }
         this.selectedStartArea = area;
         this.updatePrediction(this.selectedStartArea, this.startPredictHour, 'startPredictData');
         this.selectingFor = null;
       } else if (this.selectingFor === 'end') {
+        if (this.selectedStartArea && this.selectedStartArea.id === area.id) {
+          alert('起点和终点不能是同一个区域！');
+          return;
+        }
         this.selectedEndArea = area;
         this.updatePrediction(this.selectedEndArea, this.endPredictHour, 'endPredictData');
         this.selectingFor = null;
@@ -339,7 +390,7 @@ export default {
 
     publishTask() {
       if (!this.selectedStartArea || !this.selectedEndArea || !this.selectedWorker || this.dispatchAmount < 1) return;
-      alert(`调度任务已发布！\n\n` + `起点：${this.selectedStartArea.location}\n` + `终点：${this.selectedEndArea.location}\n` + `调度数量：${this.dispatchAmount}\n` + `工作人员：${this.selectedWorker.name} (${this.selectedWorker.phone})`);
+      alert(`调度任务已发布！\n\n` + `起点：${this.selectedStartArea.geohash}\n` + `终点：${this.selectedEndArea.geohash}\n` + `调度数量：${this.dispatchAmount}\n` + `工作人员：${this.selectedWorker.name} (${this.selectedWorker.phone})`);
       this.cancelOrClearSelection('start');
       this.cancelOrClearSelection('end');
       this.selectedWorker = null;
@@ -356,9 +407,9 @@ export default {
     goHome() { this.$router.push('/admin'); },
     updatePrediction(area, hour, dataProperty) {
       if (!area || !area.id) { this[dataProperty] = { take: 0, park: 0, total: 0 }; return; }
-      const take = Math.round(area.baseTakeRate * hour * (Math.random() * 0.4 + 0.8));
-      const park = Math.round(area.baseParkRate * hour * (Math.random() * 0.4 + 0.8));
-      const total = area.currentBikes + park - take;
+      const take = Math.round((area.baseTakeRate || 3) * hour * (Math.random() * 0.4 + 0.8));
+      const park = Math.round((area.baseParkRate || 5) * hour * (Math.random() * 0.4 + 0.8));
+      const total = (area.currentBikes || 20) + park - take;
       this[dataProperty] = { take, park, total };
     },
     activateSelection(type) {
@@ -375,20 +426,32 @@ export default {
   mounted() {
     AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
       this.initMap();
-      this.map.setZoomAndCenter(17, [114.0598, 22.5350]);
-      this.loadBicycles();
-      this.drawParkingAreas();
-      if (this.parkingAreas.length > 0) { this.currentArea = this.parkingAreas[0]; }
+      this.map.setZoomAndCenter(17, [114.0580, 22.5390]);
 
-      this.map.on('moveend', this.loadBicycles);
-      this.map.on('zoomend', this.loadBicycles);
+      // 【已修改】将数据加载逻辑统一管理
+      const loadAllData = () => {
+        this.loadBicycles();
+        this.loadParkingAreas();
+      }
+
+      // 初始加载所有数据
+      loadAllData();
+
+      // 【已修改】为地图移动和缩放结束事件绑定统一的加载函数
+      this.map.on('moveend', loadAllData);
+      this.map.on('zoomend', loadAllData);
     }).catch(err => { alert('地图加载失败: ' + err.message); });
   },
   beforeDestroy() {
     if (this.map) {
+      // 【已修改】确保在组件销毁时移除事件监听器
+      const loadAllData = () => {
+        this.loadBicycles();
+        this.loadParkingAreas();
+      }
+      this.map.off('moveend', loadAllData);
+      this.map.off('zoomend', loadAllData);
       this.map.destroy();
-      this.map.off('moveend', this.loadBicycles);
-      this.map.off('zoomend', this.loadBicycles);
     }
   }
 };

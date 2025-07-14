@@ -137,6 +137,8 @@ import { mapMixin } from '@/utils/mapMixin.js'
 import AMapLoader from '@/utils/loadAMap.js'
 import bicycleIcon from '@/components/icons/bicycle.png';
 import { getMapAreaBicycles } from '@/api/map/bicycle';
+// 【新增】导入停车区域相关的API函数
+import { getParkingAreasInBounds, convertParkingAreaData } from '@/api/map/parking.js';
 
 export default {
   name: "DashboardView",
@@ -177,11 +179,9 @@ export default {
         "北京市": { "朝阳区": ["建国路", "三里屯"], "海淀区": ["中关村", "学院路"] },
         "上海市": { "浦东新区": ["世纪大道", "张江路"], "徐汇区": ["漕溪北路", "肇嘉浜路"] }
       },
-      parkingAreas: [
-        { id: 1, location: "深圳市-福田区-福华三路", areaCode: "P10001", polygon: [ [114.0560, 22.5330], [114.0590, 22.5330], [114.0590, 22.5360], [114.0560, 22.5360] ] },
-        { id: 2, location: "深圳市-福田区-金田路", areaCode: "P10002", polygon: [ [114.0595, 22.5330], [114.0625, 22.5330], [114.0625, 22.5360], [114.0595, 22.5360] ] },
-        { id: 3, location: "深圳市-福田区-滨河大道", areaCode: "P10003", polygon: [ [114.0560, 22.5365], [114.0590, 22.5365], [114.0590, 22.5395], [114.0560, 22.5395] ] }
-      ],
+      // 【修改】初始化为空数组
+      parkingAreas: [],
+      parkingPolygons: [],
       bikes: [],
       showBikes: true,
     };
@@ -208,21 +208,23 @@ export default {
     }
   },
   mounted() {
-    AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(async () => {
+    AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
       this.initMap();
-
-      await this.loadBicycles();
-      this.drawParkingAreas();
-
       this.map.setZoomAndCenter(17, [114.0580, 22.5390]);
 
-      // 【核心修改】使用 setTimeout 延迟挂载事件监听器
-      // 这可以确保地图在 setZoomAndCenter 完成动画并静止后，才开始监听后续的用户交互
-      // 从而避免初始加载时，因为设置视图而触发不必要的二次加载，导致地图移动
-      setTimeout(() => {
-        this.map.on('moveend', this.loadBicycles);
-        this.map.on('zoomend', this.loadBicycles);
-      }, 500); // 延迟500毫秒，确保地图稳定
+      // 【修改】调用新的方法来加载真实数据
+      this.loadBicycles();
+      this.showParkingAreas(); // 使用新的主方法
+
+      // 【修改】添加对停车区域的动态加载
+      this.map.on('moveend', () => {
+        this.loadBicycles();
+        this.showParkingAreas();
+      });
+      this.map.on('zoomend', () => {
+        this.loadBicycles();
+        this.showParkingAreas();
+      });
 
     }).catch(err => {
       this.$message && this.$message.error
@@ -232,11 +234,58 @@ export default {
   },
   beforeUnmount() {
     if (this.map) {
+      // 【修改】移除所有监听器
       this.map.off('moveend', this.loadBicycles);
       this.map.off('zoomend', this.loadBicycles);
+      this.map.off('moveend', this.showParkingAreas);
+      this.map.off('zoomend', this.showParkingAreas);
     }
   },
   methods: {
+    // 【新增】获取停车区域数据的方法
+    async fetchParkingAreas() {
+      try {
+        const bounds = this.map.getBounds();
+        const params = {
+          minLat: bounds.getSouthWest().lat,
+          maxLat: bounds.getNorthEast().lat,
+          minLon: bounds.getSouthWest().lng,
+          maxLon: bounds.getNorthEast().lng
+        };
+        const response = await getParkingAreasInBounds(params);
+
+        let rawData = null;
+        if (response && response.data && Array.isArray(response.data)) {
+          rawData = response.data;
+        } else if (response && Array.isArray(response)) {
+          rawData = response;
+        }
+
+        if (rawData) {
+          this.parkingAreas = convertParkingAreaData(rawData);
+        } else {
+          console.warn('停车点数据格式异常:', response);
+          this.parkingAreas = [];
+        }
+      } catch (error) {
+        console.error('获取停车点数据失败:', error);
+        this.parkingAreas = [];
+      }
+    },
+    // 【新增】显示停车区域的主方法
+    async showParkingAreas() {
+      if (!this.map) return;
+      try {
+        if (this.parkingPolygons && this.parkingPolygons.length > 0) {
+          this.map.remove(this.parkingPolygons);
+          this.parkingPolygons = [];
+        }
+        await this.fetchParkingAreas();
+        this.drawParkingAreas();
+      } catch (error) {
+        console.error("显示停车区域失败:", error);
+      }
+    },
     async loadBicycles() {
       try {
         const bounds = this.map.getBounds();
@@ -323,13 +372,16 @@ export default {
       }
     },
 
+    // 【修改】更新 drawParkingAreas 方法以处理动态数据
     drawParkingAreas() {
       const infoWindow = new window.AMap.InfoWindow({
         offset: new window.AMap.Pixel(0, -20)
       });
+      // 遍历从API获取的新数据进行绘制
       this.parkingAreas.forEach(area => {
         const polygon = new window.AMap.Polygon({
-          path: area.polygon,
+          // 使用转换后的 polygonPath 字段
+          path: area.polygonPath,
           fillColor: "#FFD600",
           fillOpacity: 0.2,
           strokeColor: "#FFD600",
@@ -338,10 +390,14 @@ export default {
           cursor: "pointer"
         });
         this.map.add(polygon);
+        // 将新创建的多边形存起来，方便下次清除
+        this.parkingPolygons.push(polygon);
+
         polygon.on("mouseover", (e) => {
+          // 使用 geohash 作为区域标识
           infoWindow.setContent(`
             <div style="min-width:160px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
-              <b>停车区域：</b>${area.location}-${area.areaCode}
+              <b>停车区域：</b>${area.geohash}
             </div>`);
           infoWindow.open(this.map, e.lnglat);
         });

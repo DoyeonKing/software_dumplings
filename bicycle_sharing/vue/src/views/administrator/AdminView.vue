@@ -55,7 +55,7 @@
         />
         <div class="user-dropdown" :class="{ 'menu-open': userMenuOpen }">
           <router-link to="/login" class="user-menu-item">切换账号</router-link>
-<!--          <router-link to="/new" class="user-menu-item">原有切换new功能</router-link>-->
+
         </div>
       </div>
     </div>
@@ -68,6 +68,8 @@ import { mapMixin } from '@/utils/mapMixin.js'
 import AMapLoader from '@/utils/loadAMap.js'
 import bicycleIcon from '@/components/icons/bicycle.png';
 import { getMapAreaBicycles } from '@/api/map/bicycle';
+// 【修改】导入停车区域相关的API函数
+import { getParkingAreasInBounds, convertParkingAreaData } from '@/api/map/parking.js';
 
 
 export default {
@@ -95,11 +97,9 @@ export default {
         email: 'admin@bikeshare.com',
         birth: '1990-01-01'
       },
-      parkingAreas:[
-        { id: 1, location: "深圳市-福田区-福华三路", areaCode: "P10001", polygon: [ [114.0560, 22.5330], [114.0590, 22.5330], [114.0590, 22.5360], [114.0560, 22.5360] ] },
-        { id: 2, location: "深圳市-福田区-金田路", areaCode: "P10002", polygon: [ [114.0595, 22.5330], [114.0625, 22.5330], [114.0625, 22.5360], [114.0595, 22.5360] ] },
-        { id: 3, location: "深圳市-福田区-滨河大道", areaCode: "P10003", polygon: [ [114.0560, 22.5365], [114.0590, 22.5365], [114.0590, 22.5395], [114.0560, 22.5395] ] }
-      ],
+      // 【修改】初始化为空数组
+      parkingAreas: [],
+      parkingPolygons: [],
       bikes: [],
       showBikes: true,
     };
@@ -107,38 +107,36 @@ export default {
   mounted() {
     this.authToken = sessionStorage.getItem('authToken') || ''
     const storedUserInfo = sessionStorage.getItem('userInfo')
-    
-    // 修复JSON解析错误 - 检查是否为有效的JSON字符串
+
     if (storedUserInfo && storedUserInfo !== 'undefined' && storedUserInfo !== 'null') {
       try {
         this.userInfo = JSON.parse(storedUserInfo)
       } catch (e) {
         console.error('解析用户信息失败:', e)
         this.userInfo = null
-        // 清除无效的sessionStorage数据
         sessionStorage.removeItem('userInfo')
       }
     }
-    
-    this.userRole = sessionStorage.getItem('userRole') || ''
 
-    // // 【恢复】检查用户角色是否为管理员
-    // if (this.userRole === 'admin') {
-    //   // 如果是管理员，可以执行特殊操作，例如加载额外的管理图层或数据
-    //   console.log("管理员已登录，可以执行管理操作。");
-    //   // window.alert("欢迎管理员！");
-    // }
+    this.userRole = sessionStorage.getItem('userRole') || ''
 
     AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
       this.initMap();
-      // 【修改】调整了地图的初始缩放级别和中心点，以匹配截图视图
       this.map.setZoomAndCenter(17, [114.0580, 22.5390]);
 
+      // 【修改】调用新的方法来加载真实数据
       this.loadBicycles();
-      this.drawParkingAreas();
+      this.showParkingAreas(); // 使用新的主方法
 
-      this.map.on('moveend', this.loadBicycles);
-      this.map.on('zoomend', this.loadBicycles);
+      // 【修改】添加对停车区域的动态加载
+      this.map.on('moveend', () => {
+        this.loadBicycles();
+        this.showParkingAreas();
+      });
+      this.map.on('zoomend', () => {
+        this.loadBicycles();
+        this.showParkingAreas();
+      });
 
     }).catch(err => {
       alert('地图加载失败: ' + err.message);
@@ -148,11 +146,64 @@ export default {
   beforeUnmount() {
     document.removeEventListener('click', this.handleClickOutside);
     if (this.map) {
+      // 【修改】移除所有监听器
       this.map.off('moveend', this.loadBicycles);
       this.map.off('zoomend', this.loadBicycles);
+      this.map.off('moveend', this.showParkingAreas);
+      this.map.off('zoomend', this.showParkingAreas);
     }
   },
   methods: {
+    // 【新增】获取停车区域数据的方法 (参考 UserMapComponent.vue)
+    async fetchParkingAreas() {
+      try {
+        const bounds = this.map.getBounds();
+        const params = {
+          minLat: bounds.getSouthWest().lat,
+          maxLat: bounds.getNorthEast().lat,
+          minLon: bounds.getSouthWest().lng,
+          maxLon: bounds.getNorthEast().lng
+        };
+        const response = await getParkingAreasInBounds(params);
+
+        let rawData = null;
+        if (response && response.data && Array.isArray(response.data)) {
+          rawData = response.data;
+        } else if (response && Array.isArray(response)) {
+          rawData = response;
+        }
+
+        if (rawData) {
+          this.parkingAreas = convertParkingAreaData(rawData);
+        } else {
+          console.warn('停车点数据格式异常:', response);
+          this.parkingAreas = [];
+        }
+      } catch (error) {
+        console.error('获取停车点数据失败:', error);
+        this.parkingAreas = [];
+      }
+    },
+    // 【新增】显示停车区域的主方法 (参考 UserMapComponent.vue)
+    async showParkingAreas() {
+      if (!this.map) return;
+      try {
+        // 清除旧的图层
+        if (this.parkingPolygons && this.parkingPolygons.length > 0) {
+          this.map.remove(this.parkingPolygons);
+          this.parkingPolygons = [];
+        }
+
+        // 获取新数据
+        await this.fetchParkingAreas();
+
+        // 绘制新图层
+        this.drawParkingAreas();
+
+      } catch (error) {
+        console.error("显示停车区域失败:", error);
+      }
+    },
     async loadBicycles() {
       try {
         const bounds = this.map.getBounds();
@@ -168,7 +219,6 @@ export default {
           ...bike,
           lng: bike.currentLon,
           lat: bike.currentLat,
-          // 依然需要转换id，因为我们覆盖的方法里会用到 bike.id
           id: bike.bikeId,
         }));
 
@@ -191,9 +241,7 @@ export default {
       }
     },
 
-    // [核心修改] 在此组件中覆盖 Mixin 的 addBikeMarkers 方法
     addBikeMarkers(bikeList, bikeIcon) {
-      // 清除现有标记
       this.markers.forEach(marker => marker.setMap(null));
       this.markers = [];
 
@@ -201,12 +249,11 @@ export default {
         const marker = new window.AMap.Marker({
           position: [bike.lng, bike.lat],
           map: this.map,
-          icon: bikeIcon, // 使用传入的正确图标
+          icon: bikeIcon,
           title: `单车编号: ${bike.id}`
         });
 
         marker.on('mouseover', () => {
-          // 自定义弹窗内容，只显示单车编号
           this.infoWindow.setContent(`
                     <div style="padding: 8px 12px; font-size: 14px;">
                         <b>单车编号：</b>${bike.id}
@@ -224,9 +271,11 @@ export default {
       const infoWindow = new window.AMap.InfoWindow({
         offset: new window.AMap.Pixel(0, -20)
       });
+
+      // 遍历从API获取的新数据进行绘制
       this.parkingAreas.forEach(area => {
         const polygon = new window.AMap.Polygon({
-          path: area.polygon,
+          path: area.polygonPath,
           fillColor: "#FFD600",
           fillOpacity: 0.2,
           strokeColor: "#FFD600",
@@ -235,8 +284,10 @@ export default {
           cursor: "pointer"
         });
         this.map.add(polygon);
+        this.parkingPolygons.push(polygon);
+
         polygon.on("mouseover", (e) => {
-          infoWindow.setContent(`<div style="min-width:160px;"><b>停车区域：</b>${area.location}-${area.areaCode}</div>`);
+          infoWindow.setContent(`<div style="min-width:160px;"><b>停车区域：</b>${area.geohash}</div>`);
           infoWindow.open(this.map, e.lnglat);
         });
         polygon.on("mouseout", () => infoWindow.close());

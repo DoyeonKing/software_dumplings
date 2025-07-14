@@ -105,9 +105,10 @@
 import MenuComponent from '@/components/admin/menuComponent.vue';
 import { mapMixin } from '@/utils/mapMixin.js';
 import AMapLoader from '@/utils/loadAMap.js';
-// 新增：导入所需模块
+// 【已修改】导入所有需要的模块
 import bicycleIcon from '@/components/icons/bicycle.png';
 import { getMapAreaBicycles } from '@/api/map/bicycle';
+import { getParkingAreasInBounds, convertParkingAreaData } from '@/api/map/parking.js';
 
 export default {
   name: "TasksView",
@@ -135,14 +136,8 @@ export default {
         { id: "T20240709004", startLocation: "深圳市-南山区-科技园-区域E", endLocation: "深圳市-福田区-会展中心-区域D", workerName: "赵丽", workerPhone: "13800000004", deployAmount: 5, status: "pending" },
         { id: "T20240708005", startLocation: "深圳市-福田区-金田路-区域B", endLocation: "深圳市-福田区-滨河大道-区域C", workerName: "钱涛", workerPhone: "13800000005", deployAmount: 7, status: "processing" }
       ],
-      parkingAreas: [
-        { id: 1, location: "深圳市-福田区-福华三路", areaCode: "区域A", polygon: [ [114.0560, 22.5330], [114.0590, 22.5330], [114.0590, 22.5360], [114.0560, 22.5360] ], currentBikes: 23, availableSpots: 7 },
-        { id: 2, location: "深圳市-福田区-金田路", areaCode: "区域B", polygon: [ [114.0595, 22.5330], [114.0625, 22.5330], [114.0625, 22.5360], [114.0595, 22.5360] ], currentBikes: 15, availableSpots: 15 },
-        { id: 3, location: "深圳市-福田区-滨河大道", areaCode: "区域C", polygon: [ [114.0560, 22.5365], [114.0590, 22.5365], [114.0590, 22.5395], [114.0560, 22.5395] ], currentBikes: 10, availableSpots: 20 },
-        { id: 4, location: "深圳市-福田区-会展中心", areaCode: "区域D", polygon: [ [114.0595, 22.5365], [114.0625, 22.5365], [114.0625, 22.5395], [114.0595, 22.5395] ], currentBikes: 30, availableSpots: 0 }
-      ],
-      // 移除：硬编码的 bikeList
-      // 新增：用于存储和控制单车数据的属性
+      // 【已修改】清空硬编码数据，准备接收动态API数据
+      parkingAreas: [],
       bikes: [],
       showBikes: true,
       polygons: []
@@ -167,8 +162,16 @@ export default {
     }
   },
   methods: {
-    // --- 新增和修改的地图相关方法 ---
+    // --- 地图数据加载与绘制 ---
+
+    // 【新增】统一的数据加载入口，方便管理
+    loadAllMapData() {
+      this.loadBicycles();
+      this.loadParkingAreas();
+    },
+
     async loadBicycles() {
+      if (!this.map) return;
       try {
         const bounds = this.map.getBounds();
         const params = { minLat: bounds.getSouthWest().lat, maxLat: bounds.getNorthEast().lat, minLng: bounds.getSouthWest().lng, maxLng: bounds.getNorthEast().lng };
@@ -179,6 +182,34 @@ export default {
         this.addBikeMarkers(this.bikes, bikeMarkerIcon);
         if (!this.showBikes) { this.markers.forEach(marker => marker.hide()); }
       } catch (error) { console.error("加载单车数据失败:", error); }
+    },
+
+    // 【新增】从API加载停车区域数据的方法
+    async loadParkingAreas() {
+      if (!this.map) return;
+      try {
+        const bounds = this.map.getBounds();
+        const params = {
+          minLat: bounds.getSouthWest().lat,
+          maxLat: bounds.getNorthEast().lat,
+          minLon: bounds.getSouthWest().lng,
+          maxLon: bounds.getNorthEast().lng
+        };
+        const response = await getParkingAreasInBounds(params);
+        let rawData = (response && response.data && Array.isArray(response.data)) ? response.data : null;
+
+        if (rawData) {
+          this.parkingAreas = convertParkingAreaData(rawData);
+        } else {
+          this.parkingAreas = [];
+        }
+      } catch (error) {
+        console.error("加载停车区域数据失败:", error);
+        this.parkingAreas = [];
+      } finally {
+        // 保证无论成功与否，都执行重绘
+        this.drawParkingAreas();
+      }
     },
 
     addBikeMarkers(bikeList, bikeIcon) {
@@ -204,23 +235,18 @@ export default {
       }
     },
 
-    // --- 保留和未修改的方法 ---
-    handleProfileSaved(formData) {
-      console.log('个人资料已保存:', formData);
-      window.alert('个人信息已在控制台输出。');
-    },
-    goHome() {
-      this.$router.push("/admin");
-    },
+    // 【已修改】根据从API获取的动态数据来绘制停车区域
     drawParkingAreas() {
       const infoWindow = new window.AMap.InfoWindow({
         offset: new window.AMap.Pixel(0, -20)
       });
       this.map.remove(this.polygons);
       this.polygons = [];
+      if (!Array.isArray(this.parkingAreas)) return;
+
       this.parkingAreas.forEach(area => {
         const polygon = new window.AMap.Polygon({
-          path: area.polygon.map(([lng, lat]) => [lng, lat]),
+          path: area.polygonPath, // 使用转换函数生成的路径
           fillColor: "#FFD600",
           fillOpacity: 0.3,
           strokeColor: "#FFD600",
@@ -230,17 +256,27 @@ export default {
         });
         polygon.setMap(this.map);
         polygon.on("mouseover", (e) => {
+          // 使用转换函数生成的数据字段
           infoWindow.setContent(`
             <div style="min-width:160px;">
-              <b>停车区域：</b>${area.location} - ${area.areaCode}<br/>
-              <b>现有车辆：</b>${area.currentBikes}<br/>
-              <b>可用车位：</b>${area.availableSpots}
+              <b>停车区域:</b> ${area.geohash}<br/>
+              <b>停车容量:</b> ${area.parkingCapacity || 'N/A'}<br/>
+              <b>区域组ID:</b> ${area.regionGroupId || 'N/A'}
             </div>`);
           infoWindow.open(this.map, e.lnglat);
         });
         polygon.on("mouseout", () => infoWindow.close());
         this.polygons.push(polygon);
       });
+    },
+
+    // --- 页面UI和业务逻辑方法 ---
+    handleProfileSaved(formData) {
+      console.log('个人资料已保存:', formData);
+      window.alert('个人信息已在控制台输出。');
+    },
+    goHome() {
+      this.$router.push("/admin");
     },
     statusText(status) {
       const map = { pending: "未接收", processing: "正在处理", done: "已完成" };
@@ -280,26 +316,24 @@ export default {
   mounted() {
     AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
       this.initMap();
-      // 【修改】调整了地图的初始缩放级别和中心点，与主页保持一致
       this.map.setZoomAndCenter(17, [114.0580, 22.5390]);
-      this.drawParkingAreas();
-      // 调用新的方法加载真实单车数据
-      this.loadBicycles();
       this.searchKey = "";
 
-      // 新增地图交互监听
-      this.map.on('moveend', this.loadBicycles);
-      this.map.on('zoomend', this.loadBicycles);
+      // 【已修改】初始加载所有地图数据，并为地图交互绑定统一的加载函数
+      this.loadAllMapData();
+      this.map.on('moveend', this.loadAllMapData);
+      this.map.on('zoomend', this.loadAllMapData);
+
     }).catch(err => {
       alert('地图加载失败: ' + err.message);
     });
   },
   beforeDestroy() {
     if (this.map) {
+      // 【已修改】移除监听器，防止内存泄漏
+      this.map.off('moveend', this.loadAllMapData);
+      this.map.off('zoomend', this.loadAllMapData);
       this.map.destroy();
-      // 移除监听器
-      this.map.off('moveend', this.loadBicycles);
-      this.map.off('zoomend', this.loadBicycles);
     }
   }
 };
