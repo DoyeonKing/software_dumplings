@@ -112,9 +112,17 @@ export default {
     }
     this.userRole = sessionStorage.getItem('userRole') || ''
 
+    // // 【恢复】检查用户角色是否为管理员
+    // if (this.userRole === 'admin') {
+    //   // 如果是管理员，可以执行特殊操作，例如加载额外的管理图层或数据
+    //   console.log("管理员已登录，可以执行管理操作。");
+    //   // window.alert("欢迎管理员！");
+    // }
+
     AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
       this.initMap();
-      this.map.setZoomAndCenter(15, [114.0588, 22.5368]);
+      // 【修改】调整了地图的初始缩放级别和中心点，以匹配截图视图
+      this.map.setZoomAndCenter(17, [114.0580, 22.5390]);
 
       this.loadBicycles();
       this.drawParkingAreas();

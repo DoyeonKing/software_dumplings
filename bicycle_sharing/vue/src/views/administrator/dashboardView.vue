@@ -135,7 +135,6 @@
 import MenuComponent from '@/components/admin/menuComponent.vue'
 import { mapMixin } from '@/utils/mapMixin.js'
 import AMapLoader from '@/utils/loadAMap.js'
-// 新增：导入单车图标和API函数
 import bicycleIcon from '@/components/icons/bicycle.png';
 import { getMapAreaBicycles } from '@/api/map/bicycle';
 
@@ -183,10 +182,7 @@ export default {
         { id: 2, location: "深圳市-福田区-金田路", areaCode: "P10002", polygon: [ [114.0595, 22.5330], [114.0625, 22.5330], [114.0625, 22.5360], [114.0595, 22.5360] ] },
         { id: 3, location: "深圳市-福田区-滨河大道", areaCode: "P10003", polygon: [ [114.0560, 22.5365], [114.0590, 22.5365], [114.0590, 22.5395], [114.0560, 22.5395] ] }
       ],
-      // 移除：硬编码的 bikeList
-      // 新增：用于存储从API获取并转换后数据的属性
       bikes: [],
-      // 新增：控制单车图标显示的状态
       showBikes: true,
     };
   },
@@ -212,18 +208,21 @@ export default {
     }
   },
   mounted() {
-    AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
-      // 修改：只初始化地图，不再接收 yellowBikeIcon
+    AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(async () => {
       this.initMap();
-      this.map.setZoomAndCenter(15, [114.0588, 22.5368]);
 
-      // 修改：调用新的方法加载真实数据
-      this.loadBicycles();
+      await this.loadBicycles();
       this.drawParkingAreas();
 
-      // 新增：地图交互时自动刷新数据
-      this.map.on('moveend', this.loadBicycles);
-      this.map.on('zoomend', this.loadBicycles);
+      this.map.setZoomAndCenter(17, [114.0580, 22.5390]);
+
+      // 【核心修改】使用 setTimeout 延迟挂载事件监听器
+      // 这可以确保地图在 setZoomAndCenter 完成动画并静止后，才开始监听后续的用户交互
+      // 从而避免初始加载时，因为设置视图而触发不必要的二次加载，导致地图移动
+      setTimeout(() => {
+        this.map.on('moveend', this.loadBicycles);
+        this.map.on('zoomend', this.loadBicycles);
+      }, 500); // 延迟500毫秒，确保地图稳定
 
     }).catch(err => {
       this.$message && this.$message.error
@@ -232,14 +231,12 @@ export default {
     });
   },
   beforeUnmount() {
-    // 新增：组件销毁时移除监听器，防止内存泄漏
     if (this.map) {
       this.map.off('moveend', this.loadBicycles);
       this.map.off('zoomend', this.loadBicycles);
     }
   },
   methods: {
-    // 新增：加载并绘制单车数据
     async loadBicycles() {
       try {
         const bounds = this.map.getBounds();
@@ -276,7 +273,6 @@ export default {
       }
     },
 
-    // 新增：覆盖Mixin的addBikeMarkers方法，以自定义弹窗内容
     addBikeMarkers(bikeList, bikeIcon) {
       this.markers.forEach(marker => marker.setMap(null));
       this.markers = [];
@@ -303,7 +299,6 @@ export default {
       });
     },
 
-    // 新增：切换单车图标显示的方法
     onToggleBikes() {
       this.showBikes = !this.showBikes;
       if (this.markers && this.markers.length > 0) {
@@ -317,16 +312,12 @@ export default {
       }
     },
 
-    // 修改：切换热力图的方法
     onToggleHeatmap() {
-      // 准备显示热力图时，隐藏单车图标
       if (!this.showHeatmap) {
         this.showBikes = false;
       }
-      // 调用Mixin的方法，并传入从API获取的数据
       this.toggleHeatmap(this.bikes);
 
-      // 从热力图切回来后，如果单车本应是隐藏状态，则再次确认隐藏
       if (!this.showHeatmap && !this.showBikes) {
         this.markers.forEach(marker => marker.hide());
       }

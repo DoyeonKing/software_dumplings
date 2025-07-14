@@ -280,7 +280,8 @@ export default {
   mounted() {
     AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
       this.initMap();
-      this.map.setZoomAndCenter(15, [114.0588, 22.5368]);
+      // 【修改】调整了地图的初始缩放级别和中心点，与主页保持一致
+      this.map.setZoomAndCenter(17, [114.0580, 22.5390]);
       this.drawParkingAreas();
       // 调用新的方法加载真实单车数据
       this.loadBicycles();
