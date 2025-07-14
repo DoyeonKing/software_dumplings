@@ -8,20 +8,27 @@ import com.example.springboot.entity.User; // 导入 User 实体 (或 Staff 实�
  * 用于封装登录成功后返回给前端的数据，包括用户信息和认证令牌
  */
 public class LoginResponse {
-    private User user; // 登录成功的用户基本信息 (已脱敏)
+    private Object  userInfo; // 登录成功的用户基本信息 (已脱敏)
     private String token; // 生成的认证令牌 JWT
+    private String role;
 
-    public LoginResponse(User user, String token) {
-        this.user = user;
+    public LoginResponse(Object userInfo, String token) {
+        this.userInfo = userInfo;
         this.token = token;
     }
 
-    public User getUser() {
-        return user;
+    public LoginResponse(Object userInfo, String token, String role) {
+        this.userInfo = userInfo;
+        this.token = token;
+        this.role = role;
     }
 
-    public void setUser(User user) {
-        this.user = user;
+    public Object getUserInfo() {
+        return userInfo;
+    }
+
+    public void setUserInfo(Object userInfo) {
+        this.userInfo = userInfo;
     }
 
     public String getToken() {
@@ -32,10 +39,14 @@ public class LoginResponse {
         this.token = token;
     }
 
+    public String getRole() { return role; }
+
+    public void setRole(String role) { this.role = role; }
+
     @Override
     public String toString() {
         return "LoginResponse{" +
-               "user=" + user +
+               "user=" + userInfo +
                ", token='[PROTECTED]'" + // 避免日志中打印Token
                '}';
     }

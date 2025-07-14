@@ -1,5 +1,8 @@
 package com.example.springboot.service.implementation;
 
+import ch.hsr.geohash.GeoHash;
+import ch.hsr.geohash.WGS84Point;
+import com.example.springboot.dto.HeatCell;
 import com.example.springboot.dto.UtilizationResponse;
 import com.example.springboot.entity.Bikes;
 import com.example.springboot.exception.CustomException;
@@ -12,7 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.List;
+import java.util.*;
 
 
 /**
@@ -29,38 +32,42 @@ public class BikesServiceImpl implements IBikesService { // 实现接口名纠�
         return bikesMapper.countAllByCurrentGeohash(geohash);
     }
 
+    /**
+     * 根据区域编号获取单车使用率
+     *
+     * @param geohash 区域编码
+     * @return UtilizationResponse 对象，包含使用率、在线数、使用中数和空闲数。
+     */
     @Override
-    public UtilizationResponse getVehicleUtilization() {
-        // 1. 获取所有车辆的总数 (在线车辆)
-        int onlineVehicles = bikesMapper.countAllBikes();
+    public UtilizationResponse getVehicleUtilizationByGeohash(String geohash) {
+        // 1. 获取该区域内的所有车辆总数
+        int totalVehicles = bikesMapper.countAllByCurrentGeohash(geohash);
 
-        // 2. 获取 '使用中' 车辆数
-        int inUseVehicles = bikesMapper.countByStatus("使用中");
+        // 2. 获取该区域内 '使用中' 车辆数
+        int inUseVehicles = bikesMapper.countByCurrentGeohashAndBikeStatus(geohash, "使用中");
 
         // 3. 计算 '空闲' 车辆数
-        int idleVehicles = onlineVehicles - inUseVehicles;
-        // 确保空闲车辆不为负数，尽管在正常逻辑下不会出现
+        int idleVehicles = totalVehicles - inUseVehicles;
         if (idleVehicles < 0) {
             idleVehicles = 0;
         }
 
         // 4. 计算使用率
         double utilizationRatePercentage;
-        if (onlineVehicles == 0) {
-            utilizationRatePercentage = 0.0; // 避免除以零
+        if (totalVehicles == 0) {
+            utilizationRatePercentage = 0.0;
         } else {
-            // 使用 BigDecimal 进行精确计算，避免浮点数精度问题，并四舍五入到两位小数
             BigDecimal inUseBd = new BigDecimal(inUseVehicles);
-            BigDecimal onlineBd = new BigDecimal(onlineVehicles);
-            utilizationRatePercentage = inUseBd.divide(onlineBd, 4, RoundingMode.HALF_UP) // 计算到4位小数
+            BigDecimal totalBd = new BigDecimal(totalVehicles);
+            utilizationRatePercentage = inUseBd.divide(totalBd, 4, RoundingMode.HALF_UP)
                     .multiply(new BigDecimal(100))
-                    .doubleValue(); // 转换为double
+                    .doubleValue();
         }
 
         // 5. 构建并返回响应 DTO
         return new UtilizationResponse(
                 utilizationRatePercentage,
-                onlineVehicles,
+                totalVehicles,
                 inUseVehicles,
                 idleVehicles
         );
@@ -134,29 +141,118 @@ public PageInfo<Bikes> getBikesByPage(Integer pageNum, Integer pageSize, String 
             throw new CustomException("获取单车详情失败: " + e.getMessage(), "500");
         }
     }
-/**
- * 获取指定地理范围内（视口内）的单车列表，支持按状态筛选
- * @param minLat 最小纬度
- * @param maxLat 最大纬度
- * @param minLon 最小经度
- * @param maxLon 最大经度
- * @param bikeStatus 单车状态 (可选，如果为null则查询所有状态)
- * @return 指定范围内的单车列表
- * @throws CustomException 如果获取失败
- */
-@Override
-public List<Bikes> getBikesInViewport(BigDecimal minLat, BigDecimal maxLat, BigDecimal minLon, BigDecimal maxLon, String bikeStatus) {
-    try {
-        // 在这里可以添加参数校验，确保经纬度范围有效
-        if (minLat == null || maxLat == null || minLon == null || maxLon == null) {
-            throw new CustomException("地理范围参数不能为空", "400");
-        }
+    /**
+     * 获取指定地理范围内（视口内）的单车列表，支持按状态筛选
+     * @param minLat 最小纬度
+     * @param maxLat 最大纬度
+     * @param minLon 最小经度
+     * @param maxLon 最大经度
+     * @param bikeStatus 单车状态 (可选，如果为null则查询所有状态)
+     * @return 指定范围内的单车列表
+     * @throws CustomException 如果获取失败
+     */
+    @Override
+    public List<Bikes> getBikesInViewport(BigDecimal minLat, BigDecimal maxLat, BigDecimal minLon, BigDecimal maxLon, String bikeStatus) {
+        try {
+            // 在这里可以添加参数校验，确保经纬度范围有效
+            if (minLat == null || maxLat == null || minLon == null || maxLon == null) {
+                throw new CustomException("地理范围参数不能为空", "400");
+            }
 
-        return bikesMapper.findInViewport(minLat, maxLat, minLon, maxLon, bikeStatus);
-    } catch (CustomException e) {
-        throw e; // 重新抛出业务异常
-    } catch (Exception e) {
-        throw new CustomException("获取视口内单车失败: " + e.getMessage(), "500");
+            return bikesMapper.findInViewport(minLat, maxLat, minLon, maxLon, bikeStatus);
+        } catch (CustomException e) {
+            throw e; // 重新抛出业务异常
+        } catch (Exception e) {
+            throw new CustomException("获取视口内单车失败: " + e.getMessage(), "500");
+        }
     }
-}
+
+    /**
+     * 生成指定区域内的单车分布热力图数据 (统计每个网格单元内的所有单车)
+     * @param minLat 整个大区域的最小纬度
+     * @param maxLat 整个大区域的最大纬度
+     * @param minLon 整个大区域的最小经度
+     * @param maxLon 整个大区域的最大经度
+     * @param gridCellsX 横向网格单元数量 (例如 50)
+     * @param gridCellsY 纵向网格单元数量 (例如 50)
+     * @return 包含热力图数据的列表
+     * @throws CustomException 如果获取失败
+     */
+    @Override
+    public List<HeatCell> generateBikeHeatmap(
+            BigDecimal minLat,
+            BigDecimal maxLat,
+            BigDecimal minLon,
+            BigDecimal maxLon,
+            Integer gridCellsX,
+            Integer gridCellsY) { // 修改：移除 searchRadiusDegrees 参数
+        try {
+            // 参数校验
+            if (minLat == null || maxLat == null || minLon == null || maxLon == null ||
+                    gridCellsX == null || gridCellsY == null || gridCellsX <= 0 || gridCellsY <= 0) {
+                throw new CustomException("热力图参数不完整或无效", "400");
+            }
+
+            List<HeatCell> heatmapData = new ArrayList<>();
+
+            // 计算纬度和经度的总范围
+            BigDecimal latRange = maxLat.subtract(minLat);
+            BigDecimal lonRange = maxLon.subtract(minLon);
+
+            // 避免除以零：如果范围为0，则假设一个非常小的非零值，或者根据实际需求进行特殊处理
+            // 对于单点或单线区域，我们将其视为一个唯一的“网格”，并统计其内部的单车数
+            if (latRange.compareTo(BigDecimal.ZERO) == 0 && lonRange.compareTo(BigDecimal.ZERO) == 0) {
+                // 如果是单个点，直接查询该点区域内的单车数量
+                int count = bikesMapper.countInViewport(minLat, maxLat, minLon, maxLon);
+                heatmapData.add(new HeatCell(minLat, minLon, count));
+                return heatmapData;
+            } else if (latRange.compareTo(BigDecimal.ZERO) == 0) {
+                // 如果纬度范围为零，将它视为一个非常小的非零范围，以避免除以零
+                latRange = new BigDecimal("0.0000001");
+                minLat = maxLat.subtract(latRange.divide(new BigDecimal("2"), 10, RoundingMode.HALF_UP)); // 确保minLat和maxLat有微小差异
+                maxLat = maxLat.add(latRange.divide(new BigDecimal("2"), 10, RoundingMode.HALF_UP));
+            } else if (lonRange.compareTo(BigDecimal.ZERO) == 0) {
+                // 如果经度范围为零，同理处理
+                lonRange = new BigDecimal("0.0000001");
+                minLon = maxLon.subtract(lonRange.divide(new BigDecimal("2"), 10, RoundingMode.HALF_UP));
+                maxLon = maxLon.add(lonRange.divide(new BigDecimal("2"), 10, RoundingMode.HALF_UP));
+            }
+
+
+            // 计算每个网格单元的步长（纬度步长和经度步长）
+            BigDecimal latStep = latRange.divide(new BigDecimal(gridCellsY), 10, RoundingMode.HALF_UP);
+            BigDecimal lonStep = lonRange.divide(new BigDecimal(gridCellsX), 10, RoundingMode.HALF_UP);
+
+            // 遍历每个网格单元
+            for (int i = 0; i < gridCellsY; i++) { // 遍历纬度方向（行）
+                for (int j = 0; j < gridCellsX; j++) { // 遍历经度方向（列）
+
+                    // 计算当前网格单元的精确边界
+                    BigDecimal cellMinLat = minLat.add(latStep.multiply(new BigDecimal(i)));
+                    BigDecimal cellMaxLat = minLat.add(latStep.multiply(new BigDecimal(i + 1)));
+                    BigDecimal cellMinLon = minLon.add(lonStep.multiply(new BigDecimal(j)));
+                    BigDecimal cellMaxLon = minLon.add(lonStep.multiply(new BigDecimal(j + 1)));
+
+                    // 为了热力图渲染通常需要一个中心点坐标，我们仍然计算单元格的中心点作为 HeatCell 的坐标
+                    BigDecimal centerLat = cellMinLat.add(latStep.divide(new BigDecimal("2"), 10, RoundingMode.HALF_UP));
+                    BigDecimal centerLon = cellMinLon.add(lonStep.divide(new BigDecimal("2"), 10, RoundingMode.HALF_UP));
+
+                    // 查询这个小区域（当前网格单元）内的单车数量
+                    int bikeCount = bikesMapper.countInViewport(cellMinLat, cellMaxLat, cellMinLon, cellMaxLon);
+
+                    // 如果该区域有单车，则添加到热力图数据列表
+                    if (bikeCount > 0) {
+                        heatmapData.add(new HeatCell(centerLat, centerLon, bikeCount));
+                    }
+                }
+            }
+            return heatmapData;
+        } catch (CustomException e) {
+            throw e;
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new CustomException("生成单车热力图失败: " + e.getMessage(), "500");
+        }
+    }
+
 }

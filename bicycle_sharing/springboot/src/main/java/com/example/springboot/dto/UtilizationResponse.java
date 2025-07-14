@@ -1,15 +1,31 @@
-package com.example.springboot.dto; // 请替换为你的实际包名
+package com.example.springboot.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+// 不再需要 import lombok 的东西了
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
+import lombok.Getter;
+import lombok.Setter;
+
+@Setter
+@Getter
 public class UtilizationResponse {
-    private double utilizationRatePercentage; // 使用率百分比，例如 76.0
-    private int onlineVehicles;           // 在线车辆总数
-    private int inUseVehicles;            // 使用中车辆数
-    private int idleVehicles;             // 空闲车辆数
+    // getter 和 setter
+    private double utilization;
+    private int totalBikes;
+    private int availableBikes;
+    private int inUseBikes;
+
+    // --- 手动写下面的代码 ---
+
+    // 1. 无参数的构造函数
+    public UtilizationResponse() {
+    }
+
+    // 2. 包含所有参数的构造函数
+    public UtilizationResponse(double utilization, int totalBikes, int availableBikes, int inUseBikes) {
+        this.utilization = utilization;
+        this.totalBikes = totalBikes;
+        this.availableBikes = availableBikes;
+        this.inUseBikes = inUseBikes;
+    }
+
 }
