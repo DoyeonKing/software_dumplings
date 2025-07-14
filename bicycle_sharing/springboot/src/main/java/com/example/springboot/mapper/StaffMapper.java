@@ -57,12 +57,8 @@ public interface StaffMapper {
     @Update("UPDATE staff SET password_hash = #{newPasswordHash} WHERE staff_id = #{staffId}")
     int updatePassword(@Param("staffId") Integer staffId, @Param("newPasswordHash") String newPasswordHash);
 
-    /**
-     * 根据用户ID查询员工信息
-     * @param staffId 用户ID
-     * @return 对应的 Staff 对象，如果不存在则返回 null
-     */
-    // !!! 确保这一块代码在您的 StaffMapper 接口中 !!!
+
+    //使用token码获得staff信息
     @Select("SELECT staff_id, username, password_hash, staff_type FROM staff WHERE staff_id = #{staffId}")
     Staff selectById(@Param("staffId") Integer staffId);
 }

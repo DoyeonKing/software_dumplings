@@ -53,4 +53,11 @@ public interface IStaffService {
      * @return 更新影响的行数
      */
     int updatePassword(Integer staffId, String oldPassword, String newPassword);
+
+    /**
+     * 根据用户ID查找员工信息
+     * @param staffId 用户ID
+     * @return 员工对象或 null
+     */
+    Staff findByStaffId(Integer staffId);
 }
