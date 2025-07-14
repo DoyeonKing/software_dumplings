@@ -173,7 +173,7 @@ import { onMounted, ref, onUnmounted, watch } from 'vue';
 import AMapLoader from '@amap/amap-jsapi-loader';
 // 导入单车数据API
 import { getMapAreaBicycles } from '@/api/map/bicycle';
-import { getAllParkingAreas } from '@/api/map/parking';
+import { getAllParkingAreas, getParkingAreasInBounds, convertParkingAreaData } from '@/api/map/parking';
 import { getHeatMapData } from '@/api/map/heat';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getRidingRoute } from '@/utils/amap';
@@ -185,19 +185,8 @@ const statusText = {
   maintenance: '维护中'
 };
 
-// 停车点状态文本映射
-const parkingStatusText = {
-  normal: '正常',
-  full: '已满',
-  maintenance: '维护中'
-};
-
-// 停车点状态对应的颜色
-const parkingStatusColors = {
-  normal: '#4CAF50',  // 绿色
-  full: '#FF9800',    // 橙色
-  maintenance: '#F44336'  // 红色
-};
+// 停车点默认颜色
+const parkingAreaColor = '#4CAF50';  // 绿色
 
 export default {
   name: 'MapComponent',
@@ -518,14 +507,17 @@ export default {
       map.value.setMapStyle(styleMapping[newStyle]);
     });
 
-    // 监听地图移动事件，更新单车数据
+    // 监听地图移动事件，更新单车和停车点数据
     const setupMapEventListeners = () => {
       if (!map.value) return;
 
-      // 当地图移动结束时，重新显示单车
+      // 当地图移动结束时，重新显示单车和停车点
       map.value.on('moveend', () => {
         if (props.showBicycles) {
           showBicycleMarkers();
+        }
+        if (props.showParkingAreas) {
+          showParkingAreas();
         }
       });
     };
@@ -558,15 +550,57 @@ export default {
     // 获取停车点数据
     const fetchParkingAreas = async () => {
       try {
-        // 如果已经加载过数据，直接返回
-        if (parkingAreas.value.length > 0) {
+        if (!props.showParkingAreas) {
           return;
         }
-        const response = await getAllParkingAreas();
-        parkingAreas.value = response.data;
+
+        // 获取当前地图边界
+        const bounds = map.value.getBounds();
+        const params = {
+          minLat: bounds.getSouthWest().lat,
+          maxLat: bounds.getNorthEast().lat,
+          minLon: bounds.getSouthWest().lng,
+          maxLon: bounds.getNorthEast().lng
+        };
+
+        // 获取区域内的停车点
+        const response = await getParkingAreasInBounds(params);
+        console.log('停车点API响应:', response);
+        
+        // 检查响应数据格式并转换
+        let rawData = null;
+        if (response && Array.isArray(response)) {
+          // 如果响应直接是数组
+          rawData = response;
+        } else if (response && response.data && Array.isArray(response.data)) {
+          // 如果响应包装在data字段中
+          rawData = response.data;
+        } else if (response && response.code === 200 && Array.isArray(response.data)) {
+          // 如果是标准的API响应格式
+          rawData = response.data;
+        }
+
+        if (rawData && Array.isArray(rawData)) {
+          console.log('原始停车点数据:', rawData);
+          // 转换数据格式
+          const convertedData = convertParkingAreaData(rawData);
+          console.log('转换后的停车点数据:', convertedData);
+          parkingAreas.value = convertedData;
+        } else {
+          console.warn('停车点数据格式异常:', response);
+          throw new Error('停车点数据格式异常');
+        }
       } catch (error) {
         console.error('获取停车点数据失败：', error);
         ElMessage.error('获取停车点数据失败');
+        
+        // 如果API调用失败，使用备用数据
+        try {
+          const fallbackResponse = await getAllParkingAreas();
+          parkingAreas.value = fallbackResponse.data;
+        } catch (fallbackError) {
+          console.error('获取备用停车点数据也失败：', fallbackError);
+        }
       }
     };
 
@@ -575,17 +609,21 @@ export default {
       if (!map.value) return;
 
       try {
-        // 如果已经创建了标记和多边形，只需要切换显示状态
-        if (parkingPolygons.value.length > 0 && parkingMarkers.value.length > 0) {
-          parkingPolygons.value.forEach(polygon => {
-            polygon.setMap(map.value);
-          });
-          parkingMarkers.value.forEach(marker => {
-            marker.setMap(map.value);
-          });
-          return;
-        }
+        // 清除现有标记和多边形
+        parkingPolygons.value.forEach(polygon => {
+          if (polygon && typeof polygon.setMap === 'function') {
+            polygon.setMap(null);
+          }
+        });
+        parkingMarkers.value.forEach(marker => {
+          if (marker && typeof marker.setMap === 'function') {
+            marker.setMap(null);
+          }
+        });
+        parkingPolygons.value = [];
+        parkingMarkers.value = [];
 
+        // 重新获取停车点数据
         await fetchParkingAreas();
 
         // 创建停车场图标
@@ -595,10 +633,10 @@ export default {
           imageSize: new AMap.Size(40, 40)
         });
 
-        // 为每个停车点创建矩形区域和图标
+        // 为每个停车点创建区域和图标
         parkingAreas.value.forEach(area => {
-          // 创建矩形的四个顶点
-          const path = [
+          // 使用精确的多边形路径（如果有）或者使用边界框创建矩形
+          const path = area.polygonPath || [
             [area.bounds.southwest[1], area.bounds.southwest[0]],
             [area.bounds.northeast[1], area.bounds.southwest[0]],
             [area.bounds.northeast[1], area.bounds.northeast[0]],
@@ -609,17 +647,17 @@ export default {
           // 创建多边形
           const polygon = new AMap.Polygon({
             path: path,
-            strokeColor: parkingStatusColors[area.status] || '#4CAF50',
+            strokeColor: parkingAreaColor,
             strokeWeight: 3,
             strokeOpacity: 1,
-            fillColor: parkingStatusColors[area.status] || '#4CAF50',
+            fillColor: parkingAreaColor,
             fillOpacity: 0.4,
             cursor: 'pointer',
             map: null  // 初始不添加到地图
           });
 
           // 创建图标标记（放在区域中心）
-          const center = [
+          const center = area.center ? [area.center[1], area.center[0]] : [
             (area.bounds.southwest[1] + area.bounds.northeast[1]) / 2,
             (area.bounds.southwest[0] + area.bounds.northeast[0]) / 2
           ];
@@ -643,11 +681,11 @@ export default {
 
             const content = `
               <div class="parking-info">
-                <h4>${area.name}</h4>
-                <p><strong>编号：</strong>${area.id}</p>
-                <p><strong>状态：</strong>${parkingStatusText[area.status]}</p>
-                <p><strong>可用车位：</strong>${area.available_spots}个</p>
-                <p><strong>总车位：</strong>${area.total_spots}个</p>
+                <h4>停车区域 ${area.geohash}</h4>
+                <p><strong>区域编号：</strong>${area.geohash}</p>
+                <p><strong>区域组ID：</strong>${area.regionGroupId}</p>
+                <p><strong>停车容量：</strong>${area.parkingCapacity}个</p>
+                <p><strong>中心位置：</strong>${area.centerLat.toFixed(6)}, ${area.centerLon.toFixed(6)}</p>
               </div>
             `;
 
@@ -666,11 +704,11 @@ export default {
 
             const content = `
               <div class="parking-info">
-                <h4>${area.name}</h4>
-                <p><strong>编号：</strong>${area.id}</p>
-                <p><strong>状态：</strong>${parkingStatusText[area.status]}</p>
-                <p><strong>可用车位：</strong>${area.available_spots}个</p>
-                <p><strong>总车位：</strong>${area.total_spots}个</p>
+                <h4>停车区域 ${area.geohash}</h4>
+                <p><strong>区域编号：</strong>${area.geohash}</p>
+                <p><strong>区域组ID：</strong>${area.regionGroupId}</p>
+                <p><strong>停车容量：</strong>${area.parkingCapacity}个</p>
+                <p><strong>中心位置：</strong>${area.centerLat.toFixed(6)}, ${area.centerLon.toFixed(6)}</p>
               </div>
             `;
 
