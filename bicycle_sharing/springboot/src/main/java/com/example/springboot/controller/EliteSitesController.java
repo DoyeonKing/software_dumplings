@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/geohashInfo") // 定义这个控制器的基础URL路径
-public class GeohashInfoController {
+public class EliteSitesController {
 
     @Resource
     private IEliteSitesService geohashInfoService;
