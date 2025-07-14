@@ -12,12 +12,12 @@
     </resultMap>
 
     <select id="findByUsername" parameterType="String" resultType="com.example.springboot.entity.Staff">
-        SELECT * FROM staff WHERE username = #{username}
+        SELECT staff_id, username, managerId, geohash FROM staff WHERE username = #{username}
     </select>
 
     <insert id="insert" parameterType="com.example.springboot.entity.Staff">
-        INSERT INTO staff (username, password_hash, staff_type)
-        VALUES (#{username}, #{passwordHash}, #{staffType})
+        INSERT INTO staff (username, password_hash)
+        VALUES (#{username}, #{passwordHash})
     </insert>
 
     <update id="update">
@@ -25,7 +25,6 @@
         <set>
             <if test="username != null">username = #{username},</if>
             <if test="passwordHash != null">password_hash = #{passwordHash},</if>
-            <if test="staffType != null">staff_type = #{staffType},</if>
         </set>
         WHERE staff_id = #{staffId}
     </update>

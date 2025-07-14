@@ -104,9 +104,19 @@ export default {
     // 获取存储的认证信息
     this.authToken = sessionStorage.getItem('authToken') || ''
     const storedUserInfo = sessionStorage.getItem('userInfo')
-    if (storedUserInfo) {
-      this.userInfo = JSON.parse(storedUserInfo)
+    
+    // 修复JSON解析错误 - 检查是否为有效的JSON字符串
+    if (storedUserInfo && storedUserInfo !== 'undefined' && storedUserInfo !== 'null') {
+      try {
+        this.userInfo = JSON.parse(storedUserInfo)
+      } catch (e) {
+        console.error('解析用户信息失败:', e)
+        this.userInfo = null
+        // 清除无效的sessionStorage数据
+        sessionStorage.removeItem('userInfo')
+      }
     }
+    
     this.userRole = sessionStorage.getItem('userRole') || ''
     
     // 如果没有token，重定向到登录页

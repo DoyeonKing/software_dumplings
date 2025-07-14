@@ -22,6 +22,7 @@ export function register(data) {
       role: data.role
     }
   })
+
 // 返回数据格式示例
 // {
 //   "code": 200 或 400/500,

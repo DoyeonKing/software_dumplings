@@ -18,15 +18,21 @@ public class Staff {
     // 角色类型，ENUM('管理员', '工作人员')，NOT NULL
     private String staffType; // 使用String来表示ENUM类型
 
+    private Integer managerId;
+
+    private Integer geohash;
+
     // --- 构造函数 ---
     public Staff() {
     }
 
-    public Staff(Integer staffId, String username, String passwordHash, String staffType) {
+    public Staff(Integer staffId, String username, String passwordHash, String staffType, Integer managerId, Integer geohash) {
         this.staffId = staffId;
         this.username = username;
         this.passwordHash = passwordHash;
         this.staffType = staffType;
+        this.managerId = managerId;
+        this.geohash = geohash;
     }
 
     // --- Getter 和 Setter 方法 ---
@@ -62,12 +68,22 @@ public class Staff {
         this.staffType = staffType;
     }
 
+    public Integer getManagerId() {
+        return managerId;
+    }
+    public void setManagerId(Integer managerId) { this.managerId = managerId; }
+
+    public Integer getGeohash() {return geohash;}
+
+    public void setGeohash(Integer geohash) {this.geohash = geohash; }
+
     @Override
     public String toString() {
         return "Staff{" +
                "staffId=" + staffId +
                ", username='" + username + '\'' +
-               ", staffType='" + staffType + '\'' +
+               ", managerId='" + managerId + '\'' +
+                ", geohash=" + geohash + '\'' +
                '}';
     }
 }
