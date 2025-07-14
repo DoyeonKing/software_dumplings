@@ -5,7 +5,7 @@ package com.example.springboot.service.Interface;
  * IGeohashInfoService接口
  * 定义Geohash区域信息相关的业务操作契约
  */
-public interface IGeohashInfoService {
+public interface IEliteSitesService {
 
 
 }
