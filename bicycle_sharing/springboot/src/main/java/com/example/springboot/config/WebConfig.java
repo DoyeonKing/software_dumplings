@@ -43,6 +43,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/weather/**",      // 天气接口
                         "/route/**",        // 路线规划接口
                         "/elite-sites/**",  // 精华站点接口
+                        "/dispatchTasks/**", // 调度任务接口
 
                         // 其他
                         "/files/**",        // 文件服务

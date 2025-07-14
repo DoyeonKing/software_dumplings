@@ -131,7 +131,6 @@ public class DispatchTasksController { // 控制器类名与资源名复数形�
 
 
     /**
-     * 【新增接口】
      * API: PUT /dispatchTasks/{taskId}/start
      * 作用：触发调度任务的开始，选择具体的自行车并关联到任务。
      * @param taskId 调度任务的ID
@@ -152,7 +151,6 @@ public class DispatchTasksController { // 控制器类名与资源名复数形�
     }
 
     /**
-     * 【新增接口】
      * API: PUT /dispatchTasks/{taskId}/complete
      * 作用：完成调度任务，更新关联自行车的最终位置和状态。
      * @param taskId 调度任务的ID
