@@ -101,4 +101,29 @@ public interface BikesMapper { // 接口名与实体类名保持一致，改为B
             @Param("maxLat") BigDecimal maxLat,
             @Param("minLon") BigDecimal minLon,
             @Param("maxLon") BigDecimal maxLon);
+
+    /**
+     * 查询指定 geohash 区域内所有 "待使用" 状态的自行车。
+     * 【作用】：用于获取起始区域的可用自行车列表和目标区域当前已有的自行车列表。
+     * @param geohash 区域的地理哈希值。
+     * @return 符合条件的自行车实体列表。
+     */
+    List<Bikes> findAvailableBikesByGeohash(@Param("geohash") String geohash); // SQL 移至 XML
+
+    /**
+     * 更新自行车的状态和位置信息。
+     * 【作用】：在调度过程中更新自行车的状态为 "调度中"，并将其逻辑位置更新为目标停车点的精确经纬度。
+     * @param bikeId 自行车ID。
+     * @param newStatus 自行车的新状态 (例如："调度中")。
+     * @param newLat 可选：新的纬度。
+     * @param newLon 可选：新的经度。
+     * @param newGeohash 可选：新的 geohash。
+     * @return 数据库受影响的行数。
+     */
+    int updateBikeStatusAndLocation(
+            @Param("bikeId") String bikeId,
+            @Param("newStatus") String newStatus,
+            @Param("newLat") BigDecimal newLat,
+            @Param("newLon") BigDecimal newLon,
+            @Param("newGeohash") String newGeohash); // SQL 移至 XML
 }
