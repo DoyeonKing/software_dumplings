@@ -45,6 +45,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/staff/**",        //工作人员
                         "/managers/**",      //管理员
                         "/elite-sites/**",  // 精华站点接口
+                        "/dispatchTasks/**", // 调度任务接口
 
                         // 其他
                         "/files/**",        // 文件服务

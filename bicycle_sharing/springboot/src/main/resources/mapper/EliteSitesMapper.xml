@@ -4,7 +4,7 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.example.springboot.mapper.EliteSitesMapper">
     <resultMap id="EliteSitesResultMap" type="com.example.springboot.entity.EliteSites">
-        <id property="geohashArea" column="geohash_area"/> <result property="centerLat" column="center_lat"/>       <result property="centerLon" column="center_lon"/>       <result property="topLeftLat" column="top_left_lat"/>
+        <id property="geohash" column="geohash"/> <result property="centerLat" column="center_lat"/>       <result property="centerLon" column="center_lon"/>       <result property="topLeftLat" column="top_left_lat"/>
         <result property="topLeftLon" column="top_left_lon"/>
         <result property="topRightLat" column="top_right_lat"/>
         <result property="topRightLon" column="top_right_lon"/>
@@ -17,7 +17,7 @@
 
     <select id="findByGeohashInfo" resultMap="EliteSitesResultMap">
         SELECT
-            geohash_area,
+            geohash,
             center_lat,
             center_lon,
             top_left_lat,
@@ -31,7 +31,7 @@
             region_group_id,
             parking_capacity
         FROM elite_sites
-        WHERE geohash_area = #{geohashArea} LIMIT 1
+        WHERE geohash = #{geohash} LIMIT 1
     </select>
 
 

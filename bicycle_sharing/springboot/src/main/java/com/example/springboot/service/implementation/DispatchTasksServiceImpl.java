@@ -209,7 +209,7 @@ public class DispatchTasksServiceImpl implements IDispatchTasksService { // 实�
         }
 
         // --- 8. 更新调度任务状态为“进行中” ---
-        task.setStatus("进行中");
+        task.setStatus("处理中");
         dispatchTasksMapper.updateDispatchTask(task); // 假设您有updateDispatchTask方法
 
         return dispatchedBikeIds; // 返回实际被调度的自行车ID列表
@@ -227,7 +227,7 @@ public class DispatchTasksServiceImpl implements IDispatchTasksService { // 实�
         if (task == null) {
             throw new IllegalArgumentException("调度任务ID: " + taskId + " 不存在。");
         }
-        if (!"进行中".equals(task.getStatus())) {
+        if (!"处理中".equals(task.getStatus())) {
             throw new IllegalArgumentException("调度任务ID: " + taskId + " 状态不正确，无法完成调度 (当前状态: " + task.getStatus() + ")。");
         }
 
@@ -259,7 +259,7 @@ public class DispatchTasksServiceImpl implements IDispatchTasksService { // 实�
         }
 
         // --- 5. 更新调度任务状态为“已完成” ---
-        task.setStatus("已完成");
+        task.setStatus("处理完成");
         task.setCompletedAt(LocalDateTime.now()); // 记录任务完成时间
         dispatchTasksMapper.updateDispatchTask(task); // 假设您有updateDispatchTask方法
     }
