@@ -33,10 +33,10 @@ public interface StaffMapper {
     int countByUsername(@Param("username") String username);
 
     /**
-     * 查询所有工作人员（不包括管理员）
+     * 查询所有工作人员
      * @return 所有工作人员对象的列表
      */
-    @Select("SELECT staff_id, username, password_hash, staff_type FROM staff WHERE staff_type = '工作人员'")
+    @Select("SELECT staff_id, username, password_hash FROM staff")
     List<Staff> findAllWorkers();
 
     /**
