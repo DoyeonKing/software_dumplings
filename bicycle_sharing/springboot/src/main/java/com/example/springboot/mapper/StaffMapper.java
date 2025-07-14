@@ -36,7 +36,7 @@ public interface StaffMapper {
      * 查询所有工作人员
      * @return 所有工作人员对象的列表
      */
-    @Select("SELECT staff_id, username, password_hash FROM staff")
+    @Select("SELECT staff_id, username, managerId, geohash FROM staff")
     List<Staff> findAllWorkers();
 
     /**

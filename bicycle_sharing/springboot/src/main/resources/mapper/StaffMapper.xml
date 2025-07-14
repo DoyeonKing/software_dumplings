@@ -12,7 +12,7 @@
     </resultMap>
 
     <select id="findByUsername" parameterType="String" resultType="com.example.springboot.entity.Staff">
-        SELECT * FROM staff WHERE username = #{username}
+        SELECT staff_id, username, managerId, geohash FROM staff WHERE username = #{username}
     </select>
 
     <insert id="insert" parameterType="com.example.springboot.entity.Staff">

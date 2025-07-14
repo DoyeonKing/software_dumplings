@@ -5,6 +5,7 @@ import com.example.springboot.common.Result; // 导入统一响应结果类
 import com.example.springboot.dto.ProfileResponse;
 import com.example.springboot.dto.UpdatePasswordRequest;
 import com.example.springboot.dto.UpdateUsernameRequest;
+import com.example.springboot.dto.WorkerInfoResponse;
 import com.example.springboot.entity.Staff; // 导入实体类
 import com.example.springboot.exception.CustomException; // 导入自定义异常
 import com.example.springboot.service.Interface.IStaffService; // 导入Service接口
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.*; // 导入Spring Web注解
 
 import java.util.List; // 导入List (如果需要)
 import java.util.Map; // 导入Map (如果需要)
+import java.util.stream.Collectors;
 
 /**
  * StaffController类空壳
@@ -76,64 +78,28 @@ public class StaffController {
         }
     }
 
-
-
-    // --- 新增的、根据传输用户名获取信息的接口 ---
-    /**
-     * 根据指定的用户名查询员工的个人信息。
-     * 这个接口是临时的，因为它直接通过URL暴露了查询参数，且没有额外的权限检查。
-     * 在生产环境中，这样的接口通常需要更严格的认证和授权。
-     * URL: GET /staff/profile/by-username/{username}
-     * @param username 要查询的员工用户名，从URL路径中获取
-     * @return ResponseEntity 包含用户的个人资料或错误信息
-     */
-//    @GetMapping("/profile/by-username/{username}")
-//    // 注意：如果你的 Spring Security 配置了 `anyRequest().authenticated()`，
-//    // 那么这个接口默认也会被保护。如果希望它在没有登录的情况下也能访问 (临时测试目的)，
-//    // 你需要在 SecurityConfig 中为 `/staff/profile/by-username/**` 配置 `permitAll()`。
-//    public ResponseEntity<?> getProfileByUsername(@PathVariable String username) {
-//        // 1. 检查传入的用户名是否为空
-//        if (username == null || username.trim().isEmpty()) {
-//            return ResponseEntity.badRequest().body("用户名不能为空。");
-//        }
-//
-//        // 2. 根据用户名从数据库查询员工详细信息
-//        Staff staff = staffService.findByUsername(username);
-//
-//        // 3. 检查用户是否存在
-//        if (staff == null) {
-//            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("用户名 '" + username + "' 的用户信息不存在。");
-//        }
-//
-//        // 4. 构建响应 DTO，只包含需要返回的个人信息（不包括密码哈希）
-//        ProfileResponse profile = new ProfileResponse(
-//                staff.getStaffId(),
-//                staff.getUsername(),
-//                staff.getStaffType()
-//        );
-//
-//        // 5. 返回成功响应
-//        return ResponseEntity.ok(profile);
-//    }
-
     /**
      * 获取所有工作人员信息
-     * URL: GET /staff/all
-     * @return ResponseEntity 包含所有工作人员信息的列表或错误信息
-     */
-    /**
-     * 获取所有工作人员信息（不包括管理员）
      * URL: GET /staff/workers
      * @return ResponseEntity 包含所有工作人员信息的列表或错误信息
      */
     @GetMapping("/workers")
     public ResponseEntity<?> getAllWorkers() {
         try {
+            // 1. 从 Service 层获取原始的 Staff 实体列表。
+            // Service 层返回的 Staff 对象可能包含完整的字段，包括 passwordHash 和 staffType。
             List<Staff> staffList = staffService.getAllWorkers();
-            // 对返回的列表进行脱敏处理，移除密码哈希字段
-            staffList.forEach(staff -> staff.setPasswordHash(null));
-            return ResponseEntity.ok(staffList);
+
+            // 2. 将 Staff 实体列表转换为 WorkerInfoResponse DTO 列表。
+            // 在此转换过程中，我们只复制 staffId 和 username，从而隐藏了 passwordHash 和 staffType。
+            List<WorkerInfoResponse> workerInfoList = staffList.stream()
+                    .map(staff -> new WorkerInfoResponse(staff.getStaffId(), staff.getUsername(), staff.getManagerId(), staff.getGeohash()))
+                    .collect(Collectors.toList());
+
+            // 3. 返回脱敏后的 DTO 列表
+            return ResponseEntity.ok(workerInfoList);
         } catch (Exception e) {
+            // 错误处理
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("获取工作人员信息失败: " + e.getMessage());
         }
     }

@@ -11,7 +11,6 @@ public class ProfileResponse {
     // 为了完整，最好也把getter/setter加上
     private Integer staffId;
     private String username;
-    private String staffType;
 
     // --- 手动写下面的代码 ---
 
@@ -23,7 +22,6 @@ public class ProfileResponse {
     public ProfileResponse(Integer staffId, String username, String staffType) {
         this.staffId = staffId;
         this.username = username;
-        this.staffType = staffType;
     }
 
 }
