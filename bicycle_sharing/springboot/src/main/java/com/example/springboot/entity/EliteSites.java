@@ -5,11 +5,11 @@ import java.math.BigDecimal;
 
 /**
  * GeohashInfo 实体类
- * 对应数据库中的 'geohash_info' 表
+ * 对应数据库中的 'elite_sites' 表
  * 用于存储Geohash区域的详细地理信息
  */
 public class EliteSites {
-    private String geohashArea; // 区域编码，PRIMARY KEY
+    private String geohash; // 区域编码，PRIMARY KEY
     private BigDecimal centerLat; // 中心点纬度
     private BigDecimal centerLon; // 中心点经度
     private BigDecimal topLeftLat;     // 东北角纬度
@@ -43,10 +43,10 @@ public class EliteSites {
     // --- 构造函数 ---
     public EliteSites() {}
 
-    public EliteSites(String geohashArea, BigDecimal centerLat, BigDecimal centerLon,
+    public EliteSites(String geohash, BigDecimal centerLat, BigDecimal centerLon,
                       BigDecimal topLeftLat, BigDecimal topLeftLon, BigDecimal topRightLat, BigDecimal topRightLon,
                       BigDecimal bottomRightLat, BigDecimal bottomRightLon, BigDecimal bottomLeftLat, BigDecimal bottomLeftLon) {
-        this.geohashArea = geohashArea;
+        this.geohash = geohash;
         this.centerLat = centerLat;
         this.centerLon = centerLon;
         this.topLeftLat = topLeftLat;
@@ -60,12 +60,12 @@ public class EliteSites {
     }
 
     // --- Getter 和 Setter 方法 ---
-    public String getGeohashArea() {
-        return geohashArea;
+    public String getGeohash() {
+        return geohash;
     }
 
-    public void setGeohashArea(String geohashArea) {
-        this.geohashArea = geohashArea;
+    public void setGeohash(String geohash) {
+        this.geohash = geohash;
     }
 
     public BigDecimal getCenterLat() {
@@ -151,7 +151,7 @@ public class EliteSites {
     @Override
     public String toString() {
         return "GeohashInfo{" +
-               "geohashArea='" + geohashArea + '\'' +
+               "geohash='" + geohash + '\'' +
                ", centerLat=" + centerLat +
                ", centerLon=" + centerLon +
                ", neLat=" + topLeftLat +
