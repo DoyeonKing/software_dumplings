@@ -11,5 +11,6 @@ import java.util.List;
  * 定义Geohash区域信息相关的业务操作契约
  */
 public interface IEliteSitesService {
+
     List<EliteSites> findByLatLngRange(BigDecimal minLat, BigDecimal maxLat, BigDecimal minLon, BigDecimal maxLon);
 }
