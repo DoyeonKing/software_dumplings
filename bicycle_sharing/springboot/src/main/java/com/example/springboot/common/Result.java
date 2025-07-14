@@ -29,6 +29,14 @@ public class Result {
         return result;
     }
 
+    // 【新增方法】: 允许返回自定义成功消息，没有数据
+    public static Result success(String msg){
+        Result result = new Result();
+        result.setCode("200");
+        result.setMsg(msg);
+        return result;
+    }
+
     public String getMsg() {
         return msg;
     }
