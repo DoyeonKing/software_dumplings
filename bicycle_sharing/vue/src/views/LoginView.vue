@@ -3,14 +3,14 @@
     <!-- API测试按钮 -->
     <div class="api-test-link">
       <el-button type="primary" link @click="router.push('/api-test')">
-        API测试页面
+        API Test Page
       </el-button>
     </div>
 
     <div class="login-content">
       <div class="left-section">
         <div class="title-container">
-          <h1>XXXXXX<br>Management<br>System</h1>
+          <h1>Shared-Bicycles<br>Management<br>System</h1>
           <p class="register-hint">
             If you don't have an account,<br>
             <router-link to="/register" class="link">Register here</router-link>.
@@ -30,7 +30,7 @@
               <input 
                 type="text" 
                 v-model="formData.username" 
-                placeholder="用户名"
+                placeholder="Username"
                 required
               />
             </div>
@@ -39,26 +39,26 @@
               <input 
                 type="password" 
                 v-model="formData.password" 
-                placeholder="密码"
+                placeholder="Password"
                 required
               />
-              <a href="#" class="recovery-link">忘记密码？</a>
+              <a href="#" class="recovery-link">Forgot password?</a>
             </div>
 
             <div class="form-group role-select">
-              <label>登录身份:</label>
+              <label>Login as:</label>
               <div class="role-options">
                 <label class="role-option">
                   <input type="radio" v-model="selectedRole" value="user" name="role">
-                  <span class="role-text">普通用户</span>
+                  <span class="role-text">User</span>
                 </label>
                 <label class="role-option">
                   <input type="radio" v-model="selectedRole" value="admin" name="role">
-                  <span class="role-text">管理员</span>
+                  <span class="role-text">Admin</span>
                 </label>
                 <label class="role-option">
                   <input type="radio" v-model="selectedRole" value="worker" name="role">
-                  <span class="role-text">调度员</span>
+                  <span class="role-text">Worker</span>
                 </label>
               </div>
             </div>
@@ -68,11 +68,11 @@
               class="sign-in-btn"
               :disabled="isLoading"
             >
-              {{ isLoading ? '登录中...' : '登录' }}
+              {{ isLoading ? 'Logging in...' : 'Login' }}
             </button>
 
             <div class="divider">
-              <span>或者使用以下方式登录</span>
+              <span>Or login with</span>
             </div>
 
             <div class="social-login">
@@ -123,7 +123,7 @@ const handleLogin = async () => {
   
   // 验证表单
   if (!formData.value.username || !formData.value.password) {
-    errorMessage.value = '请填写用户名和密码'
+    errorMessage.value = 'Please enter username and password'
     return
   }
   
@@ -155,11 +155,11 @@ const handleLogin = async () => {
       
       router.push(roleRoutes[selectedRole.value])
     } else {
-      errorMessage.value = response.msg || '登录失败，请检查用户名和密码'
+      errorMessage.value = response.msg || 'Login failed, please check username and password'
     }
   } catch (error) {
     console.error('登录错误:', error)
-    errorMessage.value = '网络错误，请稍后重试'
+    errorMessage.value = 'Network error, please try again later'
   } finally {
     isLoading.value = false
   }

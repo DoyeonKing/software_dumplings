@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
  * 对应数据库中的 'trips' 表
  * 用于表示用户的每一次骑行记录
  */
-public class Trips { // 实体类名根据表名 'trips' 命名为 Trips
+public class Orders { // 实体类名根据表名 'trips' 命名为 Trips
     // 订单唯一标识符，PRIMARY KEY NOT NULL
     private Integer orderid; // 对应INT
 
@@ -61,10 +61,10 @@ public class Trips { // 实体类名根据表名 'trips' 命名为 Trips
     private Integer durationMinutes;
 
     // --- 构造函数 ---
-    public Trips() {
+    public Orders() {
     }
 
-    public Trips(Integer orderid, String bikeid, String userid, LocalDateTime startTime, LocalDateTime endTime, BigDecimal startLat, BigDecimal startLon, BigDecimal endLat, BigDecimal endLon, BigDecimal distanceM, BigDecimal cost, String startGeohash, String endGeohash, Integer startWeekday, Integer startHour, Integer isWeekend, Integer durationMinutes) {
+    public Orders(Integer orderid, String bikeid, String userid, LocalDateTime startTime, LocalDateTime endTime, BigDecimal startLat, BigDecimal startLon, BigDecimal endLat, BigDecimal endLon, BigDecimal distanceM, BigDecimal cost, String startGeohash, String endGeohash, Integer startWeekday, Integer startHour, Integer isWeekend, Integer durationMinutes) {
         this.orderid = orderid;
         this.bikeid = bikeid;
         this.userid = userid;

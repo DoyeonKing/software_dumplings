@@ -26,14 +26,6 @@ public class StaffServiceImpl implements IStaffService {
     @Resource
     private JwtTokenUtil jwtTokenUtil;
 
-    // 添加一个角色映射表，方便将请求中的英文角色名映射到数据库中的中文角色名
-    private static final Map<String, String> ROLE_MAP = new HashMap<>();
-    static {
-        ROLE_MAP.put("admin", "管理员");
-        ROLE_MAP.put("worker", "工作人员");
-    }
-
-
     /**
      * 处理工作人员登录逻辑
      * @param loginRequest 登录请求 DTO
@@ -54,26 +46,14 @@ public class StaffServiceImpl implements IStaffService {
             throw new CustomException("用户名或密码错误", "401");
         }
 
-        // 3. 角色比对：新增的核心逻辑
-        String requestedRole = loginRequest.getRole(); // 例如 "admin" 或 "worker"
-        String actualDbRole = dbStaff.getStaffType();   // 例如 "管理员" 或 "工作人员"
-
-        // 将请求中的英文角色名转换为对应的中文角色名，用于比对
-        String mappedRequestedRole = ROLE_MAP.get(requestedRole.toLowerCase());
-
-        if (mappedRequestedRole == null || !mappedRequestedRole.equals(actualDbRole)) {
-            // 如果请求的角色无法映射到已知角色，或者请求的角色与数据库中实际角色不符
-            throw new CustomException("角色不匹配或无效的角色请求", "403"); // 403 Forbidden
-        }
-
         // 4. 登录成功，生成 JWT Token
         String token = jwtTokenUtil.generateToken(String.valueOf(dbStaff.getStaffId()), dbStaff.getUsername(), dbStaff.getStaffType());
 
         // 5. 返回脱敏后的 Staff 对象和 Token
         dbStaff.setPasswordHash(null);
-        // 注意：这里的LoginResponse第一个参数传null，因为用户信息在dbStaff对象中，可以根据前端需要调整
-        return new LoginResponse(dbStaff, token, dbStaff.getStaffType()); // 建议将dbStaff放进去，这样前端可以直接获取用户信息
+        return new LoginResponse(dbStaff, token, dbStaff.getStaffType());
     }
+
     /**
      * 处理工作人员注册逻辑
      * @param registerRequest 注册请求 DTO
@@ -189,5 +169,11 @@ public class StaffServiceImpl implements IStaffService {
 
         // 4. 执行密码更新
         return staffMapper.updatePassword(staffId, hashedNewPassword);
+    }
+
+    @Override
+    public Staff findByStaffId(Integer staffId) {
+        // 调用 Mapper 查询用户信息
+        return staffMapper.selectById(staffId);
     }
 }

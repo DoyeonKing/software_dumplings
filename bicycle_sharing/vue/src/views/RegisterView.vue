@@ -3,7 +3,7 @@
     <div class="register-content">
       <div class="left-section">
         <div class="title-container">
-          <h1>XXXXXX<br>Management<br>System</h1>
+          <h1>Shared-Bicycles<br>Management<br>System</h1>
           <p class="login-hint">
             Already have an account?<br>
             <router-link to="/login" class="link">Login here</router-link>.
@@ -23,7 +23,7 @@
               <input 
                 type="text" 
                 v-model="formData.username" 
-                placeholder="用户名"
+                placeholder="Username"
                 required
               />
             </div>
@@ -32,7 +32,7 @@
               <input 
                 type="tel" 
                 v-model="formData.phoneNumber" 
-                placeholder="手机号码"
+                placeholder="Phone Number"
                 required
               />
             </div>
@@ -41,7 +41,7 @@
               <input 
                 type="password" 
                 v-model="formData.password" 
-                placeholder="密码"
+                placeholder="Password"
                 required
               />
             </div>
@@ -50,25 +50,25 @@
               <input 
                 type="password" 
                 v-model="formData.confirmPassword" 
-                placeholder="确认密码"
+                placeholder="Confirm Password"
                 required
               />
             </div>
 
             <div class="form-group role-select">
-              <label>注册身份:</label>
+              <label>Register as:</label>
               <div class="role-options">
                 <label class="role-option">
                   <input type="radio" v-model="selectedRole" value="user" name="role">
-                  <span class="role-text">普通用户</span>
+                  <span class="role-text">User</span>
                 </label>
                 <label class="role-option">
                   <input type="radio" v-model="selectedRole" value="admin" name="role">
-                  <span class="role-text">管理员</span>
+                  <span class="role-text">Admin</span>
                 </label>
                 <label class="role-option">
                   <input type="radio" v-model="selectedRole" value="worker" name="role">
-                  <span class="role-text">调度员</span>
+                  <span class="role-text">Worker</span>
                 </label>
               </div>
             </div>
@@ -78,11 +78,11 @@
               class="register-btn"
               :disabled="isLoading"
             >
-              {{ isLoading ? '注册中...' : '注册' }}
+              {{ isLoading ? 'Registering...' : 'Register' }}
             </button>
 
             <div class="divider">
-              <span>或者使用以下方式注册</span>
+              <span>Or register with</span>
             </div>
 
             <div class="social-login">
@@ -137,17 +137,17 @@ const handleRegister = async () => {
   // 验证表单
   if (!formData.value.username || !formData.value.phoneNumber || 
       !formData.value.password || !formData.value.confirmPassword) {
-    errorMessage.value = '请填写所有必填字段'
+    errorMessage.value = 'Please fill in all required fields'
     return
   }
   
   if (formData.value.password !== formData.value.confirmPassword) {
-    errorMessage.value = '两次输入的密码不一致'
+    errorMessage.value = 'Passwords do not match'
     return
   }
   
   if (formData.value.password.length < 6) {
-    errorMessage.value = '密码长度至少为6位'
+    errorMessage.value = 'Password must be at least 6 characters'
     return
   }
   
@@ -190,20 +190,20 @@ const handleRegister = async () => {
         
         router.push(roleRoutes[selectedRole.value])
       } else {
-        errorMessage.value = '注册成功但自动登录失败，请手动登录'
+        errorMessage.value = 'Registration successful but auto-login failed, please login manually'
         setTimeout(() => {
           router.push('/login')
         }, 2000)
       }
     } else {
-      errorMessage.value = registerResponse.msg || '注册失败，请检查输入信息'
+      errorMessage.value = registerResponse.msg || 'Registration failed, please check your input'
     }
   } catch (error) {
     console.error('注册错误:', error)
     if (error.response && error.response.data) {
-      errorMessage.value = error.response.data.msg || '注册失败，请稍后重试'
+      errorMessage.value = error.response.data.msg || 'Registration failed, please try again later'
     } else {
-      errorMessage.value = '网络错误，请稍后重试'
+      errorMessage.value = 'Network error, please try again later'
     }
   } finally {
     isLoading.value = false

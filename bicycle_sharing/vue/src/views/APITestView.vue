@@ -2,44 +2,9 @@
   <div class="api-test-container">
     <h2>API 测试页面</h2>
     
-    <!-- Hello API 测试 -->
-    <el-card class="test-card">
-      <template #header>
-        <div class="card-header">
-          <span>Hello API 测试（已废弃）</span>
-          <el-button type="primary" @click="testHelloAPI">测试连接</el-button>
-        </div>
-      </template>
-      <div class="test-result">
-        <p><strong>状态码：</strong>{{ helloResult.code }}</p>
-        <p><strong>消息：</strong>{{ helloResult.msg }}</p>
-        <p><strong>数据：</strong>{{ helloResult.data }}</p>
-      </div>
-    </el-card>
 
-    <!-- 单车 API 测试 -->
-    <el-card class="test-card">
-      <template #header>
-        <div class="card-header">
-          <span>单车 API 测试（已废弃）</span>
-          <el-button type="primary" @click="testBicycleAPI">获取所有单车</el-button>
-        </div>
-      </template>
-      <div class="test-result">
-        <p><strong>状态码：</strong>{{ bicycleResult.code }}</p>
-        <p><strong>消息：</strong>{{ bicycleResult.msg }}</p>
-        <div v-if="bicycleResult.data" class="data-table">
-          <el-table :data="bicycleResult.data" style="width: 100%" border stripe>
-            <el-table-column prop="bike_id" label="单车ID" width="100" />
-            <el-table-column prop="current_lat" label="纬度" width="120" />
-            <el-table-column prop="current_lon" label="经度" width="120" />
-            <el-table-column prop="current_geohash" label="地理哈希" width="120" />
-            <el-table-column prop="bike_status" label="状态" width="100" />
-            <el-table-column prop="last_updated_time" label="最后更新时间" />
-          </el-table>
-        </div>
-      </div>
-    </el-card>
+
+ 
 
     <!-- 区域单车 API 测试 -->
     <el-card class="test-card">
@@ -97,6 +62,70 @@
         </div>
         <div v-else-if="areaResult.code === 200" class="empty-data">
           <el-empty description="该区域暂无单车数据" />
+        </div>
+      </div>
+    </el-card>
+
+    <!-- 停车点 API 测试 -->
+    <el-card class="test-card">
+      <template #header>
+        <div class="card-header">
+          <span>停车点 API 测试</span>
+          <el-button type="primary" @click="testGetAllParkingAreas">获取所有停车点（备用数据）</el-button>
+        </div>
+      </template>
+      <div class="test-result">
+        <p><strong>状态码：</strong>{{ parkingResult.code }}</p>
+        <p><strong>消息：</strong>{{ parkingResult.msg }}</p>
+        <div v-if="parkingResult.data" class="raw-data">
+          <h4>原始数据：</h4>
+          <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; max-height: 400px;">{{ JSON.stringify(parkingResult.data, null, 2) }}</pre>
+        </div>
+      </div>
+    </el-card>
+
+    <!-- 区域停车点 API 测试 -->
+    <el-card class="test-card">
+      <template #header>
+        <div class="card-header">
+          <span>区域停车点 API 测试（后端接口）</span>
+          <el-button type="primary" @click="testGetParkingAreasInBounds">获取区域停车点</el-button>
+        </div>
+      </template>
+      <div class="test-form">
+        <el-form :model="parkingAreaForm" label-width="100px">
+          <el-form-item label="最小纬度">
+            <el-input v-model.number="parkingAreaForm.minLat" type="number" step="0.000001" />
+          </el-form-item>
+          <el-form-item label="最大纬度">
+            <el-input v-model.number="parkingAreaForm.maxLat" type="number" step="0.000001" />
+          </el-form-item>
+          <el-form-item label="最小经度">
+            <el-input v-model.number="parkingAreaForm.minLon" type="number" step="0.000001" />
+          </el-form-item>
+          <el-form-item label="最大经度">
+            <el-input v-model.number="parkingAreaForm.maxLon" type="number" step="0.000001" />
+          </el-form-item>
+        </el-form>
+      </div>
+      <div class="test-result">
+        <p><strong>状态码：</strong>{{ parkingAreaResult.code }}</p>
+        <p><strong>消息：</strong>{{ parkingAreaResult.msg }}</p>
+        <div v-if="parkingAreaResult.data" class="raw-data">
+          <h4>原始数据：</h4>
+          <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; max-height: 400px;">{{ JSON.stringify(parkingAreaResult.data, null, 2) }}</pre>
+          
+          <div style="margin-top: 15px;">
+            <el-button type="success" @click="testConvertParkingData">测试数据转换</el-button>
+          </div>
+          
+          <div v-if="convertedParkingData" style="margin-top: 15px;">
+            <h4>转换后的数据：</h4>
+            <pre style="background: #e8f5e8; padding: 10px; border-radius: 4px; overflow-x: auto; max-height: 400px;">{{ JSON.stringify(convertedParkingData, null, 2) }}</pre>
+          </div>
+        </div>
+        <div v-else-if="parkingAreaResult.code === 200" class="empty-data">
+          <el-empty description="该区域暂无停车点数据" />
         </div>
       </div>
     </el-card>
@@ -613,12 +642,13 @@
 
 <script setup>
 import { ref } from 'vue'
-import { testHello } from '@/api_test/hello'
-import { getAllBicycles, getMapAreaBicycles, getBikeDetails } from '@/api_test/bicycle'
-import { login, changePassword } from '@/api_test/login'
-import { getWeatherRecord } from '@/api_test/weather'
-import { getUserProfile } from '@/api_test/profile'
-import { register } from '@/api_test/register'
+
+import { getAllBicycles, getMapAreaBicycles, getBikeDetails } from '@/api/map/bicycle'
+import { getAllParkingAreas, getParkingAreasInBounds, convertParkingAreaData } from '@/api/map/parking'
+import { login, changePassword } from '@/api/account/login'
+import { getWeatherRecord } from '@/api/weather'
+import { getUserProfile } from '@/api/account/profile'
+import { register } from '@/api/account/register'
 import { ElMessage } from 'element-plus'
 
 // 测试结果
@@ -649,6 +679,31 @@ const bikeDetailResult = ref({
 
 // 单车ID输入
 const bikeIdInput = ref('')
+
+// 停车点测试结果
+const parkingResult = ref({
+  code: null,
+  msg: '',
+  data: null
+})
+
+// 停车点区域测试结果
+const parkingAreaResult = ref({
+  code: null,
+  msg: '',
+  data: null
+})
+
+// 停车点区域表单数据
+const parkingAreaForm = ref({
+  minLat: 22.5,
+  maxLat: 22.6,
+  minLon: 114.0,
+  maxLon: 114.1
+})
+
+// 转换后的停车点数据
+const convertedParkingData = ref(null)
 
 // 区域表单数据
 const areaForm = ref({
@@ -791,17 +846,7 @@ const registerRules = {
 // 注册表单引用
 const registerFormRef = ref(null)
 
-// 测试Hello API
-const testHelloAPI = async () => {
-  try {
-    const response = await testHello()
-    helloResult.value = response
-    ElMessage.success('API调用成功')
-  } catch (error) {
-    console.error('API调用失败：', error)
-    ElMessage.error('API调用失败')
-  }
-}
+
 
 // 测试单车 API
 const testBicycleAPI = async () => {
@@ -886,6 +931,92 @@ const testBikeDetails = async () => {
   } catch (error) {
     console.error('获取单车详情失败：', error)
     ElMessage.error('获取单车详情失败')
+  }
+}
+
+// 测试获取所有停车点
+const testGetAllParkingAreas = async () => {
+  try {
+    const response = await getAllParkingAreas()
+    console.log('获取所有停车点响应:', response)
+    parkingResult.value = response
+    if (response.code === 200) {
+      ElMessage.success('获取所有停车点成功')
+    } else {
+      ElMessage.warning(`获取数据返回状态码: ${response.code}`)
+    }
+  } catch (error) {
+    console.error('获取所有停车点失败：', error)
+    ElMessage.error('获取所有停车点失败')
+    parkingResult.value = {
+      code: 'ERROR',
+      msg: error.message || '请求失败',
+      data: null
+    }
+  }
+}
+
+// 测试获取区域停车点
+const testGetParkingAreasInBounds = async () => {
+  try {
+    const response = await getParkingAreasInBounds(parkingAreaForm.value)
+    console.log('获取区域停车点响应:', response)
+    parkingAreaResult.value = response
+    // 清空之前的转换数据
+    convertedParkingData.value = null
+    
+    // 检查响应数据格式
+    let hasValidData = false
+    if (response && Array.isArray(response)) {
+      hasValidData = true
+      ElMessage.success(`获取区域停车点成功，返回 ${response.length} 个停车点`)
+    } else if (response && response.data && Array.isArray(response.data)) {
+      hasValidData = true
+      ElMessage.success(`获取区域停车点成功，返回 ${response.data.length} 个停车点`)
+    } else if (response && response.code === 200) {
+      hasValidData = true
+      ElMessage.success('获取区域停车点成功')
+    } else {
+      ElMessage.warning(`获取数据返回状态码: ${response?.code || '未知'}`)
+    }
+  } catch (error) {
+    console.error('获取区域停车点失败：', error)
+    ElMessage.error('获取区域停车点失败')
+    parkingAreaResult.value = {
+      code: 'ERROR',
+      msg: error.message || '请求失败',
+      data: null
+    }
+  }
+}
+
+// 测试数据转换
+const testConvertParkingData = () => {
+  // 获取原始数据
+  let rawData = null
+  const response = parkingAreaResult.value
+  
+  if (response && Array.isArray(response)) {
+    rawData = response
+  } else if (response && response.data && Array.isArray(response.data)) {
+    rawData = response.data
+  } else if (response && Array.isArray(response.data)) {
+    rawData = response.data
+  }
+  
+  if (!rawData || !Array.isArray(rawData)) {
+    ElMessage.warning('没有可转换的数据或数据格式错误')
+    return
+  }
+  
+  try {
+    const converted = convertParkingAreaData(rawData)
+    console.log('转换后的数据:', converted)
+    convertedParkingData.value = converted
+    ElMessage.success(`数据转换成功，共转换 ${converted.length} 个停车点`)
+  } catch (error) {
+    console.error('数据转换失败：', error)
+    ElMessage.error('数据转换失败: ' + error.message)
   }
 }
 
@@ -1253,5 +1384,23 @@ code {
   border-radius: 3px;
   font-family: 'Courier New', monospace;
   font-size: 0.9em;
+}
+
+.raw-data {
+  margin-top: 15px;
+}
+
+.raw-data h4 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 14px;
+}
+
+.raw-data pre {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 </style>

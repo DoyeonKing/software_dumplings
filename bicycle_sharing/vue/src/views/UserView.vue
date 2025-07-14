@@ -14,7 +14,7 @@
       <div class="feature-item" @click="handleFeature('bikes')">单车位置</div>
       <div class="feature-item" @click="handleFeature('stations')">停车点位置</div>
       <div class="feature-item" @click="handleFeature('navigation')">导航</div>
-      <div class="feature-item" @click="handleFeature('return')">还车</div>
+      <div class="feature-item" @click="handleFeature('ride')">骑车</div>
       <div class="feature-item" @click="handleFeature('heatmap')">热力图</div>
       <div class="feature-item" @click="toggleMapSettings">地图设置</div>
     </div>
@@ -179,8 +179,10 @@
       :showBicycles="showBicycles"
       :showParkingAreas="showParkingAreas"
       :showNavigation="showNavigation"
+      :showRide="showRide"
       :showHeatmap="showHeatmap"
       @update:showNavigation="showNavigation = $event"
+      @update:showRide="showRide = $event"
       ref="mapComponentRef"
     />
   </div>
@@ -209,13 +211,23 @@ const profileError = ref('')
 onMounted(() => {
   authToken.value = sessionStorage.getItem('authToken') || ''
   const storedUserInfo = sessionStorage.getItem('userInfo')
-  if (storedUserInfo) {
-    userInfo.value = JSON.parse(storedUserInfo)
+  
+  // 修复JSON解析错误 - 检查是否为有效的JSON字符串
+  if (storedUserInfo && storedUserInfo !== 'undefined' && storedUserInfo !== 'null') {
+    try {
+      userInfo.value = JSON.parse(storedUserInfo)
+    } catch (e) {
+      console.error('解析用户信息失败:', e)
+      userInfo.value = null
+      // 清除无效的sessionStorage数据
+      sessionStorage.removeItem('userInfo')
+    }
   }
+  
   userRole.value = sessionStorage.getItem('userRole') || ''
   
   // 如果没有token，重定向到登录页
-  if (!authToken.value) {
+  if (!authToken.value || authToken.value === 'undefined') {
     router.push('/login')
     return
   }
@@ -238,6 +250,7 @@ const mapComponentRef = ref(null);
 const showBicycles = ref(false);
 const showParkingAreas = ref(false);
 const showNavigation = ref(false);
+const showRide = ref(false);
 const showHeatmap = ref(false);
 
 const mapStyles = [
@@ -282,12 +295,14 @@ const handleFeature = (feature) => {
     showNavigation.value = !showNavigation.value;
     return;
   }
+  if (feature === 'ride') {
+    showRide.value = !showRide.value;
+    return;
+  }
   if (feature === 'heatmap') {
     showHeatmap.value = !showHeatmap.value;
     return;
   }
-  // 这里添加各个功能的处理逻辑
-  console.log('Selected feature:', feature);
 };
 
 const updateMapType = () => {

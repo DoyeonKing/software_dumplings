@@ -52,7 +52,7 @@ import AMapLoader from '@amap/amap-jsapi-loader';
 import parkingIcon from '@/components/icons/parking_area.png';
 import bicycleIcon from '@/components/icons/bicycle.png';
 import { getAllTasks, acceptTask, completeTask } from '@/api/assignment/task';
-import { getAllParkingAreas } from '@/api/map/parking';
+import { getAllParkingAreas, getParkingAreasInBounds, convertParkingAreaData } from '@/api/map/parking';
 import { getMapAreaBicycles } from '@/api/map/bicycle';
 import { getHeatMapData } from '@/api/map/heat';
 import { ElMessage } from 'element-plus';
@@ -183,27 +183,72 @@ const loadBicycles = async () => {
 // 加载停车点
 const loadParkingAreas = async () => {
   try {
-    // 如果已经加载过数据，直接切换显示状态
-    if (parkingMarkers.value.length > 0) {
+    // 如果不需要显示停车点，清除现有标记
+    if (!props.showParkingAreas) {
       parkingMarkers.value.forEach(marker => {
-        marker.setMap(props.showParkingAreas ? map.value : null);
+        marker.setMap(null);
       });
       parkingPolygons.value.forEach(polygon => {
-        polygon.setMap(props.showParkingAreas ? map.value : null);
+        polygon.setMap(null);
       });
       return;
     }
 
-    const response = await getAllParkingAreas();
-    const parkingAreas = response.data;
+    // 清除现有标记和多边形
+    parkingMarkers.value.forEach(marker => {
+      if (marker && typeof marker.setMap === 'function') {
+        marker.setMap(null);
+      }
+    });
+    parkingPolygons.value.forEach(polygon => {
+      if (polygon && typeof polygon.setMap === 'function') {
+        polygon.setMap(null);
+      }
+    });
+    parkingMarkers.value = [];
+    parkingPolygons.value = [];
+
+    // 获取当前地图边界
+    const bounds = map.value.getBounds();
+    const params = {
+      minLat: bounds.getSouthWest().lat,
+      maxLat: bounds.getNorthEast().lat,
+      minLon: bounds.getSouthWest().lng,
+      maxLon: bounds.getNorthEast().lng
+    };
+
+    // 获取区域内的停车点
+    const response = await getParkingAreasInBounds(params);
+    console.log('工作人员地图-停车点API响应:', response);
+    
+    // 检查响应数据格式并转换
+    let rawData = null;
+    if (response && Array.isArray(response)) {
+      // 如果响应直接是数组
+      rawData = response;
+    } else if (response && response.data && Array.isArray(response.data)) {
+      // 如果响应包装在data字段中
+      rawData = response.data;
+    } else if (response && response.code === 200 && Array.isArray(response.data)) {
+      // 如果是标准的API响应格式
+      rawData = response.data;
+    }
+
+    if (!rawData || !Array.isArray(rawData)) {
+      console.warn('工作人员地图-停车点数据格式异常:', response);
+      throw new Error('停车点数据格式异常');
+    }
+    
+    // 转换数据格式
+    const parkingAreas = convertParkingAreaData(rawData);
 
     parkingAreas.forEach(area => {
-      // 计算停车区域的中心点
-      const centerLat = (area.bounds.northeast[0] + area.bounds.southwest[0]) / 2;
-      const centerLng = (area.bounds.northeast[1] + area.bounds.southwest[1]) / 2;
+      // 使用中心点坐标（如果有）或者计算停车区域的中心点
+      const centerLat = area.center ? area.center[0] : (area.bounds.northeast[0] + area.bounds.southwest[0]) / 2;
+      const centerLng = area.center ? area.center[1] : (area.bounds.northeast[1] + area.bounds.southwest[1]) / 2;
 
-      // 创建多边形路径
-      const path = [
+      // 使用精确的多边形路径（如果有）或者使用边界框创建矩形
+      const path = area.polygonPath || [
         [area.bounds.southwest[1], area.bounds.southwest[0]],  // 左下角
         [area.bounds.northeast[1], area.bounds.southwest[0]],  // 右下角
         [area.bounds.northeast[1], area.bounds.northeast[0]],  // 右上角
@@ -296,10 +341,11 @@ const loadParkingAreas = async () => {
         const info = new AMap.InfoWindow({
           content: `
             <div class="info-window">
-              <h4>${area.name}</h4>
-              <p>状态: ${area.status}</p>
-              <p>可用车位: ${area.available_spots || 0}个</p>
-              <p>总车位: ${area.total_spots || 0}个</p>
+              <h4>停车区域 ${area.geohash}</h4>
+              <p>区域编号: ${area.geohash}</p>
+              <p>区域组ID: ${area.regionGroupId}</p>
+              <p>停车容量: ${area.parkingCapacity}个</p>
+              <p>中心位置: ${area.centerLat.toFixed(6)}, ${area.centerLon.toFixed(6)}</p>
             </div>
           `,
           offset: new AMap.Pixel(0, -30)
@@ -318,6 +364,63 @@ const loadParkingAreas = async () => {
   } catch (error) {
     console.error('Failed to load parking areas:', error);
     ElMessage.error('加载停车点失败');
+    
+    // 如果API调用失败，使用备用数据
+    try {
+      const fallbackResponse = await getAllParkingAreas();
+      const parkingAreas = fallbackResponse.data;
+      
+      // 重新创建标记和多边形（使用备用数据）
+      parkingAreas.forEach(area => {
+        // 计算停车区域的中心点
+        const centerLat = (area.bounds.northeast[0] + area.bounds.southwest[0]) / 2;
+        const centerLng = (area.bounds.northeast[1] + area.bounds.southwest[1]) / 2;
+
+        // 创建多边形路径
+        const path = [
+          [area.bounds.southwest[1], area.bounds.southwest[0]],  // 左下角
+          [area.bounds.northeast[1], area.bounds.southwest[0]],  // 右下角
+          [area.bounds.northeast[1], area.bounds.northeast[0]],  // 右上角
+          [area.bounds.southwest[1], area.bounds.northeast[0]],  // 左上角
+          [area.bounds.southwest[1], area.bounds.southwest[0]]   // 闭合多边形
+        ];
+
+        // 根据状态设置颜色
+        const statusColors = {
+          normal: '#4CAF50',  // 绿色
+          full: '#FF9800',    // 橙色
+          maintenance: '#F44336'  // 红色
+        };
+
+        // 创建多边形
+        const polygon = new AMap.Polygon({
+          path: path,
+          strokeColor: statusColors[area.status] || '#4CAF50',
+          strokeWeight: 3,
+          strokeOpacity: 1,
+          fillColor: statusColors[area.status] || '#4CAF50',
+          fillOpacity: 0.4,
+          cursor: 'pointer',
+          map: map.value
+        });
+
+        // 创建标记
+        const marker = new AMap.Marker({
+          position: [centerLng, centerLat],
+          icon: new AMap.Icon({
+            image: parkingIcon,
+            size: new AMap.Size(40, 40),
+            imageSize: new AMap.Size(40, 40)
+          }),
+          map: map.value
+        });
+
+        parkingMarkers.value.push(marker);
+        parkingPolygons.value.push(polygon);
+      });
+    } catch (fallbackError) {
+      console.error('获取备用停车点数据也失败：', fallbackError);
+    }
   }
 };
 
@@ -614,11 +717,17 @@ const initMap = async () => {
       if (props.showBicycles) {
         loadBicycles();
       }
+      if (props.showParkingAreas) {
+        loadParkingAreas();
+      }
     });
 
     map.value.on('zoomend', () => {
       if (props.showBicycles) {
         loadBicycles();
+      }
+      if (props.showParkingAreas) {
+        loadParkingAreas();
       }
     });
 
