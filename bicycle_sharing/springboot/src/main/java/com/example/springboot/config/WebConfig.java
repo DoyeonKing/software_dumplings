@@ -34,11 +34,20 @@ public class WebConfig implements WebMvcConfigurer {
                 // 6. **核心配置**：指定要放行（不拦截）的路径。
                 // 我们需要放行登录和注册接口，否则用户永远无法登录。
                 .excludePathPatterns(
-                        "/login",           // 放行登录接口
-                        "/register",        // 放行注册接口
-                        "/files/**",        // 如果有文件上传/下载，也需要放行
-                        "/swagger-ui.html", // 放行Swagger文档页面
-                        "/v3/api-docs/**"   // 放行Swagger API数据
+                        // 认证相关
+                        "/login",
+                        "/register",
+
+                        // 公开数据查询
+                        "/bikes/**",        // 所有与车辆信息查看相关的接口
+                        "/weather/**",      // 天气接口
+                        "/route/**",        // 路线规划接口
+                        "/elite-sites/**",  // 精华站点接口
+
+                        // 其他
+                        "/files/**",        // 文件服务
+                        "/swagger-ui.html", // Swagger文档页面
+                        "/v3/api-docs/**"   // Swagger API数据
                 );
     }
 }
