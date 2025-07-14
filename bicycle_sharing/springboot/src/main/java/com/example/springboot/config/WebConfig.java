@@ -47,6 +47,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/dispatchTasks/**", // 调度任务接口
                         "/geohashInfo/**", // Geohash信息接口
                         "/weatherInfo/**", // 天气信息接口
+                        "/user/**",        // 用户信息接口
 
                         // 其他
                         "/files/**",        // 文件服务
