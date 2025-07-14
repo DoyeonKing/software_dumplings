@@ -1,7 +1,8 @@
 package com.example.springboot.controller;
 
-import cn.hutool.crypto.SecureUtil;
+import cn.hutool.crypto.SecureUtil; // 虽然这里没有直接使用，但依赖仍然可能存在
 import com.example.springboot.common.Result; // 导入统一响应结果类
+import com.example.springboot.common.response.LoginResponse; // 假设LoginResponse的构造函数已调整
 import com.example.springboot.dto.ProfileResponse;
 import com.example.springboot.dto.UpdatePasswordRequest;
 import com.example.springboot.dto.UpdateUsernameRequest;
@@ -24,7 +25,7 @@ import java.util.stream.Collectors;
 
 /**
  * StaffController类空壳
- * 负责接收和处理与工作人员/管理人员相关的HTTP请求框架
+ * 负责接收和处理与工作人员/管理人员相关的HTTP请求框架 (移除角色概念)
  */
 @RestController // 标记这是一个RESTful控制器
 @RequestMapping("/staff") // 定义这个控制器的基础URL路径
@@ -58,11 +59,11 @@ public class StaffController {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("用户信息不存在。");
             }
 
-            // 4. 构建响应 DTO，只包含需要返回的个人信息（不包括密码哈希）
+            // 4. 构建响应 DTO，只包含需要返回的个人信息（不包括密码哈希和 staffType）
             ProfileResponse profile = new ProfileResponse(
                     staff.getStaffId(),
-                    staff.getUsername(),
-                    staff.getStaffType()
+                    staff.getUsername()
+                    // 移除 staff.getStaffType()
             );
 
             // 5. 返回成功响应
@@ -86,21 +87,24 @@ public class StaffController {
     @GetMapping("/workers")
     public ResponseEntity<?> getAllWorkers() {
         try {
-            // 1. 从 Service 层获取原始的 Staff 实体列表。
-            // Service 层返回的 Staff 对象可能包含完整的字段，包括 passwordHash 和 staffType。
+            // 直接查询所有工作人员，无需从Token获取用户信息
             List<Staff> staffList = staffService.getAllWorkers();
 
-            // 2. 将 Staff 实体列表转换为 WorkerInfoResponse DTO 列表。
-            // 在此转换过程中，我们只复制 staffId 和 username，从而隐藏了 passwordHash 和 staffType。
+            // 转换为DTO列表（隐藏敏感字段）
             List<WorkerInfoResponse> workerInfoList = staffList.stream()
-                    .map(staff -> new WorkerInfoResponse(staff.getStaffId(), staff.getUsername(), staff.getManagerId(), staff.getGeohash()))
+                    .map(staff -> new WorkerInfoResponse(
+                            staff.getStaffId(),
+                            staff.getUsername(),
+                            staff.getManagerId(),
+                            staff.getGeohash()
+                    ))
                     .collect(Collectors.toList());
 
-            // 3. 返回脱敏后的 DTO 列表
             return ResponseEntity.ok(workerInfoList);
         } catch (Exception e) {
-            // 错误处理
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("获取工作人员信息失败: " + e.getMessage());
+            // 捕获查询过程中的异常（如数据库连接错误）
+            return ResponseEntity.internalServerError()
+                    .body("获取工作人员信息失败: " + e.getMessage());
         }
     }
 
@@ -108,13 +112,14 @@ public class StaffController {
      * 更新当前登录工作人员的用户名
      * URL: PUT /staff/updateUsername
      * **请求体示例：**
-     * ```json
+     *
+     json
      * {
      *   "newUsername": "your_new_username"
      * }
-     * ```
+     *
      * **请求头示例：**
-     * `Authorization: Bearer <your_jwt_token>`
+     * Authorization: Bearer <your_jwt_token>
      *
      * @param authorizationHeader 认证令牌，从请求头中获取用户ID
      * @param request 包含新用户名的请求体 DTO
@@ -125,7 +130,6 @@ public class StaffController {
             @RequestHeader("Authorization") String authorizationHeader,
             @Valid @RequestBody UpdateUsernameRequest request) {
 
-        // @Valid 已经确保了 newUsername 不为空，这里可以移除 isEmpty 检查
         String newUsername = request.getNewUsername();
 
         try {
@@ -157,15 +161,16 @@ public class StaffController {
      * 更新当前登录工作人员的密码
      * URL: PUT /staff/updatePassword
      * **请求体示例：**
-     * ```json
+     *
+     json
      * {
      *   "oldPassword": "your_old_password",
      *   "newPassword": "your_new_password",
      *   "confirmNewPassword": "confirm_new_password"
      * }
-     * ```
+     *
      * **请求头示例：**
-     * `Authorization: Bearer <your_jwt_token>`
+     * Authorization: Bearer <your_jwt_token>
      *
      * @param authorizationHeader 认证令牌，从请求头中获取用户ID
      * @param request 包含旧密码、新密码和确认新密码的请求体 DTO
@@ -180,7 +185,6 @@ public class StaffController {
         String newPassword = request.getNewPassword();
         String confirmNewPassword = request.getConfirmNewPassword();
 
-        // @Valid 已经确保了密码字段不为空，这里可以移除 isEmpty 检查
         if (!newPassword.equals(confirmNewPassword)) {
             return ResponseEntity.badRequest().body("新密码和确认密码不一致");
         }
@@ -223,6 +227,8 @@ public class StaffController {
         String token = authorizationHeader.substring(7); // 提取 "Bearer " 后的 Token 字符串
         try {
             // getUserIdFromToken 通常会包含 validateToken 的逻辑
+            // 注意：JwtTokenUtil.getUserIdFromToken() 和 validateToken() 可能需要调整，
+            // 如果它们之前依赖 staffType 作为参数。我假设它们现在只依赖 userId 验证。
             String userId = jwtTokenUtil.getUserIdFromToken(token);
             // 额外安全检查：如果getUserIdFromToken不包含 validateToken 逻辑，这里加上
             if (!jwtTokenUtil.validateToken(token, userId)) {
