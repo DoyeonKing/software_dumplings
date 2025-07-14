@@ -71,18 +71,6 @@
             <div class="stats-label">总车辆数</div>
           </div>
           <div class="stats-details">
-            <div class="stats-item">
-              <span class="label">正常：</span>
-              <span class="value normal">{{ bikeStats.normalBikes }}</span>
-            </div>
-            <div class="stats-item">
-              <span class="label">故障：</span>
-              <span class="value fault">{{ bikeStats.faultBikes }}</span>
-            </div>
-            <div class="stats-item">
-              <span class="label">维修中：</span>
-              <span class="value repair">{{ bikeStats.repairBikes }}</span>
-            </div>
           </div>
         </div>
       </div>
@@ -181,11 +169,11 @@ export default {
           "徐汇区": ["漕溪北路", "肇嘉浜路", "虹桥路"]
         }
       },
-      // 新增：停车区域数据
+      // MODIFIED: Updated area codes
       parkingAreas: [
-        { id: 1, location: "深圳市-福田区-福华三路", areaCode: "区域A", polygon: [ [114.0560, 22.5330], [114.0590, 22.5330], [114.0590, 22.5360], [114.0560, 22.5360] ] },
-        { id: 2, location: "深圳市-福田区-金田路", areaCode: "区域B", polygon: [ [114.0595, 22.5330], [114.0625, 22.5330], [114.0625, 22.5360], [114.0595, 22.5360] ] },
-        { id: 3, location: "深圳市-福田区-滨河大道", areaCode: "区域C", polygon: [ [114.0560, 22.5365], [114.0590, 22.5365], [114.0590, 22.5395], [114.0560, 22.5395] ] }
+        { id: 1, location: "深圳市-福田区-福华三路", areaCode: "P1001", polygon: [ [114.0560, 22.5330], [114.0590, 22.5330], [114.0590, 22.5360], [114.0560, 22.5360] ] },
+        { id: 2, location: "深圳市-福田区-金田路", areaCode: "P1002", polygon: [ [114.0595, 22.5330], [114.0625, 22.5330], [114.0625, 22.5360], [114.0595, 22.5360] ] },
+        { id: 3, location: "深圳市-福田区-滨河大道", areaCode: "P1003", polygon: [ [114.0560, 22.5365], [114.0590, 22.5365], [114.0590, 22.5395], [114.0560, 22.5395] ] }
       ],
       bikeList: [
         {id: "SZ1001", lng: 114.057868, lat: 22.53445, status: "正常", address: "深圳市-福田区-福华三路"},
@@ -223,7 +211,6 @@ export default {
       const {yellowBikeIcon} = this.initMap();
       this.map.setZoomAndCenter(15, [114.0588, 22.5368]);
       this.addBikeMarkers(this.bikeList, yellowBikeIcon);
-      // 新增：调用绘制停车区域的方法
       this.drawParkingAreas();
     }).catch(err => {
       this.$message && this.$message.error
@@ -232,10 +219,11 @@ export default {
     });
   },
   methods: {
-    // 新增：绘制停车区域的方法
+    // MODIFIED: Updated InfoWindow content and options
     drawParkingAreas() {
       const infoWindow = new window.AMap.InfoWindow({
-        offset: new window.AMap.Pixel(0, -20)
+        offset: new window.AMap.Pixel(0, -20),
+        anchor: 'bottom-center' // Better positioning
       });
 
       this.parkingAreas.forEach(area => {
@@ -251,11 +239,16 @@ export default {
 
         this.map.add(polygon);
 
+        // Define clearer content for the info window
+        const infoContent = `
+          <div style="padding: 2px 5px;">
+            <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px;">${area.location}</div>
+            <div><b style="color: #555;">编号:</b> ${area.areaCode}</div>
+          </div>
+        `;
+
         polygon.on("mouseover", (e) => {
-          infoWindow.setContent(`
-            <div style="min-width:160px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
-              <b>停车区域：</b>${area.location}-${area.areaCode}
-            </div>`);
+          infoWindow.setContent(infoContent);
           infoWindow.open(this.map, e.lnglat);
         });
 
