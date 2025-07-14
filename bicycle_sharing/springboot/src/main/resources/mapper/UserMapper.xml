@@ -48,4 +48,7 @@
         </set>
         WHERE userid = #{userid}
     </update>
+    <select id="getById" resultMap="UserResultMap">
+        SELECT * FROM user WHERE userid = #{id}
+    </select>
     </mapper>

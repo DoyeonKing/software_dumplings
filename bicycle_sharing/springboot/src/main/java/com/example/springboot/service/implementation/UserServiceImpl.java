@@ -183,4 +183,15 @@ public void changePassword(String userId, String oldPassword, String newPassword
     userMapper.update(user); // 假设 update 方法会根据传入的 User 对象更新其非空字段，包括 passwordHash
 }
 
+/**
+     * 根据ID获取用户信息 (ID类型为String)。
+     * 实现接口中定义的方法，直接调用Mapper。
+     */
+    @Override
+    public User getById(String id) {
+        return userMapper.getById(id);
+    }
+
+
+
 }
