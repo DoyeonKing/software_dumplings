@@ -15,72 +15,75 @@ import org.springframework.stereotype.Service;
 
 /**
  * @class ManagerServiceImpl
- * @description IManagerService接口的实现类。
+ * @description IManagerService接口的实现类
  *
- * 1. 实现了管理员相关的所有业务逻辑。
+ * 实现了管理员相关的所有业务逻辑。
  */
 @Service
 public class ManagerServiceImpl implements IManagerService {
 
-    /**
-     * 2. 自动注入ManagerMapper，用于数据库操作。
-     */
+    // 自动注入ManagerMapper，用于数据库操作
     @Resource
     private ManagerMapper managerMapper;
 
-    /**
-     * 3. 自动注入JwtTokenUtil，用于生成Token。
-     */
+    // 自动注入JwtTokenUtil，用于生成Token
     @Resource
     private JwtTokenUtil jwtTokenUtil;
 
     /**
-     * 4. 处理管理员登录逻辑。
+     * 处理管理员登录逻辑。
      */
     @Override
     public LoginResponse login(LoginRequest loginRequest) {
-        // 4.1. 根据用户名从数据库查找管理员。
+        // 1. 根据用户名从数据库查找管理员
         Manager dbManager = managerMapper.findByUsername(loginRequest.getUsername());
+        // 2. 如果找不到用户，抛出异常
         if (dbManager == null) {
             throw new CustomException("用户名或密码错误", "401");
         }
-        // 4.2. 将用户输入的密码进行加密，并与数据库中的哈希值比对。
+        // 3. 将用户输入的密码进行SHA-256加密
         String inputHashedPassword = SecureUtil.sha256(loginRequest.getPassword());
+        // 4. 将加密后的密码与数据库中存储的哈希值进行比对
         if (!inputHashedPassword.equals(dbManager.getPasswordHash())) {
             throw new CustomException("用户名或密码错误", "401");
         }
-        // 4.3. 验证通过，生成JWT Token。
+        // 5. 验证通过，生成JWT Token
         String token = jwtTokenUtil.generateToken(String.valueOf(dbManager.getManagerId()), dbManager.getUsername(), "admin");
+        // 6. 清空密码哈希值，准备返回给前端
         dbManager.setPasswordHash(null);
+        // 7. 构建并返回LoginResponse对象
         return new LoginResponse(dbManager, token, "admin");
     }
 
     /**
-     * 5. 处理管理员注册逻辑。
+     * 处理管理员注册逻辑。
      */
     @Override
     public Manager register(RegisterRequest registerRequest) {
-        // 5.1. 检查用户名是否已存在。
+        // 1. 检查用户名是否已存在
         Manager existingManager = managerMapper.findByUsername(registerRequest.getUsername());
         if (existingManager != null) {
             throw new CustomException("用户名已存在", "409");
         }
-        // 5.2. 检查两次输入的密码是否一致。
+        // 2. 检查两次输入的密码是否一致
         if (!registerRequest.getPassword().equals(registerRequest.getConfirmPassword())) {
             throw new CustomException("两次输入的密码不一致", "400");
         }
-        // 5.3. 创建新对象并插入数据库。
+        // 3. 创建一个新的Manager对象
         Manager newManager = new Manager();
         newManager.setUsername(registerRequest.getUsername());
+        // 4. 将密码进行SHA-256加密后存入对象
         String hashedPassword = SecureUtil.sha256(registerRequest.getPassword());
         newManager.setPasswordHash(hashedPassword);
+        // 5. 调用Mapper将新管理员数据插入数据库
         managerMapper.insert(newManager);
+        // 6. 清空密码哈希值，准备返回给前端
         newManager.setPasswordHash(null);
         return newManager;
     }
 
     /**
-     * 6. 根据ID获取管理员信息。
+     * 根据ID获取管理员信息。
      */
     @Override
     public Manager getById(Integer id) {
@@ -88,41 +91,28 @@ public class ManagerServiceImpl implements IManagerService {
     }
 
     /**
-     * 7. 更新管理员密码。
+     * 更新管理员密码。
      */
     @Override
     public void updatePassword(Integer managerId, UpdatePasswordRequest passwordRequest) {
-        // 7.1. 校验新密码和确认密码是否一致。
+        // 1. 检查新密码和确认密码是否一致
         if (!passwordRequest.getNewPassword().equals(passwordRequest.getConfirmNewPassword())) {
             throw new CustomException("两次输入的新密码不一致", "400");
         }
-        // 7.2. 从数据库获取当前管理员信息。
+        // 2. 从数据库获取当前的管理员信息
         Manager manager = managerMapper.getById(managerId);
         if (manager == null) {
             throw new CustomException("用户不存在", "404");
         }
-        // 7.3. 验证旧密码是否正确。
+        // 3. 验证旧密码是否正确
         String oldPasswordHash = SecureUtil.sha256(passwordRequest.getOldPassword());
         if (!oldPasswordHash.equals(manager.getPasswordHash())) {
             throw new CustomException("旧密码错误", "400");
         }
-        // 7.4. 将新密码加密并更新到数据库。
+        // 4. 将新密码加密
         String newPasswordHash = SecureUtil.sha256(passwordRequest.getNewPassword());
         manager.setPasswordHash(newPasswordHash);
-        managerMapper.updatePassword(manager);
-    }
-
-    /**
-     * 8. 更新管理员个人信息。
-     */
-    @Override
-    public void updateProfile(Manager manager) {
-        // 8.1. 检查新用户名是否已被其他管理员使用。
-        Manager existingManager = managerMapper.findByUsername(manager.getUsername());
-        if (existingManager != null && !existingManager.getManagerId().equals(manager.getManagerId())) {
-            throw new CustomException("用户名已被占用", "409");
-        }
-        // 8.2. 调用Mapper更新信息。
-        managerMapper.updateProfile(manager);
+        // 5. 调用Mapper更新数据库中的信息
+        managerMapper.update(manager);
     }
 }

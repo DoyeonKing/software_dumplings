@@ -45,11 +45,4 @@ public interface UserMapper {
   * @param user 待更新的用户对象
   */
  void update(User user);
-
-/**
-     * 根据ID查找用户。
-     * 核心修正：确保 @Param 的值为 "id"，与参数名保持一致。
-     * 并且ID类型为String，与数据库和业务逻辑一致。
-     */
-    User getById(@Param("id") String id);
 }
