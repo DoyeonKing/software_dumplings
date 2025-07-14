@@ -37,6 +37,7 @@ public class WebConfig implements WebMvcConfigurer {
                         // 认证相关
                         "/login",
                         "/register",
+                        "/managers/**", // 管理员相关接口
 
                         // 公开数据查询
                         "/bikes/**",        // 所有与车辆信息查看相关的接口
