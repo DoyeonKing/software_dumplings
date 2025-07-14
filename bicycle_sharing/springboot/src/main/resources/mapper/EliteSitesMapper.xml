@@ -3,20 +3,37 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.example.springboot.mapper.EliteSitesMapper">
+    <resultMap id="EliteSitesResultMap" type="com.example.springboot.entity.EliteSites">
+        <id property="geohashArea" column="geohash_area"/> <result property="centerLat" column="center_lat"/>       <result property="centerLon" column="center_lon"/>       <result property="topLeftLat" column="top_left_lat"/>
+        <result property="topLeftLon" column="top_left_lon"/>
+        <result property="topRightLat" column="top_right_lat"/>
+        <result property="topRightLon" column="top_right_lon"/>
+        <result property="bottomRightLat" column="bottom_right_lat"/>
+        <result property="bottomRightLon" column="bottom_right_lon"/>
+        <result property="bottomLeftLat" column="bottom_left_lat"/>
+        <result property="bottomLeftLon" column="bottom_left_lon"/>
+        <result property="regionGroupId" column="region_group_id"/>
+        <result property="parkingCapacity" column="parking_capacity"/> </resultMap>
 
-    <resultMap id="GeohashInfoResultMap" type="com.example.springboot.entity.EliteSites">
-        <id column="geohash_area" property="geohashArea"/>
-        <result column="center_lat" property="centerLat"/>
-        <result column="center_lon" property="centerLon"/>
-        <result column="ne_lat" property="neLat"/>
-        <result column="ne_lon" property="neLon"/>
-        <result column="nw_lat" property="nwLat"/>
-        <result column="nw_lon" property="nwLon"/>
-        <result column="sw_lat" property="swLat"/>
-        <result column="sw_lon" property="swLon"/>
-        <result column="se_lat" property="seLat"/>
-        <result column="se_lon" property="seLon"/>
-    </resultMap>
+    <select id="findByGeohashInfo" resultMap="EliteSitesResultMap">
+        SELECT
+            geohash_area,
+            center_lat,
+            center_lon,
+            top_left_lat,
+            top_left_lon,
+            top_right_lat,
+            top_right_lon,
+            bottom_right_lat,
+            bottom_right_lon,
+            bottom_left_lat,
+            bottom_left_lon,
+            region_group_id,
+            parking_capacity
+        FROM elite_sites
+        WHERE geohash_area = #{geohashArea} LIMIT 1
+    </select>
+
 
 
 

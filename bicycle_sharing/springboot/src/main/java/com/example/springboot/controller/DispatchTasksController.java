@@ -128,4 +128,47 @@ public class DispatchTasksController { // 控制器类名与资源名复数形�
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("获取任务信息失败: " + e.getMessage());
         }
     }
+
+
+    /**
+     * 【新增接口】
+     * API: PUT /dispatchTasks/{taskId}/start
+     * 作用：触发调度任务的开始，选择具体的自行车并关联到任务。
+     * @param taskId 调度任务的ID
+     * @return 实际被调度的自行车ID列表
+     */
+    @PutMapping("/{taskId}/start")
+    public Result startDispatch(@PathVariable Long taskId) {
+        try {
+            List<String> dispatchedBikeIds = dispatchTasksService.startDispatch(taskId);
+            return Result.success("调度任务开始成功，已选择自行车", dispatchedBikeIds);
+        } catch (IllegalArgumentException e) {
+            return Result.error(Result.CODE_PARAM_ERROR, e.getMessage());
+        } catch (IllegalStateException e) {
+            return Result.error(Result.CODE_BIZ_ERROR, e.getMessage()); // 业务逻辑错误
+        } catch (Exception e) {
+            return Result.error(Result.CODE_SYS_ERROR, "开始调度任务失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 【新增接口】
+     * API: PUT /dispatchTasks/{taskId}/complete
+     * 作用：完成调度任务，更新关联自行车的最终位置和状态。
+     * @param taskId 调度任务的ID
+     * @return 成功信息
+     */
+    @PutMapping("/{taskId}/complete")
+    public Result completeDispatch(@PathVariable Long taskId) {
+        try {
+            dispatchTasksService.completeDispatch(taskId);
+            return Result.success("调度任务完成成功", null);
+        } catch (IllegalArgumentException e) {
+            return Result.error(Result.CODE_PARAM_ERROR, e.getMessage());
+        } catch (IllegalStateException e) {
+            return Result.error(Result.CODE_BIZ_ERROR, e.getMessage()); // 业务逻辑错误
+        } catch (Exception e) {
+            return Result.error(Result.CODE_SYS_ERROR, "完成调度任务失败: " + e.getMessage());
+        }
+    }
 }

@@ -2,8 +2,59 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-
+<!-- 1. namespace属性必须指向对应的Mapper接口的完整路径 -->
 <mapper namespace="com.example.springboot.mapper.ManagerMapper">
 
+    <!--
+      2. ResultMap定义了数据库表的列名与Java实体类的属性名之间的映射关系。
+    -->
+    <resultMap id="ManagerResultMap" type="com.example.springboot.entity.Manager">
+        <!-- 2.1. id标签用于指定主键的映射 -->
+        <id column="manager_id" property="managerId"/>
+        <!-- 2.2. result标签用于指定普通列的映射 -->
+        <result column="username" property="username"/>
+        <result column="password_hash" property="passwordHash"/>
+    </resultMap>
+
+    <!--
+      3. 根据用户名查询管理员。
+         id属性必须与Mapper接口中的方法名一致。
+    -->
+    <select id="findByUsername" resultMap="ManagerResultMap">
+        SELECT * FROM manager WHERE username = #{username}
+    </select>
+
+    <!--
+      4. 插入一个新的管理员记录。
+         useGeneratedKeys="true" 表示数据库会自动生成主键。
+         keyProperty="managerId" 表示将生成的主键值赋给实体对象的managerId属性。
+    -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="managerId">
+        INSERT INTO manager (username, password_hash)
+        VALUES (#{username}, #{passwordHash})
+    </insert>
+
+    <!-- 5. 根据ID查询管理员 -->
+    <select id="getById" resultMap="ManagerResultMap">
+        SELECT * FROM manager WHERE manager_id = #{id}
+    </select>
+
+    <!-- 6. 更新个人信息（只更新用户名） -->
+    <update id="updateProfile">
+        UPDATE manager
+        SET
+            username = #{username}
+        WHERE
+            manager_id = #{managerId}
+    </update>
+
+    <!-- 7. 更新密码（只更新密码哈希值） -->
+    <update id="updatePassword">
+        UPDATE manager
+        SET
+            password_hash = #{passwordHash}
+        WHERE
+            manager_id = #{managerId}
+    </update>
 
 </mapper>

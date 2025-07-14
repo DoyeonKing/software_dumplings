@@ -32,7 +32,7 @@ public interface IStaffService {
     Staff findByUsername(String username);
 
     /**
-     * 获取所有工作人员信息（不包括管理员）
+     * 获取所有工作人员信息（现在将获取所有员工，不再区分角色）
      * @return 所有工作人员对象的列表
      */
     List<Staff> getAllWorkers();

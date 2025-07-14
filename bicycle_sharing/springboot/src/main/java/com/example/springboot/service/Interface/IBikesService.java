@@ -93,4 +93,11 @@ public interface IBikesService { // 接口名与实体类名保持一致，改�
             BigDecimal maxLon,
             Integer gridCellsX,
             Integer gridCellsY);
+
+    /**
+     * 获取所有单车的经纬度信息
+     * @return 单车的经纬度和权重信息列表
+     * @throws CustomException 如果获取失败
+     */
+    List<Bikes> getAllBikeLocations() throws CustomException;
 }

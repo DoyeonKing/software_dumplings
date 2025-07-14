@@ -134,6 +134,22 @@ public class BikesController { // 控制器类名与资源名复数形式保持�
     }
 
     /**
+     * 获取所有单车的经纬度信息
+     * Endpoint: GET /bikes/locations
+     * @return 统一响应结果，包含单车的经纬度和权重信息
+     */
+    @GetMapping("/locations")
+    public ResponseEntity<Result> getAllBikeLocations() {
+        try {
+            List<Bikes> bikeList = bikesService.getAllBikeLocations();
+            return ResponseEntity.ok(Result.success(bikeList));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Result.error("500", "获取单车位置信息失败: " + e.getMessage()));
+        }
+    }
+
+    /**
      * 根据区域编号获取单车使用率
      * URL: GET /bikes/utilization/{geohash}
      *
