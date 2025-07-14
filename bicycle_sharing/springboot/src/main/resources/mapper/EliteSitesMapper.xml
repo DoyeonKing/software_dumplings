@@ -2,9 +2,9 @@
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.example.springboot.mapper.GeohashInfoMapper">
+<mapper namespace="com.example.springboot.mapper.EliteSitesMapper">
 
-    <resultMap id="GeohashInfoResultMap" type="com.example.springboot.entity.GeohashInfo">
+    <resultMap id="GeohashInfoResultMap" type="com.example.springboot.entity.EliteSites">
         <id column="geohash_area" property="geohashArea"/>
         <result column="center_lat" property="centerLat"/>
         <result column="center_lon" property="centerLon"/>

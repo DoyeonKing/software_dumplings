@@ -158,7 +158,7 @@
 <script>
 import MenuComponent from '@/components/admin/menuComponent.vue';
 import { mapMixin } from '@/utils/mapMixin.js';
-import AMapLoader from '@/utils/loadAMap.js';
+import { loadAMapV1, unloadAMapV1 } from '@/utils/loadAMapV1.js';
 
 export default {
   name: "LocationView",
@@ -171,6 +171,7 @@ export default {
       // General State
       taskPanelCollapsed: false,
       polygons: [],
+      infoWindow: null, // For hover tooltips on map
 
       // Map & Left Panel Data
       currentArea: {
@@ -184,8 +185,8 @@ export default {
 
       // Task Panel Data
       selectingFor: null, // 'start', 'end', or null
-      startSelectionActive: false, // NEW: Controls visibility of start selection box
-      endSelectionActive: false,   // NEW: Controls visibility of end selection box
+      startSelectionActive: false,
+      endSelectionActive: false,
       selectedStartArea: null,
       selectedEndArea: null,
       startPredictHour: 1,
@@ -197,9 +198,9 @@ export default {
 
       // Static Data
       parkingAreas: [
-        { id: 1, location: "深圳市-福田区-福华三路", areaCode: "区域A", polygon: [[114.0575, 22.5342], [114.0582, 22.5342], [114.0582, 22.5348], [114.0575, 22.5348]], currentBikes: 23, availableSpots: 7, baseTakeRate: 3, baseParkRate: 5 },
-        { id: 2, location: "深圳市-福田区-金田路", areaCode: "区域B", polygon: [[114.0605, 22.5347], [114.0612, 22.5347], [114.0612, 22.5353], [114.0605, 22.5353]], currentBikes: 15, availableSpots: 15, baseTakeRate: 2, baseParkRate: 4 },
-        { id: 3, location: "深圳市-福田区-滨河大道", areaCode: "区域C", polygon: [[114.0585, 22.5360], [114.0592, 22.5360], [114.0592, 22.5366], [114.0585, 22.5366]], currentBikes: 30, availableSpots: 5, baseTakeRate: 6, baseParkRate: 3 }
+        { id: 1, location: "深圳市-福田区-福华三路", areaCode: "P1001", polygon: [[114.0575, 22.5342], [114.0582, 22.5342], [114.0582, 22.5348], [114.0575, 22.5348]], currentBikes: 23, availableSpots: 7, baseTakeRate: 3, baseParkRate: 5 },
+        { id: 2, location: "深圳市-福田区-金田路", areaCode: "P1002", polygon: [[114.0605, 22.5347], [114.0612, 22.5347], [114.0612, 22.5353], [114.0605, 22.5353]], currentBikes: 15, availableSpots: 15, baseTakeRate: 2, baseParkRate: 4 },
+        { id: 3, location: "深圳市-福田区-滨河大道", areaCode: "P1003", polygon: [[114.0585, 22.5360], [114.0592, 22.5360], [114.0592, 22.5366], [114.0585, 22.5366]], currentBikes: 30, availableSpots: 5, baseTakeRate: 6, baseParkRate: 3 }
       ],
       workers: [
         { id: "W001", name: "李明", phone: "13800000001", avatar: "https://api.dicebear.com/7.x/miniavs/svg?seed=1" },
@@ -235,8 +236,35 @@ export default {
           fillColor: "#FFD600", fillOpacity: 0.3, strokeColor: "#FFD600",
           strokeWeight: 2, zIndex: 50, cursor: "pointer"
         });
-        polygon.setMap(this.map);
+
+        // --- NEW: Add mouse hover events for tooltip ---
+        const infoWindowContent = `
+          <div style="background-color: white; padding: 10px 15px; border-radius: 8px; box-shadow: 0 3px 8px rgba(0,0,0,0.2); border: 1px solid #ddd;">
+              <div style="font-weight: bold; margin-bottom: 5px; font-size: 14px;">${area.location}</div>
+              <div style="font-size: 13px; color: #333;">编号: ${area.areaCode}</div>
+          </div>
+        `;
+
+        polygon.on("mouseover", (e) => {
+          this.infoWindow = new window.AMap.InfoWindow({
+            isCustom: true,
+            content: infoWindowContent,
+            offset: new window.AMap.Pixel(0, -15),
+            anchor: 'bottom-center'
+          });
+          this.infoWindow.open(this.map, e.lnglat);
+        });
+
+        polygon.on("mouseout", () => {
+          if (this.infoWindow) {
+            this.infoWindow.close();
+            this.infoWindow = null;
+          }
+        });
+        // --- End of new hover events ---
+
         polygon.on("click", () => this.handlePolygonClick(area));
+        polygon.setMap(this.map);
         this.polygons.push(polygon);
       });
     },
@@ -291,10 +319,11 @@ export default {
     },
     publishTask() {
       if (!this.selectedStartArea || !this.selectedEndArea || !this.selectedWorker || this.dispatchAmount < 1) return;
+      // --- MODIFIED: Updated alert message for clarity ---
       alert(
           `调度任务已发布！\n\n` +
-          `起点：${this.selectedStartArea.location}\n` +
-          `终点：${this.selectedEndArea.location}\n` +
+          `起点：${this.selectedStartArea.location} (编号: ${this.selectedStartArea.areaCode})\n` +
+          `终点：${this.selectedEndArea.location} (编号: ${this.selectedEndArea.areaCode})\n` +
           `调度数量：${this.dispatchAmount}\n` +
           `工作人员：${this.selectedWorker.name} (${this.selectedWorker.phone})`
       );
@@ -305,7 +334,7 @@ export default {
     },
   },
   mounted() {
-    AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
+    loadAMapV1('dea7cc14dad7340b0c4e541dfa3d27b7').then(() => {
       const { yellowBikeIcon } = this.initMap();
       this.map.setZoomAndCenter(17, [114.0598, 22.5350]);
       this.addBikeMarkers(this.bikeList, yellowBikeIcon);
@@ -316,7 +345,16 @@ export default {
     });
   },
   beforeDestroy() {
-    if (this.map) { this.map.destroy(); }
+    if (this.map) {
+      this.map.destroy();
+      this.map = null;
+    }
+    // Close info window if it's open
+    if (this.infoWindow) {
+      this.infoWindow.close();
+      this.infoWindow = null;
+    }
+    unloadAMapV1();
   }
 };
 </script>

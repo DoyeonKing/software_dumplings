@@ -190,4 +190,10 @@ public class StaffServiceImpl implements IStaffService {
         // 4. 执行密码更新
         return staffMapper.updatePassword(staffId, hashedNewPassword);
     }
+
+    @Override
+    public Staff findByStaffId(Integer staffId) {
+        // 调用 Mapper 查询用户信息
+        return staffMapper.selectById(staffId);
+    }
 }
