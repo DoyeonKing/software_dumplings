@@ -13,9 +13,9 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
+import java.util.HashMap; // 不再需要
 import java.util.List;
-import java.util.Map;
+import java.util.Map; // 不再需要
 
 @Service
 public class StaffServiceImpl implements IStaffService {
@@ -30,7 +30,7 @@ public class StaffServiceImpl implements IStaffService {
      * 处理工作人员登录逻辑
      * @param loginRequest 登录请求 DTO
      * @return 登录成功的响应对象（包含工作人员信息和Token）
-     * @throws CustomException 如果登录失败（如用户名密码错误, 角色不匹配）
+     * @throws CustomException 如果登录失败（如用户名密码错误）
      */
     @Override
     public Object login(LoginRequest loginRequest) {
@@ -41,17 +41,26 @@ public class StaffServiceImpl implements IStaffService {
         }
 
         // 2. 密码比对：使用 SHA256 对输入的明文密码进行哈希，然后与数据库中的哈希值比对
-        String inputHashedPassword = SecureUtil.sha256(loginRequest.getPassword());
+        // 重要：去除输入密码前后的空格，避免因空格导致哈希不匹配
+        String inputPasswordTrimmed = loginRequest.getPassword().trim();
+        String inputHashedPassword = SecureUtil.sha256(inputPasswordTrimmed);
+
         if (!inputHashedPassword.equals(dbStaff.getPasswordHash())) {
+            // 调试信息（可以在上线前移除或改为日志）
+            // System.out.println("Input Hashed: " + inputHashedPassword);
+            // System.out.println("DB Hashed:    " + dbStaff.getPasswordHash());
             throw new CustomException("用户名或密码错误", "401");
         }
 
         // 4. 登录成功，生成 JWT Token
-        String token = jwtTokenUtil.generateToken(String.valueOf(dbStaff.getStaffId()), dbStaff.getUsername(), dbStaff.getStaffType());
+        // 移除 staffType 参数，Token 只包含 staffId 和 username
+        String token = jwtTokenUtil.generateToken(String.valueOf(dbStaff.getStaffId()), dbStaff.getUsername(),"worker");
 
         // 5. 返回脱敏后的 Staff 对象和 Token
         dbStaff.setPasswordHash(null);
-        return new LoginResponse(dbStaff, token, dbStaff.getStaffType());
+        // LoginResponse 构造函数可能需要调整以移除 staffType
+        // 假设 LoginResponse 只需要 Staff 对象和 Token
+        return new LoginResponse(dbStaff, token);
     }
 
     /**
@@ -70,29 +79,31 @@ public class StaffServiceImpl implements IStaffService {
         }
 
         // 2. 校验密码和确认密码是否一致
-        if (!registerRequest.getPassword().equals(registerRequest.getConfirmPassword())) {
+        // 重要：去除密码前后的空格，确保比较的准确性
+        String password = registerRequest.getPassword().trim();
+        String confirmPassword = registerRequest.getConfirmPassword().trim();
+
+        if (!password.equals(confirmPassword)) {
             throw new CustomException("两次输入的密码不一致", "400");
         }
 
         // 3. 密码哈希：使用 SHA256 对明文密码进行哈希，准备存储
-        String hashedPassword = SecureUtil.sha256(registerRequest.getPassword());
+        String hashedPassword = SecureUtil.sha256(password); // 使用去除空格后的密码进行哈希
 
         // 4. 构建 Staff 实体并设置字段
         Staff newStaff = new Staff();
-        newStaff.setUsername(registerRequest.getUsername());
+        newStaff.setUsername(registerRequest.getUsername().trim()); // 用户名也最好trim一下
         newStaff.setPasswordHash(hashedPassword);
-        newStaff.setStaffType(registerRequest.getRole()); // 根据角色设置 staffType
-
-        //转为中文
-        if ("admin".equalsIgnoreCase(registerRequest.getRole())) {
-            newStaff.setStaffType("管理员");
-        } else if ("worker".equalsIgnoreCase(registerRequest.getRole())) {
-            newStaff.setStaffType("工作人员");
-        }
+        // 移除 staffType 的设置逻辑
+        // newStaff.setStaffType(registerRequest.getRole());
+        // if ("admin".equalsIgnoreCase(registerRequest.getRole())) {
+        //     newStaff.setStaffType("管理员");
+        // } else if ("worker".equalsIgnoreCase(registerRequest.getRole())) {
+        //     newStaff.setStaffType("工作人员");
+        // }
 
         // 5. 调用Mapper插入工作人员
         staffMapper.insert(newStaff);
-
 
         // 返回脱敏后的工作人员信息
         newStaff.setPasswordHash(null);
@@ -106,6 +117,7 @@ public class StaffServiceImpl implements IStaffService {
 
     @Override
     public List<Staff> getAllWorkers() {
+        // 直接调用 Mapper 查询所有工作人员信息
         return staffMapper.findAllWorkers();
     }
 
@@ -125,20 +137,23 @@ public class StaffServiceImpl implements IStaffService {
             throw new CustomException("要更新的员工不存在", "404");
         }
 
+        // 对新用户名进行trim
+        String trimmedNewUsername = newUsername.trim();
+
         // 2. 检查新用户名是否已被占用，且不是当前用户的旧用户名
         // 如果新用户名与当前用户的旧用户名相同，则无需更新，直接返回成功
-        if (newUsername.equals(staffToUpdate.getUsername())) {
+        if (trimmedNewUsername.equals(staffToUpdate.getUsername())) {
             return 1; // 视为成功更新，因为结果是一样的
         }
 
         // 检查新用户名是否被其他用户占用
-        Staff existingStaffWithNewUsername = staffMapper.findByUsername(newUsername);
+        Staff existingStaffWithNewUsername = staffMapper.findByUsername(trimmedNewUsername); // 使用findByUsername
         if (existingStaffWithNewUsername != null) {
-            throw new CustomException("新用户名 '" + newUsername + "' 已被占用", "409");
+            throw new CustomException("新用户名 '" + trimmedNewUsername + "' 已被占用", "409");
         }
 
         // 3. 执行更新
-        return staffMapper.updateUsername(staffId, newUsername);
+        return staffMapper.updateUsername(staffId, trimmedNewUsername);
     }
 
     /**
@@ -159,13 +174,13 @@ public class StaffServiceImpl implements IStaffService {
         }
 
         // 2. 校验旧密码
-        String hashedOldPassword = SecureUtil.sha256(oldPassword);
+        String hashedOldPassword = SecureUtil.sha256(oldPassword.trim()); // trim旧密码
         if (!hashedOldPassword.equals(staff.getPasswordHash())) {
             throw new CustomException("旧密码不正确", "400");
         }
 
         // 3. 哈希新密码
-        String hashedNewPassword = SecureUtil.sha256(newPassword);
+        String hashedNewPassword = SecureUtil.sha256(newPassword.trim()); // trim新密码
 
         // 4. 执行密码更新
         return staffMapper.updatePassword(staffId, hashedNewPassword);

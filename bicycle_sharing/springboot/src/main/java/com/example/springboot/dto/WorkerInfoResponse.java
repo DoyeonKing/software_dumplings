@@ -13,6 +13,7 @@ public class WorkerInfoResponse {
         this.geohash = geohash;
     }
 
+    // Getter 和 Setter 方法
     public Integer getStaffId() {
         return staffId;
     }
@@ -32,10 +33,16 @@ public class WorkerInfoResponse {
     public Integer getManagerId() {
         return managerId;
     }
-    public void setManagerId(Integer managerId) { this.managerId = managerId; }
+
+    public void setManagerId(Integer managerId) {
+        this.managerId = managerId;
+    }
 
     public Integer getGeohash() {
         return geohash;
     }
-    public void setGeohash(Integer geohash) { this.geohash = geohash; }
+
+    public void setGeohash(Integer geohash) {
+        this.geohash = geohash;
+    }
 }

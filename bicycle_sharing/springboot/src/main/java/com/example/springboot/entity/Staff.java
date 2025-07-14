@@ -16,7 +16,7 @@ public class Staff {
     private String passwordHash;
 
     // 角色类型，ENUM('管理员', '工作人员')，NOT NULL
-    private String staffType; // 使用String来表示ENUM类型
+    //private String staffType; // 使用String来表示ENUM类型
 
     private Integer managerId;
 
@@ -30,7 +30,6 @@ public class Staff {
         this.staffId = staffId;
         this.username = username;
         this.passwordHash = passwordHash;
-        this.staffType = staffType;
         this.managerId = managerId;
         this.geohash = geohash;
     }
@@ -60,17 +59,18 @@ public class Staff {
         this.passwordHash = passwordHash;
     }
 
-    public String getStaffType() {
-        return staffType;
-    }
-
-    public void setStaffType(String staffType) {
-        this.staffType = staffType;
-    }
+//    public String getStaffType() {
+//        return staffType;
+//    }
+//
+//    public void setStaffType(String staffType) {
+//        this.staffType = staffType;
+//    }
 
     public Integer getManagerId() {
         return managerId;
     }
+
     public void setManagerId(Integer managerId) { this.managerId = managerId; }
 
     public Integer getGeohash() {return geohash;}
