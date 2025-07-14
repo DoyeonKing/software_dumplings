@@ -126,4 +126,11 @@ public interface BikesMapper { // 接口名与实体类名保持一致，改为B
             @Param("newLat") BigDecimal newLat,
             @Param("newLon") BigDecimal newLon,
             @Param("newGeohash") String newGeohash); // SQL 移至 XML
+
+    /**
+     * 获取所有单车的经纬度信息
+     * @return 单车的经纬度信息列表
+     */
+    @Select("SELECT bike_id AS bikeId, current_lat AS lat, current_lon AS lon FROM bikes")
+    List<Bikes> getAllBikeLocations();
 }

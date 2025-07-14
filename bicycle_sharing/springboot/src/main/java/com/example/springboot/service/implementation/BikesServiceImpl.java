@@ -255,4 +255,14 @@ public PageInfo<Bikes> getBikesByPage(Integer pageNum, Integer pageSize, String 
         }
     }
 
+    @Override
+    public List<Bikes> getAllBikeLocations() throws CustomException {
+        try {
+            // 假设 BikesMapper 有一个方法可以获取所有单车的经纬度信息
+            return bikesMapper.getAllBikeLocations();
+        } catch (Exception e) {
+            throw new CustomException("获取单车位置信息失败: " + e.getMessage(), "500");
+        }
+    }
+
 }
