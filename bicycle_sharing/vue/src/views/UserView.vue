@@ -14,7 +14,7 @@
       <div class="feature-item" @click="handleFeature('bikes')">单车位置</div>
       <div class="feature-item" @click="handleFeature('stations')">停车点位置</div>
       <div class="feature-item" @click="handleFeature('navigation')">导航</div>
-      <div class="feature-item" @click="handleFeature('return')">还车</div>
+      <div class="feature-item" @click="handleFeature('ride')">骑车</div>
       <div class="feature-item" @click="handleFeature('heatmap')">热力图</div>
       <div class="feature-item" @click="toggleMapSettings">地图设置</div>
     </div>
@@ -179,8 +179,10 @@
       :showBicycles="showBicycles"
       :showParkingAreas="showParkingAreas"
       :showNavigation="showNavigation"
+      :showRide="showRide"
       :showHeatmap="showHeatmap"
       @update:showNavigation="showNavigation = $event"
+      @update:showRide="showRide = $event"
       ref="mapComponentRef"
     />
   </div>
@@ -248,6 +250,7 @@ const mapComponentRef = ref(null);
 const showBicycles = ref(false);
 const showParkingAreas = ref(false);
 const showNavigation = ref(false);
+const showRide = ref(false);
 const showHeatmap = ref(false);
 
 const mapStyles = [
@@ -290,6 +293,10 @@ const handleFeature = (feature) => {
   }
   if (feature === 'navigation') {
     showNavigation.value = !showNavigation.value;
+    return;
+  }
+  if (feature === 'ride') {
+    showRide.value = !showRide.value;
     return;
   }
   if (feature === 'heatmap') {
