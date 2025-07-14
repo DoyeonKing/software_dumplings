@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.springboot.mapper.BikesInTasksMapper">
+    <insert id="insert">
+        INSERT INTO bikes_in_tasks (task_id, bike_id)
+        VALUES (#{taskId}, #{bikeId})
+    </insert>
+
+    <insert id="insertBatch" parameterType="java.util.List">
+        INSERT INTO bikes_in_tasks (task_id, bike_id)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.taskId}, #{item.bikeId})
+        </foreach>
+    </insert>
+
+    <select id="findBikeIdsByTaskId" resultType="java.lang.String">
+        SELECT bike_id FROM bikes_in_tasks WHERE task_id = #{taskId}
+    </select>
+
+</mapper>

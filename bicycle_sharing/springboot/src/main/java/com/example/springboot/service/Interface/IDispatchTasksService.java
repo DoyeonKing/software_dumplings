@@ -66,4 +66,21 @@ public interface IDispatchTasksService { // 接口名与实体类名保持一致
      * @return 匹配的任务列表
      */
     List<DispatchTasks> getTasksByDateRangeAndAssignedTo(LocalDate startDate, LocalDate endDate, Integer assignedTo);
+
+    /**
+     * 【新增方法签名】
+     * 开始一个调度任务，执行自行车的选择、去重和任务关联。
+     * @param taskId 调度任务的ID。
+     * @return 实际被选择用于调度的自行车ID列表。
+     * @throws IllegalArgumentException 如果任务不存在、状态不正确或无法选择到足够数量的自行车。
+     */
+    List<String> startDispatch(Long taskId);
+
+    /**
+     * 【新增方法签名】
+     * 完成一个调度任务，更新关联自行车的最终位置和状态。
+     * @param taskId 调度任务的ID。
+     * @throws IllegalArgumentException 如果任务不存在、状态不正确或更新失败。
+     */
+    void completeDispatch(Long taskId);
 }
