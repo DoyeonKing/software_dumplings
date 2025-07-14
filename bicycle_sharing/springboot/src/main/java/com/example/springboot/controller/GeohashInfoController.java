@@ -1,14 +1,9 @@
 // src/main/java/com/example/springboot/controller/GeohashInfoController.java
 package com.example.springboot.controller;
 
-import com.example.springboot.common.Result;
-import com.example.springboot.entity.GeohashInfo;
-import com.example.springboot.exception.CustomException;
-import com.example.springboot.service.Interface.IGeohashInfoService;
+import com.example.springboot.service.Interface.IEliteSitesService;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * GeohashInfoController类
@@ -19,6 +14,6 @@ import java.util.List;
 public class GeohashInfoController {
 
     @Resource
-    private IGeohashInfoService geohashInfoService;
+    private IEliteSitesService geohashInfoService;
 
 }
