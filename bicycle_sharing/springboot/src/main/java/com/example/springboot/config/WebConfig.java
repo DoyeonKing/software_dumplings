@@ -45,6 +45,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/route/**",        // 路线规划接口
                         "/elite-sites/**",  // 精华站点接口
                         "/dispatchTasks/**", // 调度任务接口
+                        "/geohashInfo/**", // Geohash信息接口
 
                         // 其他
                         "/files/**",        // 文件服务
