@@ -856,7 +856,7 @@ export default {
 
         map.value = new AMap.Map('map', {
           zoom: 17, // 增加初始缩放级别
-          center: [114.13, 22.55],
+          center: [114.00, 22.55],
           mapStyle: styleMapping[props.mapStyle] || 'amap://styles/normal',
           zooms: [3, 20] // 设置地图缩放范围
         });
