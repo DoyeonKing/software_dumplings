@@ -174,6 +174,8 @@ public class StaffServiceImpl implements IStaffService {
         }
 
         // 2. 校验旧密码
+
+
         String hashedOldPassword = SecureUtil.sha256(oldPassword.trim()); // trim旧密码
         if (!hashedOldPassword.equals(staff.getPasswordHash())) {
             throw new CustomException("旧密码不正确", "400");
@@ -182,6 +184,7 @@ public class StaffServiceImpl implements IStaffService {
         // 3. 哈希新密码
         String hashedNewPassword = SecureUtil.sha256(newPassword.trim()); // trim新密码
 
+        
         // 4. 执行密码更新
         return staffMapper.updatePassword(staffId, hashedNewPassword);
     }

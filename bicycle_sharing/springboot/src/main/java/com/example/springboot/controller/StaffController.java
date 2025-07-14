@@ -62,8 +62,9 @@ public class StaffController {
             // 4. 构建响应 DTO，只包含需要返回的个人信息（不包括密码哈希和 staffType）
             ProfileResponse profile = new ProfileResponse(
                     staff.getStaffId(),
-                    staff.getUsername()
-                    // 移除 staff.getStaffType()
+                    staff.getUsername(),
+                    staff.getManagerId(),
+                    staff.getGeohash()
             );
 
             // 5. 返回成功响应
