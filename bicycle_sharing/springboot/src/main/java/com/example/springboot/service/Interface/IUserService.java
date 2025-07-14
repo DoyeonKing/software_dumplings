@@ -51,6 +51,10 @@ void updateUserProfile(User user);
  */
 void changePassword(String userId, String oldPassword, String newPassword);
 
-
+/**
+     * 根据ID获取用户信息 (ID类型为String)。
+     * 这是拦截器需要调用的方法。
+     */
+    User getById(String id);
 }
 
