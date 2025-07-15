@@ -121,22 +121,58 @@ export default {
     this.userRole = sessionStorage.getItem('userRole') || ''
 
     AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
-      this.initMap();
-      this.map.setZoomAndCenter(17, [114.0580, 22.5390]);
+      // 初始化地图
+      this.map = new window.AMap.Map("mapContainer", {
+        center: [114.0580, 22.5390],
+        zoom: 18, // 更高的缩放级别
+        dragEnable: true,
+        zoomEnable: true,
+        doubleClickZoom: true,
+        keyboardEnable: true,
+        scrollWheel: true,
+        touchZoom: true,
+        mapStyle: 'amap://styles/normal'
+      });
 
-      // 【修改】调用新的方法来加载真实数据
+      // 初始化信息窗口
+      this.infoWindow = new window.AMap.InfoWindow({
+        offset: new window.AMap.Pixel(0, -20)
+      });
+
+      // 加载热力图插件
+      window.AMap.plugin(['AMap.HeatMap'], () => {
+        this.heatmap = new window.AMap.HeatMap(this.map, {
+          radius: 25,
+          opacity: [0.1, 0.9],
+          gradient: {
+             0.4: '#4575b4',   // 深蓝色 - 最低密度
+            0.5: '#74add1',   // 浅蓝色
+            0.6: '#abd9e9',   // 更浅的蓝色
+            0.7: '#ffffbf',   // 淡黄色
+            0.8: '#fdae61',   // 橙色
+            0.9: '#f46d43',   // 深橙色
+            1.0: '#d73027'    // 红色 - 最高密度
+          }
+        });
+        this.heatmapReady = true;
+      });
+
+      // 加载初始数据
       this.loadBicycles();
-      this.showParkingAreas(); // 使用新的主方法
+      this.showParkingAreas();
 
-      // 【修改】添加对停车区域的动态加载
-      this.map.on('moveend', () => {
-        this.loadBicycles();
-        this.showParkingAreas();
-      });
-      this.map.on('zoomend', () => {
-        this.loadBicycles();
-        this.showParkingAreas();
-      });
+      // 监听地图移动和缩放事件，但使用防抖来减少API调用频率
+      let timeout;
+      const updateData = () => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+          this.loadBicycles();
+          this.showParkingAreas();
+        }, 500); // 500ms的防抖延迟
+      };
+
+      this.map.on('moveend', updateData);
+      this.map.on('zoomend', updateData);
 
     }).catch(err => {
       alert('地图加载失败: ' + err.message);

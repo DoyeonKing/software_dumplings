@@ -6,9 +6,6 @@
 
     <!-- 弹出菜单 -->
     <div class="menu-dropdown" :class="{ 'menu-open': menuOpen }">
-      <div class="menu-item" @click="showProfileModal">
-        <span class="menu-item-text">个人资料</span>
-      </div>
 
       <router-link to="/dashboard" class="menu-item" @click="closeMenu">
         <span class="menu-item-text">指标看板</span>
@@ -26,14 +23,6 @@
         <span class="menu-item-text">帮助指南</span>
       </router-link>
     </div>
-
-    <!-- 个人资料浮窗 -->
-    <ProfileModal
-        v-if="showProfile"
-        :form="profileForm"
-        @close="closeProfileModal"
-        @save="saveProfile"
-    />
   </div>
 </template>
 

@@ -9,11 +9,11 @@
         <h3>地区选择</h3>
         <div class="select-group">
           <select v-model="selectedCity" @change="updateLocation">
-            <option value="">选择城市</option>
+<!--            <option value="">选择城市</option>-->
             <option value="深圳市">深圳市</option>
-            <option value="广州市">广州市</option>
+<!--            <option value="广州市">广州市</option>
             <option value="北京市">北京市</option>
-            <option value="上海市">上海市</option>
+            <option value="上海市">上海市</option>-->
           </select>
           <select v-model="selectedDistrict" @change="updateLocation">
             <option value="">选择区</option>
@@ -133,11 +133,9 @@
 
 <script>
 import MenuComponent from '@/components/admin/menuComponent.vue'
-import { mapMixin } from '@/utils/mapMixin.js'
 import AMapLoader from '@/utils/loadAMap.js'
 import bicycleIcon from '@/components/icons/bicycle.png';
 import { getMapAreaBicycles } from '@/api/map/bicycle';
-// 【新增】导入停车区域相关的API函数
 import { getParkingAreasInBounds, convertParkingAreaData } from '@/api/map/parking.js';
 
 export default {
@@ -145,12 +143,11 @@ export default {
   components: {
     MenuComponent
   },
-  mixins: [mapMixin],
   data() {
     return {
       selectedCity: "深圳市",
       selectedDistrict: "福田区",
-      selectedRoad: "福华三路",
+      selectedRoad: "",
       weatherData: {
         temperature: 28,
         description: "多云",
@@ -172,18 +169,41 @@ export default {
       },
       cityDistrictRoad: {
         "深圳市": {
-          "福田区": ["福华三路", "金田路", "滨河大道"],
-          "南山区": ["科技园", "深南大道", "南海大道"]
-        },
-        "广州市": { "天河区": ["体育西路", "珠江新城"], "越秀区": ["中山路", "北京路"] },
-        "北京市": { "朝阳区": ["建国路", "三里屯"], "海淀区": ["中关村", "学院路"] },
-        "上海市": { "浦东新区": ["世纪大道", "张江路"], "徐汇区": ["漕溪北路", "肇嘉浜路"] }
+          "福田区": ["金田路", "福华三路", "福荣路", "深南大道"]
+        }
       },
-      // 【修改】初始化为空数组
+      // 地图相关
+      map: null,
+      infoWindow: null,
+      markers: [],
+      heatmap: null,
+      heatmapReady: false,
+      showHeatmap: false,
       parkingAreas: [],
       parkingPolygons: [],
       bikes: [],
       showBikes: true,
+      // 添加默认缩放级别
+      defaultZoom: 18,
+      // 添加特定区域的坐标映射
+      locationCoordinates: {
+        "金田路": {
+          center: [114.0622479856, 22.5374765653],
+          parkingArea: "ws105wc"
+        },
+        "福华三路": {
+          center: [114.0648990521, 22.5333978834],
+          parkingArea: "ws105w5"
+        },
+        "福荣路": {
+          center: [114.0430866507, 22.5133931471],
+          parkingArea: "ws10547"
+        },
+        "深南大道": {
+          center: [114.0522947637, 22.5405770101],
+          parkingArea: "ws105r6"
+        }
+      }
     };
   },
   computed: {
@@ -209,22 +229,58 @@ export default {
   },
   mounted() {
     AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
-      this.initMap();
-      this.map.setZoomAndCenter(17, [114.0580, 22.5390]);
+      // 初始化地图
+      this.map = new window.AMap.Map("mapContainer", {
+        center: [114.0580, 22.5390],
+        zoom: 18, // 更高的缩放级别
+        dragEnable: true,
+        zoomEnable: true,
+        doubleClickZoom: true,
+        keyboardEnable: true,
+        scrollWheel: true,
+        touchZoom: true,
+        mapStyle: 'amap://styles/normal'
+      });
 
-      // 【修改】调用新的方法来加载真实数据
+      // 初始化信息窗口
+      this.infoWindow = new window.AMap.InfoWindow({
+        offset: new window.AMap.Pixel(0, -20)
+      });
+
+      // 加载热力图插件
+      window.AMap.plugin(['AMap.HeatMap'], () => {
+        this.heatmap = new window.AMap.HeatMap(this.map, {
+          radius: 25,
+          opacity: [0.1, 0.9],
+          gradient: {
+             0.4: '#4575b4',   // 深蓝色 - 最低密度
+            0.5: '#74add1',   // 浅蓝色
+            0.6: '#abd9e9',   // 更浅的蓝色
+            0.7: '#ffffbf',   // 淡黄色
+            0.8: '#fdae61',   // 橙色
+            0.9: '#f46d43',   // 深橙色
+            1.0: '#d73027'    // 红色 - 最高密度
+          }
+        });
+        this.heatmapReady = true;
+      });
+
+      // 加载初始数据
       this.loadBicycles();
-      this.showParkingAreas(); // 使用新的主方法
+      this.showParkingAreas();
 
-      // 【修改】添加对停车区域的动态加载
-      this.map.on('moveend', () => {
-        this.loadBicycles();
-        this.showParkingAreas();
-      });
-      this.map.on('zoomend', () => {
-        this.loadBicycles();
-        this.showParkingAreas();
-      });
+      // 监听地图移动和缩放事件，但使用防抖来减少API调用频率
+      let timeout;
+      const updateData = () => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+          this.loadBicycles();
+          this.showParkingAreas();
+        }, 500); // 500ms的防抖延迟
+      };
+
+      this.map.on('moveend', updateData);
+      this.map.on('zoomend', updateData);
 
     }).catch(err => {
       this.$message && this.$message.error
@@ -232,15 +288,13 @@ export default {
           : alert('地图加载失败: ' + err.message);
     });
   },
+
   beforeUnmount() {
     if (this.map) {
-      // 【修改】移除所有监听器
-      this.map.off('moveend', this.loadBicycles);
-      this.map.off('zoomend', this.loadBicycles);
-      this.map.off('moveend', this.showParkingAreas);
-      this.map.off('zoomend', this.showParkingAreas);
+      this.map.destroy();
     }
   },
+
   methods: {
     // 【新增】获取停车区域数据的方法
     async fetchParkingAreas() {
@@ -365,10 +419,46 @@ export default {
       if (!this.showHeatmap) {
         this.showBikes = false;
       }
-      this.toggleHeatmap(this.bikes);
+      this.toggleHeatmap();
 
       if (!this.showHeatmap && !this.showBikes) {
         this.markers.forEach(marker => marker.hide());
+      }
+    },
+
+    toggleHeatmap() {
+      this.showHeatmap = !this.showHeatmap;
+
+      if (this.showHeatmap) {
+        this.markers.forEach(m => m.hide());
+        const heatData = this.bikes.map(bike => ({
+          lng: bike.lng,
+          lat: bike.lat,
+          count: 30  // 降低每个点的权重值
+        }));
+        if (this.heatmapReady && this.heatmap) {
+          try {
+            if (typeof this.heatmap.setDataSet === 'function') {
+              this.heatmap.setDataSet({
+                data: heatData,
+                max: 50  // 降低最大值
+              });
+            } else if (typeof this.heatmap.setData === 'function') {
+              this.heatmap.setData({
+                data: heatData,
+                max: 50
+              });
+            } else if (typeof this.heatmap.setPoints === 'function') {
+              this.heatmap.setPoints(heatData);
+            }
+            this.heatmap.show();
+          } catch (error) {
+            console.error('设置热力图数据失败：', error);
+          }
+        }
+      } else {
+        this.markers.forEach(m => m.show());
+        if (this.heatmap) this.heatmap.hide();
       }
     },
 
@@ -407,26 +497,71 @@ export default {
     handleProfileSaved(formData) {
       console.log('个人资料已保存:', formData);
     },
+    // 优化地图中心点设置方法
+    setMapCenter(coordinates) {
+      if (!this.map) return;
+      
+      // 设置更快的动画速度
+      this.map.setStatus({
+        animateEnable: true,
+        animateDuration: 300  // 减少动画时间到300毫秒
+      });
+      
+      // 使用更快的动画速度设置中心点和缩放级别
+      this.map.setZoomAndCenter(
+        this.defaultZoom,
+        coordinates,
+        true,  // 启用动画
+        300    // 动画持续时间（毫秒）
+      );
+    },
+
+    // 优化位置更新方法
     updateLocation() {
-      this.weatherData = {
-        temperature: 28 + Math.floor(Math.random() * 5),
-        description: ["多云", "晴", "小雨", "阴"][Math.floor(Math.random() * 4)],
-        humidity: 60 + Math.floor(Math.random() * 20),
-        windSpeed: 10 + Math.floor(Math.random() * 8),
-        airQuality: ["优", "良", "轻度污染"][Math.floor(Math.random() * 3)]
-      };
-      this.bikeStats = {
-        totalBikes: 1000 + Math.floor(Math.random() * 500),
-        normalBikes: 900 + Math.floor(Math.random() * 100),
-        faultBikes: 30 + Math.floor(Math.random() * 40),
-        repairBikes: 20 + Math.floor(Math.random() * 30)
-      };
-      this.usageData = {
-        usageRate: 60 + Math.floor(Math.random() * 30),
-        onlineBikes: 800 + Math.floor(Math.random() * 200),
-        inUseBikes: 500 + Math.floor(Math.random() * 300),
-        idleBikes: 200 + Math.floor(Math.random() * 100)
-      };
+      // 只在选择深圳市福田区时处理特定位置
+      if (this.selectedCity === "深圳市" && this.selectedDistrict === "福田区" && this.selectedRoad) {
+        const locationInfo = this.locationCoordinates[this.selectedRoad];
+        if (locationInfo) {
+          // 立即更新地图位置
+          this.setMapCenter(locationInfo.center);
+          
+          // 使用 requestAnimationFrame 延迟加载其他数据，避免卡顿
+          requestAnimationFrame(() => {
+            // 更新天气数据
+            this.weatherData = {
+              temperature: 28 + Math.floor(Math.random() * 5),
+              description: ["多云", "晴", "小雨", "阴"][Math.floor(Math.random() * 4)],
+              humidity: 60 + Math.floor(Math.random() * 20),
+              windSpeed: 10 + Math.floor(Math.random() * 8),
+              airQuality: ["优", "良", "轻度污染"][Math.floor(Math.random() * 3)]
+            };
+
+            // 更新自行车统计数据
+            this.bikeStats = {
+              totalBikes: 1000 + Math.floor(Math.random() * 500),
+              normalBikes: 900 + Math.floor(Math.random() * 100),
+              faultBikes: 30 + Math.floor(Math.random() * 40),
+              repairBikes: 20 + Math.floor(Math.random() * 30)
+            };
+
+            // 更新使用率数据
+            this.usageData = {
+              usageRate: 60 + Math.floor(Math.random() * 30),
+              onlineBikes: 800 + Math.floor(Math.random() * 200),
+              inUseBikes: 500 + Math.floor(Math.random() * 300),
+              idleBikes: 200 + Math.floor(Math.random() * 100)
+            };
+          });
+
+          // 使用 Promise 和 setTimeout 优化数据加载
+          Promise.resolve().then(() => {
+            setTimeout(() => {
+              this.loadBicycles();
+              this.showParkingAreas();
+            }, 400); // 等地图动画结束后再加载数据
+          });
+        }
+      }
     },
     goHome() {
       this.$router.push('/admin');

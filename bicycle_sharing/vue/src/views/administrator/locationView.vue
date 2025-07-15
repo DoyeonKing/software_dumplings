@@ -16,34 +16,56 @@
       </button>
     </div>
 
-    <div class="left-info-panel">
-      <div class="info-card">
-        <div class="info-title">停车区域位置</div>
-        <div class="info-content">
-          <div>{{ currentArea.geohash || "请在地图上选择区域" }}</div>
+    <!-- 修改左侧信息面板为可折叠面板 -->
+    <div class="left-panels">
+      <div class="collapsible-panel">
+        <div class="panel-header" @click="toggleAreaPanel">
+          <span class="panel-title">区域数据</span>
+          <span class="panel-icon">{{ areaPanelExpanded ? '▼' : '▶' }}</span>
+        </div>
+        <div class="panel-content" v-show="areaPanelExpanded">
+          <div class="info-card">
+            <div class="info-section">
+              <div class="info-label">停车区域位置</div>
+              <div class="info-value">{{ currentArea.geohash || "请在地图上选择区域" }}</div>
+            </div>
+            <div class="info-section">
+              <div class="info-label">现有车辆</div>
+              <div class="info-value">{{ currentArea.currentBikes || 0 }}</div>
+            </div>
+            <div class="info-section">
+              <div class="info-label">预估可用车位</div>
+              <div class="info-value">{{ currentArea.availableSpots || 0 }}</div>
+            </div>
+            <div class="info-section">
+              <div class="predict-filter">
+                <label>预测时间：</label>
+                <select v-model="predictHour" class="yellow-select">
+                  <option :value="1">未来1小时</option>
+                  <option :value="3">未来3小时</option>
+                  <option :value="6">未来6小时</option>
+                </select>
+              </div>
+              <div class="predict-stats">
+                <div>预计取车量：<span class="info-number">{{ predictData.take }}</span></div>
+                <div>预计停车量：<span class="info-number">{{ predictData.park }}</span></div>
+                <div>预计总车辆：<span class="info-number">{{ predictData.total }}</span></div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="info-card">
-        <div class="info-title">现有停车数量</div>
-        <div class="info-content">
-          <div>现有车辆：<span class="info-number">{{ currentArea.currentBikes || 0 }}</span></div>
-          <div>预估可用车位：<span class="info-number">{{ currentArea.availableSpots || 0 }}</span></div>
+
+      <div class="collapsible-panel">
+        <div class="panel-header" @click="toggleSuggestionPanel">
+          <span class="panel-title">调度建议</span>
+          <span class="panel-icon">{{ suggestionPanelExpanded ? '▼' : '▶' }}</span>
         </div>
-      </div>
-      <div class="info-card">
-        <div class="info-title">车辆数预测</div>
-        <div class="predict-filter">
-          <label>预测时间：</label>
-          <select v-model="predictHour" class="yellow-select">
-            <option :value="1">未来1小时</option>
-            <option :value="3">未来3小时</option>
-            <option :value="6">未来6小时</option>
-          </select>
-        </div>
-        <div class="predict-stats">
-          <div>预计取车量：<span class="info-number">{{ predictData.take }}</span></div>
-          <div>预计停车量：<span class="info-number">{{ predictData.park }}</span></div>
-          <div>预计总车辆：<span class="info-number">{{ predictData.total }}</span></div>
+        <div class="panel-content" v-show="suggestionPanelExpanded">
+          <DispatchSuggestionPanel 
+            @suggestion-accepted="handleSuggestionAccepted"
+            @suggestion-rejected="handleSuggestionRejected"
+          />
         </div>
       </div>
     </div>
@@ -120,20 +142,33 @@
             </div>
 
             <div class="task-section">
+              <label>管理员ID：</label>
+              <div class="manager-input-group">
+                <input 
+                  type="text" 
+                  v-model="managerId" 
+                  placeholder="请输入管理员ID"
+                  class="yellow-input"
+                />
+              </div>
+            </div>
+
+            <div class="task-section" v-if="managerId">
               <label>选择工作人员：</label>
               <div class="task-workers-list">
                 <div
-                    v-for="worker in workers"
-                    :key="worker.id"
-                    :class="['worker-card', { selected: selectedWorker && selectedWorker.id === worker.id }]"
-                    @click="selectWorker(worker)"
+                  v-for="worker in filteredWorkers"
+                  :key="worker.staffId"
+                  :class="['worker-item', { selected: selectedWorker && selectedWorker.staffId === worker.staffId }]"
+                  @click="selectWorker(worker)"
                 >
-                  <img :src="worker.avatar" class="worker-avatar" />
                   <div class="worker-info">
-                    <div class="worker-id">编号：{{ worker.id }}</div>
-                    <div class="worker-name">姓名：{{ worker.name }}</div>
-                    <div class="worker-phone">电话：{{ worker.phone }}</div>
+                    <div class="worker-id">工号：{{ worker.staffId }}</div>
+                    <div class="worker-name">用户名：{{ worker.username }}</div>
                   </div>
+                </div>
+                <div v-if="filteredWorkers.length === 0" class="no-workers-tip">
+                  没有找到该管理员负责的工作人员
                 </div>
               </div>
             </div>
@@ -160,13 +195,11 @@
 
 <script>
 import MenuComponent from '@/components/admin/menuComponent.vue';
-import { mapMixin } from '@/utils/mapMixin.js';
+import DispatchSuggestionPanel from '@/components/admin/DispatchSuggestionPanel.vue';
 import AMapLoader from '@/utils/loadAMap.js';
 import bicycleIcon from '@/components/icons/bicycle.png';
 import { getMapAreaBicycles } from '@/api/map/bicycle';
-// 【已引入】导入停车区域相关的API函数
 import { getParkingAreasInBounds, convertParkingAreaData } from '@/api/map/parking.js';
-
 
 // 颜色定义
 const HIGHLIGHT_COLORS = {
@@ -178,9 +211,9 @@ const HIGHLIGHT_COLORS = {
 export default {
   name: "LocationView",
   components: {
-    MenuComponent
+    MenuComponent,
+    DispatchSuggestionPanel
   },
-  mixins: [mapMixin],
   data() {
     return {
       taskPanelCollapsed: false,
@@ -200,17 +233,33 @@ export default {
       endPredictData: { take: 0, park: 0, total: 0 },
       selectedWorker: null,
       dispatchAmount: 1,
-      // 【修改】初始化为空数组以接收动态数据
+      managerId: '',
+      allWorkers: [],
+      // 地图相关
+      map: null,
+      infoWindow: null,
+      markers: [],
+      heatmap: null,
+      heatmapReady: false,
+      showHeatmap: false,
       parkingAreas: [],
-      workers: [
-        { id: "W001", name: "李明", phone: "13800000001", avatar: "https://api.dicebear.com/7.x/miniavs/svg?seed=1" },
-        { id: "W002", name: "王芳", phone: "13800000002", avatar: "https://api.dicebear.com/7.x/miniavs/svg?seed=2" },
-        { id: "W003", name: "张伟", phone: "13800000003", avatar: "https://api.dicebear.com/7.x/miniavs/svg?seed=3" },
-        { id: "W004", name: "赵强", phone: "13800000004", avatar: "https://api.dicebear.com/7.x/miniavs/svg?seed=4" }
-      ],
       bikes: [],
       showBikes: true,
+      // 新增面板状态
+      areaPanelExpanded: true,
+      suggestionPanelExpanded: true,
+      // 添加高亮区域的颜色配置
+      areaColors: {
+        start: { fillColor: "#ffcdd2", fillOpacity: 0.5, strokeColor: "#ef5350" },
+        end: { fillColor: "#c8e6c9", fillOpacity: 0.5, strokeColor: "#66bb6a" }
+      }
     };
+  },
+  computed: {
+    filteredWorkers() {
+      if (!this.managerId) return [];
+      return this.allWorkers.filter(worker => worker.managerId === this.managerId);
+    }
   },
   watch: {
     predictHour() { this.updatePrediction(this.currentArea, this.predictHour, 'predictData'); },
@@ -398,9 +447,49 @@ export default {
     },
 
     onToggleHeatmap() {
-      if (!this.showHeatmap) { this.showBikes = false; }
-      this.toggleHeatmap(this.bikes);
-      if (!this.showHeatmap && !this.showBikes) { this.markers.forEach(marker => marker.hide()); }
+      if (!this.showHeatmap) {
+        this.showBikes = false;
+      }
+      this.toggleHeatmap();
+      if (!this.showHeatmap && !this.showBikes) {
+        this.markers.forEach(marker => marker.hide());
+      }
+    },
+
+    toggleHeatmap() {
+      this.showHeatmap = !this.showHeatmap;
+
+      if (this.showHeatmap) {
+        this.markers.forEach(m => m.hide());
+        const heatData = this.bikes.map(bike => ({
+          lng: bike.lng,
+          lat: bike.lat,
+          count: 80  // 与AdminView保持一致的权重值
+        }));
+        if (this.heatmapReady && this.heatmap) {
+          try {
+            if (typeof this.heatmap.setDataSet === 'function') {
+              this.heatmap.setDataSet({
+                data: heatData,
+                max: 100  // 与AdminView保持一致的最大值
+              });
+            } else if (typeof this.heatmap.setData === 'function') {
+              this.heatmap.setData({
+                data: heatData,
+                max: 100
+              });
+            } else if (typeof this.heatmap.setPoints === 'function') {
+              this.heatmap.setPoints(heatData);
+            }
+            this.heatmap.show();
+          } catch (error) {
+            console.error('设置热力图数据失败：', error);
+          }
+        }
+      } else {
+        this.markers.forEach(m => m.show());
+        if (this.heatmap) this.heatmap.hide();
+      }
     },
 
     handleProfileSaved(formData) { console.log('个人资料已保存:', formData); window.alert('个人信息已在控制台输出。'); },
@@ -416,44 +505,142 @@ export default {
       if (type === 'start') { this.startSelectionActive = true; this.selectingFor = 'start'; }
       else if (type === 'end') { this.endSelectionActive = true; this.selectingFor = 'end'; }
     },
-    selectWorker(worker) { this.selectedWorker = worker; },
+    selectWorker(worker) {
+      this.selectedWorker = worker;
+    },
     changeDispatchAmount(delta) {
       let next = this.dispatchAmount + delta;
       if (next < 1) next = 1;
       this.dispatchAmount = next;
     },
+    async fetchWorkers() {
+      try {
+        const response = await fetch('http://localhost:8080/staff/workers');
+        const data = await response.json();
+        this.allWorkers = data;
+      } catch (error) {
+        console.error('获取工作人员列表失败:', error);
+        alert('获取工作人员列表失败');
+      }
+    },
+
+    // 添加面板切换方法
+    toggleAreaPanel() {
+      this.areaPanelExpanded = !this.areaPanelExpanded;
+    },
+    toggleSuggestionPanel() {
+      this.suggestionPanelExpanded = !this.suggestionPanelExpanded;
+    },
+
+    // 处理调度建议的接受和拒绝
+    handleSuggestionAccepted(suggestion) {
+      // 自动填充起点和终点
+      this.selectedStartArea = {
+        geohash: suggestion.startArea,
+        id: suggestion.startArea,
+        currentBikes: 20, // 使用默认值，实际应该从API获取
+      };
+      this.selectedEndArea = {
+        geohash: suggestion.endArea,
+        id: suggestion.endArea,
+        currentBikes: 20, // 使用默认值，实际应该从API获取
+      };
+      
+      // 设置调度数量
+      this.dispatchAmount = suggestion.amount;
+      
+      // 展开任务面板
+      this.taskPanelCollapsed = false;
+      
+      // 更新预测数据
+      this.updatePrediction(this.selectedStartArea, this.startPredictHour, 'startPredictData');
+      this.updatePrediction(this.selectedEndArea, this.endPredictHour, 'endPredictData');
+      
+      // 更新地图上的多边形样式
+      this.updatePolygonStyles();
+    },
+
+    handleSuggestionRejected(suggestion) {
+      // 可以添加一些视觉反馈或其他处理逻辑
+      console.log('建议已拒绝:', suggestion);
+    },
+
+    // 更新区域颜色
+    updateAreaColors(startAreaId, endAreaId) {
+      this.parkingAreas.forEach(area => {
+        const polygon = this.polygonMap[area.id];
+        if (!polygon) return;
+
+        if (area.geohash === startAreaId) {
+          polygon.setOptions(this.areaColors.start);
+        } else if (area.geohash === endAreaId) {
+          polygon.setOptions(this.areaColors.end);
+        }
+      });
+    }
   },
   mounted() {
+    this.fetchWorkers(); // 页面加载时获取所有工作人员信息
     AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
-      this.initMap();
-      this.map.setZoomAndCenter(17, [114.0580, 22.5390]);
+      // 初始化地图
+      this.map = new window.AMap.Map("mapContainer", {
+        center: [114.0580, 22.5390],
+        zoom: 18, // 更高的缩放级别
+        dragEnable: true,
+        zoomEnable: true,
+        doubleClickZoom: true,
+        keyboardEnable: true,
+        scrollWheel: true,
+        touchZoom: true,
+        mapStyle: 'amap://styles/normal'
+      });
 
-      // 【已修改】将数据加载逻辑统一管理
+      // 初始化信息窗口
+      this.infoWindow = new window.AMap.InfoWindow({
+        offset: new window.AMap.Pixel(0, -20)
+      });
+
+      // 加载热力图插件
+      window.AMap.plugin(['AMap.HeatMap'], () => {
+        this.heatmap = new window.AMap.HeatMap(this.map, {
+          radius: 25,
+          opacity: [0.1, 0.9],
+          gradient: {
+            0.2: 'blue',
+            0.4: 'green',
+            0.6: 'yellow',
+            0.8: 'orange',
+            1.0: 'red'
+          }
+        });
+        this.heatmapReady = true;
+      });
+
+      // 【修改】将数据加载逻辑统一管理，并添加防抖
+      let timeout;
       const loadAllData = () => {
-        this.loadBicycles();
-        this.loadParkingAreas();
-      }
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+          this.loadBicycles();
+          this.loadParkingAreas();
+        }, 500); // 500ms的防抖延迟
+      };
 
       // 初始加载所有数据
       loadAllData();
 
-      // 【已修改】为地图移动和缩放结束事件绑定统一的加载函数
+      // 监听地图移动和缩放事件，使用防抖函数
       this.map.on('moveend', loadAllData);
       this.map.on('zoomend', loadAllData);
+
     }).catch(err => { alert('地图加载失败: ' + err.message); });
   },
-  beforeDestroy() {
+
+  beforeUnmount() {
     if (this.map) {
-      // 【已修改】确保在组件销毁时移除事件监听器
-      const loadAllData = () => {
-        this.loadBicycles();
-        this.loadParkingAreas();
-      }
-      this.map.off('moveend', loadAllData);
-      this.map.off('zoomend', loadAllData);
       this.map.destroy();
     }
-  }
+  },
 };
 </script>
 
@@ -513,10 +700,163 @@ export default {
 .fade-enter-from, .fade-leave-to { opacity: 0; transform: scaleY(0.9); max-height: 0; }
 .fade-enter-to, .fade-leave-from { opacity: 1; transform: scaleY(1); max-height: 1000px; }
 
-@media (max-width: 900px) {
-  .left-info-panel, .right-task-panel { left: 10px; right: 10px; top: 80px; min-width: unset; max-width: calc(100vw - 20px); gap: 8px; }
-  .right-task-panel { top: auto; bottom: 10px; }
-  .info-card, .task-card { padding: 12px; }
-  .top-right-btn-group { right: 10px; gap: 10px; }
+.left-panels {
+  position: fixed;
+  top: 90px;
+  left: 30px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 300px;
+  max-width: 360px;
+}
+
+.collapsible-panel {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 12px 16px;
+  background: #f8f8f8;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.panel-header:hover {
+  background: #f0f0f0;
+}
+
+.panel-title {
+  font-weight: 600;
+  color: #333;
+  font-size: 1.1rem;
+}
+
+.panel-icon {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.panel-content {
+  background: white;
+  transition: all 0.3s ease;
+}
+
+.info-card {
+  padding: 16px;
+}
+
+.info-section {
+  margin-bottom: 16px;
+}
+
+.info-section:last-child {
+  margin-bottom: 0;
+}
+
+.info-label {
+  color: #666;
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+}
+
+.info-value {
+  color: #333;
+  font-weight: 500;
+  font-size: 1.1rem;
+}
+
+/* 适配移动设备 */
+@media (max-width: 768px) {
+  .left-panels {
+    left: 10px;
+    right: 10px;
+    min-width: unset;
+    max-width: calc(100vw - 20px);
+  }
+}
+
+.manager-input-group {
+  margin-top: 8px;
+}
+
+.yellow-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1.5px solid #FFD600;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.3s;
+}
+
+.yellow-input:focus {
+  box-shadow: 0 0 0 2px rgba(255, 214, 0, 0.2);
+}
+
+.task-workers-list {
+  margin-top: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.task-workers-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.task-workers-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 2px;
+}
+
+.task-workers-list::-webkit-scrollbar-thumb {
+  background: #FFD600;
+  border-radius: 2px;
+}
+
+.worker-item {
+  padding: 12px;
+  border-radius: 8px;
+  background: white;
+  border: 1px solid #eee;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.worker-item:hover {
+  border-color: #FFD600;
+}
+
+.worker-item.selected {
+  background: #fff8e1;
+  border-color: #FFD600;
+  box-shadow: 0 0 0 1px #FFD600;
+}
+
+.worker-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.worker-id, .worker-name {
+  font-size: 14px;
+  color: #333;
+}
+
+.no-workers-tip {
+  text-align: center;
+  color: #666;
+  padding: 16px;
+  font-size: 14px;
 }
 </style>
