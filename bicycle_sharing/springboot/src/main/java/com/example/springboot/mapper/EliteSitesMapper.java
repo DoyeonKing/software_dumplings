@@ -1,6 +1,7 @@
 // src/main/java/com/example/springboot/mapper/GeohashInfoMapper.java
 package com.example.springboot.mapper;
 
+import com.example.springboot.dto.CenterLatLonResponse;
 import com.example.springboot.entity.EliteSites;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -47,4 +48,12 @@ public interface EliteSitesMapper {
             @Param("minLon") double minLon,
             @Param("maxLon") double maxLon
     );
+
+    /**
+     * 根据 geohash 查询停车区域中心点的经纬度
+     * @param geohash 停车区域编号
+     * @return 对应的 CenterLatLonResponse 实体，如果找不到则返回 null
+     */
+    @Select("SELECT center_lat, center_lon FROM elite_sites WHERE geohash = #{geohash}")
+    CenterLatLonResponse findCenterLatLonByGeohash(@Param("geohash") String geohash);
 }
