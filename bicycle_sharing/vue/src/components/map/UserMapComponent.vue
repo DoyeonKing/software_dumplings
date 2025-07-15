@@ -125,10 +125,20 @@
           
           <!-- 骑行状态显示 -->
           <div v-if="isRiding" class="riding-status">
+            <!-- 订单信息显示 -->
+            <div v-if="rideOrderInfo" class="order-info">
+              <h4>骑行订单信息</h4>
+              <p><strong>订单ID:</strong> {{ rideOrderInfo.orderId }}</p>
+              <p><strong>开始时间:</strong> {{ rideOrderInfo.startTime }}</p>
+              <p><strong>起始停车区域:</strong> {{ rideOrderInfo.startGeohash }}</p>
+            </div>
+            
+            <!-- 实时骑行状态 -->
             <div class="status-info">
               <p><strong>单车ID:</strong> {{ bikeId }}</p>
               <p><strong>骑行时间:</strong> {{ formatTime(ridingTime) }}</p>
               <p><strong>骑行距离:</strong> {{ formatDistance(ridingDistance) }}</p>
+              <p><strong>预计收费:</strong> ¥{{ calculateFee() }}</p>
             </div>
             <div class="current-position">
               <p><strong>当前位置:</strong> {{ formatPosition(currentPosition) }}</p>
@@ -176,6 +186,8 @@ import { getMapAreaBicycles } from '@/api/map/bicycle';
 import { getAllParkingAreas, getParkingAreasInBounds, convertParkingAreaData } from '@/api/map/parking';
 import { getHeatMapData, convertHeatMapData } from '@/api/map/heat';
 import { updateUserProfile } from '@/api/account/profile';
+// 导入骑行API
+import { rentBike, returnBike } from '@/api/riding';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getRidingRoute } from '@/utils/amap';
 
@@ -270,6 +282,9 @@ export default {
     const ridingPath = ref([]);  // 骑行路径
     const ridingTimer = ref(null);  // 骑行计时器
     const ridingPathPolyline = ref(null);  // 骑行路径折线
+
+    // 骑行记录信息（与riding.js返回数据结构一致）
+    const rideOrderInfo = ref(null);  // 当前骑行订单信息
 
 
 
@@ -1350,34 +1365,62 @@ export default {
     };
 
     // 骑车相关方法
-    const startRiding = () => {
+    const startRiding = async () => {
       if (!bikeId.value) {
         ElMessage.warning('请输入单车ID');
         return;
       }
-      
-      isRiding.value = true;
-      ridingTime.value = 0;
-      ridingDistance.value = 0;
-      ridingPath.value = [];
-      
-      // 获取当前位置作为起始位置
-      if (userPosition.value) {
-        currentPosition.value = userPosition.value;
-        ridingPath.value.push([...userPosition.value]);
+
+      if (!props.userInfo || !props.userInfo.userid) {
+        ElMessage.error('用户信息不完整，无法开始骑行');
+        return;
       }
       
-      // 开始计时器
-      ridingTimer.value = setInterval(() => {
-        ridingTime.value += 1;
+      try {
+        console.log('开始调用用车API...');
+        console.log('用户ID:', props.userInfo.userid);
+        console.log('单车ID:', bikeId.value);
         
-        // 每2秒记录一次位置
-        if (ridingTime.value % 2 === 0) {
-          recordPosition();
+        // 调用用车API
+        const response = await rentBike(props.userInfo.userid, bikeId.value);
+        console.log('用车API响应:', response);
+        
+        if (response.code === 200) {
+          // 记录骑行订单信息
+          rideOrderInfo.value = response.data;
+          
+          // 设置骑行状态
+          isRiding.value = true;
+          ridingTime.value = 0;
+          ridingDistance.value = 0;
+          ridingPath.value = [];
+          
+          // 获取当前位置作为起始位置
+          if (userPosition.value) {
+            currentPosition.value = userPosition.value;
+            ridingPath.value.push([...userPosition.value]);
+          }
+          
+          // 开始计时器
+          ridingTimer.value = setInterval(() => {
+            ridingTime.value += 1;
+            
+            // 每2秒记录一次位置
+            if (ridingTime.value % 2 === 0) {
+              recordPosition();
+            }
+          }, 1000);
+          
+          ElMessage.success(`${response.message || '开始使用单车成功'}`);
+          console.log('骑行订单信息已记录:', rideOrderInfo.value);
+        } else {
+          ElMessage.error(response.message || '用车失败，请重试');
+          console.error('用车API失败:', response);
         }
-      }, 1000);
-      
-      ElMessage.success(`开始使用单车 ${bikeId.value}`);
+      } catch (error) {
+        console.error('调用用车API失败:', error);
+        ElMessage.error('用车失败，请检查网络连接或稍后重试');
+      }
     };
 
     const stopRiding = () => {
@@ -1402,55 +1445,112 @@ export default {
         ElMessage.warning('当前没有正在使用的单车');
         return;
       }
-      
-      // 保存骑行信息用于显示
-      const ridingSummary = {
-        bikeId: bikeId.value,
-        ridingTime: ridingTime.value,
-        ridingDistance: ridingDistance.value,
-        fee: calculateFee()
-      };
-      
-      stopRiding();
-      
-      // 显示骑行信息弹窗
-      try {
-        await ElMessageBox.alert(
-          `
-          <div style="text-align: left; padding: 10px;">
-            <h4 style="margin: 0 0 15px 0; color: #409eff;">骑行结束</h4>
-            <p style="margin: 8px 0;"><strong>单车编号:</strong> ${ridingSummary.bikeId}</p>
-            <p style="margin: 8px 0;"><strong>骑行时长:</strong> ${formatTime(ridingSummary.ridingTime)}</p>
-            <p style="margin: 8px 0;"><strong>骑行距离:</strong> ${formatDistance(ridingSummary.ridingDistance)}</p>
-            <p style="margin: 8px 0;"><strong>本次费用:</strong> <span style="color: #f56c6c;">¥${ridingSummary.fee}</span></p>
-            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee;">
-              <p style="margin: 0; color: #666; font-size: 14px;">感谢您的使用，祝您出行愉快！</p>
-            </div>
-          </div>
-          `,
-          '骑行完成',
-          {
-            dangerouslyUseHTMLString: true,
-            confirmButtonText: '确定',
-            type: 'success'
-          }
-        );
-      } catch (error) {
-        // 用户取消了弹窗，但不影响停车功能
-        console.log('用户关闭了骑行信息弹窗');
+
+      if (!rideOrderInfo.value) {
+        ElMessage.error('骑行订单信息丢失，无法还车');
+        return;
       }
-      
-      // 更新用户信息
-      await updateUserData(ridingSummary);
-      
-      // 重置状态
-      bikeId.value = '';
-      ridingTime.value = 0;
-      ridingDistance.value = 0;
-      ridingPath.value = [];
-      currentPosition.value = null;
-      
-      ElMessage.success('停车成功');
+
+      if (!userPosition.value) {
+        ElMessage.error('无法获取当前位置，请设置位置后再还车');
+        return;
+      }
+
+      try {
+        console.log('开始调用还车API...');
+        console.log('用户ID:', rideOrderInfo.value.userId);
+        console.log('单车ID:', rideOrderInfo.value.bikeId);
+        console.log('当前位置:', userPosition.value);
+        
+        // 调用还车API
+        const response = await returnBike(
+          rideOrderInfo.value.userId,
+          rideOrderInfo.value.bikeId,
+          userPosition.value[1], // 纬度
+          userPosition.value[0]  // 经度
+        );
+        
+        console.log('还车API响应:', response);
+        
+        if (response.code === 200) {
+          // 更新骑行订单信息
+          rideOrderInfo.value = response.data;
+          
+          // 停止骑行计时器
+          stopRiding();
+          
+          // 构建完整的骑行信息
+          const completeRideInfo = {
+            ...response.data,
+            localRidingTime: ridingTime.value,
+            localRidingDistance: ridingDistance.value,
+            localFee: calculateFee()
+          };
+          
+          // 显示骑行信息弹窗
+          try {
+            await ElMessageBox.alert(
+              `
+              <div style="text-align: left; padding: 10px;">
+                <h4 style="margin: 0 0 15px 0; color: #409eff;">骑行完成</h4>
+                <div style="margin-bottom: 10px;">
+                  <h5 style="color: #666; margin: 5px 0;">订单信息</h5>
+                  <p style="margin: 5px 0;"><strong>订单ID:</strong> ${completeRideInfo.orderId}</p>
+                  <p style="margin: 5px 0;"><strong>单车编号:</strong> ${completeRideInfo.bikeId}</p>
+                </div>
+                <div style="margin-bottom: 10px;">
+                  <h5 style="color: #666; margin: 5px 0;">时间信息</h5>
+                  <p style="margin: 5px 0;"><strong>开始时间:</strong> ${completeRideInfo.startTime}</p>
+                  <p style="margin: 5px 0;"><strong>结束时间:</strong> ${completeRideInfo.endTime}</p>
+                  <p style="margin: 5px 0;"><strong>骑行时长:</strong> ${completeRideInfo.durationMinutes || 0}分钟</p>
+                </div>
+                <div style="margin-bottom: 10px;">
+                  <h5 style="color: #666; margin: 5px 0;">位置信息</h5>
+                  <p style="margin: 5px 0;"><strong>起始区域:</strong> ${completeRideInfo.startGeohash}</p>
+                  <p style="margin: 5px 0;"><strong>结束区域:</strong> ${completeRideInfo.endGeohash || '未知'}</p>
+                </div>
+                <div style="margin-bottom: 10px;">
+                  <h5 style="color: #666; margin: 5px 0;">骑行数据</h5>
+                  <p style="margin: 5px 0;"><strong>骑行距离:</strong> ${completeRideInfo.distance ? (completeRideInfo.distance / 1000).toFixed(2) + 'km' : formatDistance(ridingDistance.value)}</p>
+                  <p style="margin: 5px 0;"><strong>本次费用:</strong> <span style="color: #f56c6c;">¥${completeRideInfo.cost || completeRideInfo.localFee}</span></p>
+                </div>
+                <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee;">
+                  <p style="margin: 0; color: #666; font-size: 14px;">${response.message || '感谢您的使用，祝您出行愉快！'}</p>
+                </div>
+              </div>
+              `,
+              '骑行完成',
+              {
+                dangerouslyUseHTMLString: true,
+                confirmButtonText: '确定',
+                type: 'success'
+              }
+            );
+          } catch (dialogError) {
+            // 用户取消了弹窗，但不影响停车功能
+            console.log('用户关闭了骑行信息弹窗');
+          }
+          
+          // 更新用户信息
+          await updateUserData(completeRideInfo);
+          
+          // 重置状态
+          bikeId.value = '';
+          ridingTime.value = 0;
+          ridingDistance.value = 0;
+          ridingPath.value = [];
+          currentPosition.value = null;
+          rideOrderInfo.value = null;
+          
+          ElMessage.success(response.message || '还车成功');
+        } else {
+          ElMessage.error(response.message || '还车失败，请重试');
+          console.error('还车API失败:', response);
+        }
+      } catch (error) {
+        console.error('调用还车API失败:', error);
+        ElMessage.error('还车失败，请检查网络连接或稍后重试');
+      }
     };
 
     const recordPosition = () => {
@@ -1564,24 +1664,46 @@ export default {
     };
 
     // 更新用户数据
-    const updateUserData = async (ridingSummary) => {
+    const updateUserData = async (completeRideInfo) => {
       if (!props.userInfo || !props.authToken) {
         console.warn('用户信息或认证令牌缺失，跳过数据更新');
         return;
       }
 
       try {
+        // 计算本次骑行的时长（分钟）和费用
+        let rideDurationMinutes = 0;
+        let rideCost = 0;
+
+        if (completeRideInfo.durationMinutes !== undefined && completeRideInfo.durationMinutes !== null) {
+          // 使用后端返回的骑行时长
+          rideDurationMinutes = completeRideInfo.durationMinutes;
+        } else if (completeRideInfo.localRidingTime) {
+          // 使用本地计时的时长（转换为分钟）
+          rideDurationMinutes = Math.ceil(completeRideInfo.localRidingTime / 60);
+        }
+
+        if (completeRideInfo.cost !== undefined && completeRideInfo.cost !== null) {
+          // 使用后端返回的费用
+          rideCost = parseFloat(completeRideInfo.cost);
+        } else if (completeRideInfo.localFee) {
+          // 使用本地计算的费用
+          rideCost = parseFloat(completeRideInfo.localFee);
+        }
+
         // 计算新的用户数据
         const updatedUserData = {
           userid: props.userInfo.userid,
           username: props.userInfo.username,
           phoneNumber: props.userInfo.phoneNumber,
           totalRides: (props.userInfo.totalRides || 0) + 1, // 总骑行数+1
-          totalDurationMinutes: (props.userInfo.totalDurationMinutes || 0) + Math.ceil(ridingSummary.ridingTime / 60), // 累加骑行时长（转换为分钟）
-          totalCost: parseFloat(((props.userInfo.totalCost || 0) + parseFloat(ridingSummary.fee)).toFixed(2)) // 累加总费用
+          totalDurationMinutes: (props.userInfo.totalDurationMinutes || 0) + rideDurationMinutes, // 累加骑行时长
+          totalCost: parseFloat(((props.userInfo.totalCost || 0) + rideCost).toFixed(2)) // 累加总费用
         };
 
         console.log('更新用户数据:', updatedUserData);
+        console.log('本次骑行时长（分钟）:', rideDurationMinutes);
+        console.log('本次骑行费用:', rideCost);
 
         // 调用API更新用户信息
         const response = await updateUserProfile(props.authToken, updatedUserData);
@@ -1592,11 +1714,11 @@ export default {
           emit('user-data-updated', updatedUserData);
         } else {
           console.error('用户数据更新失败:', response.msg);
-          ElMessage.warning('用户数据更新失败，但停车成功');
+          ElMessage.warning('用户数据更新失败，但还车成功');
         }
       } catch (error) {
         console.error('更新用户数据时出错:', error);
-        ElMessage.warning('用户数据更新失败，但停车成功');
+        ElMessage.warning('用户数据更新失败，但还车成功');
       }
     };
 
@@ -1665,6 +1787,7 @@ export default {
       ridingDistance,
       currentPosition,
       ridingPath,
+      rideOrderInfo,
       // 骑车相关方法
       startRiding,
       stopRiding,
@@ -1963,6 +2086,27 @@ export default {
   border-radius: 8px;
   padding: 15px;
   margin-bottom: 15px;
+}
+
+.order-info {
+  background: #fff7f3;
+  border: 1px solid #fed7aa;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.order-info h4 {
+  margin: 0 0 10px 0;
+  color: #ea580c;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.order-info p {
+  margin: 4px 0;
+  color: #333;
+  font-size: 13px;
 }
 
 .status-info {
