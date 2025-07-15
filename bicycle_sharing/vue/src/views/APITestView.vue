@@ -2,9 +2,107 @@
   <div class="api-test-container">
     <h2>API 测试页面</h2>
     
+    <!-- 调度任务 API 测试 -->
+    <el-card class="test-card">
+      <template #header>
+        <div class="card-header">
+          <span>调度任务 API 测试</span>
+          <el-button type="primary" @click="testGetAllDispatchTasks">获取所有调度任务</el-button>
+        </div>
+      </template>
+      <div class="test-result">
+        <p><strong>状态码：</strong>{{ dispatchTasksResult.code || '未请求' }}</p>
+        <p><strong>消息：</strong>{{ dispatchTasksResult.msg || '暂无消息' }}</p>
+        
+        <!-- 显示调试信息 -->
+        <div v-if="dispatchTasksResult.code" class="debug-section" style="margin: 15px 0; padding: 15px; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px;">
+          <h4 style="margin: 0 0 10px 0; color: #0369a1;">🔍 完整响应数据（调试用）</h4>
+          <pre style="background: #f8fafc; padding: 12px; border-radius: 6px; font-size: 11px; max-height: 300px; overflow-y: auto;">{{ JSON.stringify(dispatchTasksResult, null, 2) }}</pre>
+        </div>
+        
+        <div v-if="dispatchTasksResult.data && Array.isArray(dispatchTasksResult.data) && dispatchTasksResult.data.length > 0" class="raw-data">
+          <h4>调度任务数据（共 {{ dispatchTasksResult.data.length }} 条）：</h4>
+          <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; max-height: 400px;">{{ JSON.stringify(dispatchTasksResult.data, null, 2) }}</pre>
+        </div>
+        <div v-else-if="dispatchTasksResult.data" class="raw-data">
+          <h4>调度任务数据：</h4>
+          <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; max-height: 400px;">{{ JSON.stringify(dispatchTasksResult.data, null, 2) }}</pre>
+        </div>
+        <div v-else-if="dispatchTasksResult.code === 200" class="empty-data">
+          <el-empty description="暂无调度任务数据" />
+        </div>
+        <div v-else-if="dispatchTasksResult.code && dispatchTasksResult.code !== 200" class="error-data">
+          <el-alert title="请求失败" type="error" :description="dispatchTasksResult.msg" show-icon />
+        </div>
+      </div>
+    </el-card>
 
-
- 
+    <!-- 按日期范围和工作人员查询调度任务 API 测试 -->
+    <el-card class="test-card">
+      <template #header>
+        <div class="card-header">
+          <span>按日期范围和工作人员查询调度任务 API 测试</span>
+          <el-button type="primary" @click="testGetTasksByDateRangeAndStaff">查询调度任务</el-button>
+        </div>
+      </template>
+      <div class="test-form">
+        <el-form :model="dateRangeStaffForm" label-width="120px">
+          <el-form-item label="开始日期">
+            <el-date-picker 
+              v-model="dateRangeStaffForm.startDate"
+              type="date"
+              placeholder="选择开始日期"
+              format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD"
+              style="width: 100%"
+            />
+          </el-form-item>
+          <el-form-item label="结束日期">
+            <el-date-picker 
+              v-model="dateRangeStaffForm.endDate"
+              type="date"
+              placeholder="选择结束日期"
+              format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD"
+              style="width: 100%"
+            />
+          </el-form-item>
+          <el-form-item label="分配给工作人员ID">
+            <el-input-number 
+              v-model="dateRangeStaffForm.assignedTo" 
+              :min="1"
+              placeholder="请输入工作人员ID"
+              style="width: 100%"
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+      <div class="test-result">
+        <p><strong>状态码：</strong>{{ dateRangeStaffResult.code || '未请求' }}</p>
+        <p><strong>消息：</strong>{{ dateRangeStaffResult.msg || '暂无消息' }}</p>
+        
+        <!-- 显示调试信息 -->
+        <div v-if="dateRangeStaffResult.code" class="debug-section" style="margin: 15px 0; padding: 15px; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px;">
+          <h4 style="margin: 0 0 10px 0; color: #0369a1;">🔍 完整响应数据（调试用）</h4>
+          <pre style="background: #f8fafc; padding: 12px; border-radius: 6px; font-size: 11px; max-height: 300px; overflow-y: auto;">{{ JSON.stringify(dateRangeStaffResult, null, 2) }}</pre>
+        </div>
+        
+        <div v-if="dateRangeStaffResult.data && Array.isArray(dateRangeStaffResult.data) && dateRangeStaffResult.data.length > 0" class="raw-data">
+          <h4>查询到的调度任务（共 {{ dateRangeStaffResult.data.length }} 条）：</h4>
+          <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; max-height: 400px;">{{ JSON.stringify(dateRangeStaffResult.data, null, 2) }}</pre>
+        </div>
+        <div v-else-if="dateRangeStaffResult.data" class="raw-data">
+          <h4>查询到的调度任务：</h4>
+          <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; max-height: 400px;">{{ JSON.stringify(dateRangeStaffResult.data, null, 2) }}</pre>
+        </div>
+        <div v-else-if="dateRangeStaffResult.code === 200" class="empty-data">
+          <el-empty description="该时间范围内该工作人员暂无调度任务" />
+        </div>
+        <div v-else-if="dateRangeStaffResult.code && dateRangeStaffResult.code !== 200" class="error-data">
+          <el-alert title="查询失败" type="error" :description="dateRangeStaffResult.msg" show-icon />
+        </div>
+      </div>
+    </el-card>
 
     <!-- 区域单车 API 测试 -->
     <el-card class="test-card">
@@ -864,6 +962,7 @@ import { login, changePassword } from '@/api/account/login'
 import { getWeatherRecord } from '@/api/weather'
 import { getUserProfile, getStaffProfile } from '@/api/account/profile'
 import { register } from '@/api/account/register'
+import { getAllDispatchTasks, getDispatchTasksByDateRangeAndStaff } from '@/api/assignment/task'
 import { ElMessage } from 'element-plus'
 
 // 测试结果
@@ -880,6 +979,27 @@ const bicycleResult = ref({
 })
 
 const areaResult = ref({
+  code: null,
+  msg: '',
+  data: null
+})
+
+// 调度任务结果
+const dispatchTasksResult = ref({
+  code: null,
+  msg: '',
+  data: null
+})
+
+// 按日期和工作人员查询调度任务的表单数据
+const dateRangeStaffForm = ref({
+  startDate: '2017-01-01',
+  endDate: '2020-01-01',
+  assignedTo: 3
+})
+
+// 按日期和工作人员查询调度任务的结果
+const dateRangeStaffResult = ref({
   code: null,
   msg: '',
   data: null
@@ -1074,6 +1194,69 @@ const registerRules = {
 const registerFormRef = ref(null)
 
 
+
+// 测试调度任务 API
+const testGetAllDispatchTasks = async () => {
+  try {
+    const response = await getAllDispatchTasks()
+    console.log('调度任务API响应:', response)
+    
+    // 确保设置正确的数据结构
+    dispatchTasksResult.value = {
+      code: response.code || response.status || 200,
+      msg: response.msg || response.message || '请求成功',
+      data: response.data || response
+    }
+    
+    if (dispatchTasksResult.value.code === 200) {
+      ElMessage.success('获取调度任务数据成功')
+    } else {
+      ElMessage.warning(`获取数据返回状态码: ${dispatchTasksResult.value.code}`)
+    }
+  } catch (error) {
+    console.error('获取调度任务数据失败：', error)
+    ElMessage.error('获取调度任务数据失败')
+    dispatchTasksResult.value = {
+      code: 'ERROR',
+      msg: error.message || '请求失败',
+      data: null
+    }
+  }
+}
+
+// 测试按日期范围和工作人员查询调度任务 API
+const testGetTasksByDateRangeAndStaff = async () => {
+  if (!dateRangeStaffForm.value.startDate || !dateRangeStaffForm.value.endDate || !dateRangeStaffForm.value.assignedTo) {
+    ElMessage.warning('请填写所有必需的参数')
+    return
+  }
+
+  try {
+    const response = await getDispatchTasksByDateRangeAndStaff(dateRangeStaffForm.value)
+    console.log('按日期和工作人员查询调度任务API响应:', response)
+    
+    // 确保设置正确的数据结构
+    dateRangeStaffResult.value = {
+      code: response.code || response.status || 200,
+      msg: response.msg || response.message || '请求成功',
+      data: response.data || response
+    }
+    
+    if (dateRangeStaffResult.value.code === 200) {
+      ElMessage.success('查询调度任务数据成功')
+    } else {
+      ElMessage.warning(`获取数据返回状态码: ${dateRangeStaffResult.value.code}`)
+    }
+  } catch (error) {
+    console.error('查询调度任务数据失败：', error)
+    ElMessage.error('查询调度任务数据失败')
+    dateRangeStaffResult.value = {
+      code: 'ERROR',
+      msg: error.message || '请求失败',
+      data: null
+    }
+  }
+}
 
 // 测试单车 API
 const testBicycleAPI = async () => {
