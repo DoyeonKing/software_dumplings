@@ -950,6 +950,53 @@
         </div>
       </div>
     </el-card>
+
+    <!-- 驾车路线规划 API 测试 -->
+    <el-card class="test-card">
+      <template #header>
+        <div class="card-header">
+          <span>高德地图驾车路线规划 API 测试</span>
+          <el-button type="primary" @click="testDrivingRoute">获取驾车路线</el-button>
+        </div>
+      </template>
+      <div class="test-form">
+        <el-form :model="drivingRouteForm" label-width="120px">
+          <el-form-item label="起点经度">
+            <el-input v-model.number="drivingRouteForm.startLng" type="number" step="0.000001" placeholder="如: 116.481028" />
+          </el-form-item>
+          <el-form-item label="起点纬度">
+            <el-input v-model.number="drivingRouteForm.startLat" type="number" step="0.000001" placeholder="如: 39.989643" />
+          </el-form-item>
+          <el-form-item label="终点经度">
+            <el-input v-model.number="drivingRouteForm.endLng" type="number" step="0.000001" placeholder="如: 116.434446" />
+          </el-form-item>
+          <el-form-item label="终点纬度">
+            <el-input v-model.number="drivingRouteForm.endLat" type="number" step="0.000001" placeholder="如: 39.90816" />
+          </el-form-item>
+          <el-form-item label="返回详细程度">
+            <el-select v-model="drivingRouteForm.extensions" placeholder="选择返回详细程度">
+              <el-option label="基础信息" value="base" />
+              <el-option label="详细信息" value="all" />
+            </el-select>
+          </el-form-item>
+        </el-form>
+      </div>
+      <div class="test-result">
+        <p><strong>状态：</strong>{{ drivingRouteResult.status || '未请求' }}</p>
+        <p><strong>信息：</strong>{{ drivingRouteResult.info || '暂无信息' }}</p>
+        <p><strong>返回码：</strong>{{ drivingRouteResult.infocode || '暂无' }}</p>
+        
+        <!-- 显示调试信息 -->
+        <div v-if="drivingRouteResult.status" class="debug-section" style="margin: 15px 0; padding: 15px; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px;">
+          <h4 style="margin: 0 0 10px 0; color: #0369a1;">🔍 完整响应数据（调试用）</h4>
+          <pre style="background: #f8fafc; padding: 12px; border-radius: 6px; font-size: 11px; max-height: 300px; overflow-y: auto;">{{ JSON.stringify(drivingRouteResult, null, 2) }}</pre>
+        </div>
+        
+        <div v-if="drivingRouteResult.error" class="error-data">
+          <el-alert title="请求失败" type="error" :description="drivingRouteResult.error" show-icon />
+        </div>
+      </div>
+    </el-card>
   </div>
 </template>
 
@@ -963,6 +1010,7 @@ import { getWeatherRecord } from '@/api/weather'
 import { getUserProfile, getStaffProfile } from '@/api/account/profile'
 import { register } from '@/api/account/register'
 import { getAllDispatchTasks, getDispatchTasksByDateRangeAndStaff } from '@/api/assignment/task'
+import { getDrivingRoute } from '@/utils/amap'
 import { ElMessage } from 'element-plus'
 
 // 测试结果
@@ -1047,6 +1095,24 @@ const areaForm = ref({
   minLng: 113.9,
   maxLng: 114.1,
   bikeStatus: '使用中'  // 添加单车状态字段
+})
+
+// 驾车路线规划表单数据
+const drivingRouteForm = ref({
+  startLng: 116.481028,
+  startLat: 39.989643,
+  endLng: 116.434446,
+  endLat: 39.90816,
+  extensions: 'base'
+})
+
+// 驾车路线规划结果
+const drivingRouteResult = ref({
+  status: null,
+  info: '',
+  infocode: null,
+  route: null,
+  error: null
 })
 
 // 登录表单数据
@@ -1751,6 +1817,48 @@ const clearRegisterForm = () => {
     data: null
   }
   ElMessage.success('表单已清空')
+}
+
+// 测试驾车路线规划API
+const testDrivingRoute = async () => {
+  if (!drivingRouteForm.value.startLng || !drivingRouteForm.value.startLat || 
+      !drivingRouteForm.value.endLng || !drivingRouteForm.value.endLat) {
+    ElMessage.warning('请填写完整的起点和终点坐标')
+    return
+  }
+
+  try {
+    console.log('发起驾车路线规划请求:', {
+      start: [drivingRouteForm.value.startLng, drivingRouteForm.value.startLat],
+      end: [drivingRouteForm.value.endLng, drivingRouteForm.value.endLat],
+      extensions: drivingRouteForm.value.extensions
+    })
+
+    const start = [drivingRouteForm.value.startLng, drivingRouteForm.value.startLat]
+    const end = [drivingRouteForm.value.endLng, drivingRouteForm.value.endLat]
+    
+    const result = await getDrivingRoute(start, end, drivingRouteForm.value.extensions)
+    console.log('驾车路线规划API响应:', result)
+    
+    // 直接存储API返回的原始数据
+    drivingRouteResult.value = result
+    
+    if (result.status === '1') {
+      ElMessage.success('驾车路线规划获取成功')
+    } else if (result.error) {
+      ElMessage.error(`请求失败: ${result.error}`)
+    } else {
+      ElMessage.warning(`API返回状态: ${result.status}, 信息: ${result.info || '未知错误'}`)
+    }
+  } catch (error) {
+    console.error('驾车路线规划请求失败：', error)
+    drivingRouteResult.value = {
+      status: 'error',
+      info: '请求失败',
+      error: error.message
+    }
+    ElMessage.error('驾车路线规划请求失败')
+  }
 }
 </script>
 

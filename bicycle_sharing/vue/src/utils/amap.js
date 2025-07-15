@@ -51,3 +51,36 @@ export const getRidingRoute = async (start, end) => {
     };
   }
 }; 
+
+
+/**
+ * 获取驾车路线规划
+ * @param {Array} start 起点坐标 [lng, lat]
+ * @param {Array} end 终点坐标 [lng, lat]
+ * @param {string} extensions 返回结果详细程度，默认为base，可选all
+ * @returns {Promise} 返回路线规划结果
+ */
+export const getDrivingRoute = async (start, end, extensions = 'base') => {
+  try {
+    console.log('开始规划驾车路线，起点:', start, '终点:', end);
+
+    // 构建API URL
+    const url = `https://restapi.amap.com/v3/direction/driving?key=${WEB_SERVICE_KEY}&origin=${start.join(',')}&destination=${end.join(',')}&extensions=${extensions}`;
+    
+    console.log('请求URL:', url);
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    console.log('驾车路线规划API返回数据:', data);
+
+    // 直接返回原始数据，不做处理
+    return data;
+  } catch (error) {
+    console.error('驾车路线规划请求失败：', error);
+    return {
+      status: 'error',
+      error: error.message
+    };
+  }
+}; 
+

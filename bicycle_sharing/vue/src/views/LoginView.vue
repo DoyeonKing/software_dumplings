@@ -139,12 +139,35 @@ const handleLogin = async () => {
     // 检查响应状态
     if (response.code === '200' || response.code === 200) {
       // 登录成功，获取token和用户信息
-      const { token, user } = response.data
+      const { token, userInfo } = response.data
+      
+      // 添加调试日志
+      console.log('登录响应完整数据:', response)
+      console.log('解构出的token:', token)
+      console.log('解构出的userInfo:', userInfo)
+      
+      // 检查关键数据是否存在
+      if (!token) {
+        console.error('Token为空或未定义')
+        errorMessage.value = 'Login response missing token'
+        return
+      }
+      
+      if (!userInfo) {
+        console.error('UserInfo为空或未定义')
+        errorMessage.value = 'Login response missing user information'
+        return
+      }
       
       // 将token存储到sessionStorage，方便各个页面使用
       sessionStorage.setItem('authToken', token)
-      sessionStorage.setItem('userInfo', JSON.stringify(user))
+      sessionStorage.setItem('userInfo', JSON.stringify(userInfo))
       sessionStorage.setItem('userRole', selectedRole.value)
+      
+      console.log('已存储到sessionStorage:')
+      console.log('- authToken:', sessionStorage.getItem('authToken'))
+      console.log('- userInfo:', sessionStorage.getItem('userInfo'))
+      console.log('- userRole:', sessionStorage.getItem('userRole'))
       
       // 根据用户角色跳转到相应页面
       const roleRoutes = {
@@ -155,6 +178,7 @@ const handleLogin = async () => {
       
       router.push(roleRoutes[selectedRole.value])
     } else {
+      console.error('登录失败，响应码:', response.code, '消息:', response.msg)
       errorMessage.value = response.msg || 'Login failed, please check username and password'
     }
   } catch (error) {

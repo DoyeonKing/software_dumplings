@@ -175,6 +175,7 @@ import AMapLoader from '@amap/amap-jsapi-loader';
 import { getMapAreaBicycles } from '@/api/map/bicycle';
 import { getAllParkingAreas, getParkingAreasInBounds, convertParkingAreaData } from '@/api/map/parking';
 import { getHeatMapData, convertHeatMapData } from '@/api/map/heat';
+import { updateUserProfile } from '@/api/account/profile';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getRidingRoute } from '@/utils/amap';
 
@@ -222,6 +223,14 @@ export default {
     showHeatmap: {
       type: Boolean,
       default: false
+    },
+    userInfo: {
+      type: Object,
+      default: null
+    },
+    authToken: {
+      type: String,
+      default: ''
     }
   },
   setup(props, { emit }) {
@@ -1431,6 +1440,9 @@ export default {
         console.log('用户关闭了骑行信息弹窗');
       }
       
+      // 更新用户信息
+      await updateUserData(ridingSummary);
+      
       // 重置状态
       bikeId.value = '';
       ridingTime.value = 0;
@@ -1538,11 +1550,10 @@ export default {
     };
 
     const calculateFee = () => {
-      // 简单的计费逻辑：2元起步，每分钟0.5元
-      const basePrice = 2;
-      const pricePerMinute = 0.5;
-      const minutes = Math.ceil(ridingTime.value / 60);
-      return (basePrice + (minutes > 0 ? (minutes - 1) * pricePerMinute : 0)).toFixed(2);
+      // 新的计费逻辑：每10秒1.5元
+      const pricePerTenSeconds = 1.5;
+      const tenSecondPeriods = Math.ceil(ridingTime.value / 10);
+      return (tenSecondPeriods * pricePerTenSeconds).toFixed(2);
     };
 
     const cancelRide = () => {
@@ -1550,6 +1561,43 @@ export default {
         stopRiding();
       }
       emit('update:showRide', false);
+    };
+
+    // 更新用户数据
+    const updateUserData = async (ridingSummary) => {
+      if (!props.userInfo || !props.authToken) {
+        console.warn('用户信息或认证令牌缺失，跳过数据更新');
+        return;
+      }
+
+      try {
+        // 计算新的用户数据
+        const updatedUserData = {
+          userid: props.userInfo.userid,
+          username: props.userInfo.username,
+          phoneNumber: props.userInfo.phoneNumber,
+          totalRides: (props.userInfo.totalRides || 0) + 1, // 总骑行数+1
+          totalDurationMinutes: (props.userInfo.totalDurationMinutes || 0) + Math.ceil(ridingSummary.ridingTime / 60), // 累加骑行时长（转换为分钟）
+          totalCost: parseFloat(((props.userInfo.totalCost || 0) + parseFloat(ridingSummary.fee)).toFixed(2)) // 累加总费用
+        };
+
+        console.log('更新用户数据:', updatedUserData);
+
+        // 调用API更新用户信息
+        const response = await updateUserProfile(props.authToken, updatedUserData);
+        
+        if (response.code === 200 || response.code === '200') {
+          console.log('用户数据更新成功');
+          // 发射事件通知父组件更新用户信息
+          emit('user-data-updated', updatedUserData);
+        } else {
+          console.error('用户数据更新失败:', response.msg);
+          ElMessage.warning('用户数据更新失败，但停车成功');
+        }
+      } catch (error) {
+        console.error('更新用户数据时出错:', error);
+        ElMessage.warning('用户数据更新失败，但停车成功');
+      }
     };
 
 
@@ -1626,7 +1674,8 @@ export default {
       formatDistance,
       formatPosition,
       calculateFee,
-      cancelRide
+      cancelRide,
+      updateUserData
     };
   }
 }

@@ -115,3 +115,25 @@ export function completeTask(taskId) {
         message: '任务不可完成'
     });
 }
+
+// 根据工作人员ID获取调度任务
+export function getDispatchTasksByStaff(assignedToId) {
+    return request({
+        url: `/dispatchTasks/by-staff/${assignedToId}`,
+        method: 'get'
+    }).then(response => {
+        // 封装成标准格式
+        return {
+            code: "200",
+            msg: "请求成功",
+            data: response.data || response
+        };
+    }).catch(error => {
+        console.error('获取工作人员调度任务失败:', error);
+        return {
+            code: "500",
+            msg: error.message || "获取调度任务失败",
+            data: []
+        };
+    });
+}

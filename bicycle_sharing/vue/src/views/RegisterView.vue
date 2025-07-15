@@ -174,11 +174,11 @@ const handleRegister = async () => {
       
       if (loginResponse.code === '200' || loginResponse.code === 200) {
         // 登录成功，获取token和用户信息
-        const { token, user } = loginResponse.data
+        const { token, userInfo } = loginResponse.data
         
         // 将token存储到sessionStorage
         sessionStorage.setItem('authToken', token)
-        sessionStorage.setItem('userInfo', JSON.stringify(user))
+        sessionStorage.setItem('userInfo', JSON.stringify(userInfo))
         sessionStorage.setItem('userRole', selectedRole.value)
         
         // 根据用户角色跳转到相应页面

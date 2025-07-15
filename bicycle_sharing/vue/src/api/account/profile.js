@@ -59,3 +59,39 @@ export function getStaffProfile(token) {
   //      }
   //   }
 } 
+
+/**
+ * 更新用户个人信息
+ * @param {string} token - Authorization token
+ * @param {Object} userData - 用户信息数据
+ * @param {string} userData.userid - 用户ID
+ * @param {string} userData.username - 用户名
+ * @param {string} userData.phoneNumber - 手机号码
+ * @param {number} userData.totalRides - 总骑行次数
+ * @param {number} userData.totalDurationMinutes - 总骑行时长（分钟）
+ * @param {number} userData.totalCost - 总消费金额
+ * @returns {Promise} 更新结果
+ */
+export function updateUserProfile(token, userData) {
+  // 给用户数据添加passwordHash属性
+  const dataWithPasswordHash = {
+    ...userData,
+    passwordHash: 'placeholder_hash_value' // 按要求随便设个值
+  }
+
+  return request({
+    url: '/user/profile',
+    method: 'put',
+    headers: {
+      'Authorization': 'Bearer ' + token
+    },
+    data: dataWithPasswordHash
+  })
+
+  // 返回数据格式
+  // {
+  //   "code": "string",
+  //   "msg": "string",
+  //   "data": "string"
+  // }
+} 
