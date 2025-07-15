@@ -8,13 +8,14 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.netty.channel.ChannelOption; // 导入 ChannelOption
-import io.netty.handler.timeout.ReadTimeoutHandler; // 导入 ReadTimeoutHandler
-import io.netty.handler.timeout.WriteTimeoutHandler; // 导入 WriteTimeoutHandler
-import org.springframework.http.client.reactive.ReactorClientHttpConnector; // 导入 ReactorClientHttpConnector
-import reactor.netty.http.client.HttpClient; // 导入 HttpClient
-import java.time.Duration; // 导入 Duration
-import java.util.concurrent.TimeUnit; // 导入 TimeUnit
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule; // 新增导入
+import io.netty.channel.ChannelOption;
+import io.netty.handler.timeout.ReadTimeoutHandler;
+import io.netty.handler.timeout.WriteTimeoutHandler;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
+import reactor.netty.http.client.HttpClient;
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 
 @SpringBootApplication
 @MapperScan("com.example.springboot.mapper")
@@ -25,18 +26,14 @@ public class SpringbootApplication {
         SpringApplication.run(SpringbootApplication.class, args);
     }
 
-    /**
-     * 配置WebClient.Builder Bean
-     * 增加连接和读取超时时间
-     */
     @Bean
     public WebClient.Builder webClientBuilder() {
         HttpClient httpClient = HttpClient.create()
-                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10000) // 连接超时：10秒
-                .responseTimeout(Duration.ofSeconds(120)) // 响应超时：120秒 (从发送请求到接收完整响应)
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10000)
+                .responseTimeout(Duration.ofSeconds(120))
                 .doOnConnected(conn -> conn
-                        .addHandlerLast(new ReadTimeoutHandler(120, TimeUnit.SECONDS)) // 读取超时：120秒
-                        .addHandlerLast(new WriteTimeoutHandler(120, TimeUnit.SECONDS))); // 写入超时：120秒
+                        .addHandlerLast(new ReadTimeoutHandler(120, TimeUnit.SECONDS))
+                        .addHandlerLast(new WriteTimeoutHandler(120, TimeUnit.SECONDS)));
 
         return WebClient.builder()
                 .clientConnector(new ReactorClientHttpConnector(httpClient));
@@ -49,6 +46,11 @@ public class SpringbootApplication {
 
     @Bean
     public ObjectMapper objectMapper() {
-        return new ObjectMapper();
+        ObjectMapper objectMapper = new ObjectMapper();
+        // 注册Java 8时间模块，支持LocalDateTime等类型序列化
+        objectMapper.registerModule(new JavaTimeModule());
+        // 禁用日期序列化为时间戳（可选，根据需要选择）
+        objectMapper.disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        return objectMapper;
     }
 }
