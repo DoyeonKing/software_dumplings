@@ -39,4 +39,13 @@ public interface EliteSitesMapper {
      * @return 所有精英站点的列表
      */
     List<EliteSites> findAll();
+
+
+    // 根据经纬度范围查询精英站点
+    List<EliteSites> selectEliteSitesByBounds(
+            @Param("minLat") double minLat,
+            @Param("maxLat") double maxLat,
+            @Param("minLon") double minLon,
+            @Param("maxLon") double maxLon
+    );
 }

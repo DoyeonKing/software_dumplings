@@ -39,6 +39,12 @@
         FROM elite_sites
     </select>
 
+    <select id="selectEliteSitesByBounds" resultType="com.example.springboot.entity.EliteSites">
+        SELECT *
+        FROM elite_sites
+        WHERE center_lat BETWEEN #{minLat} AND #{maxLat}
+          AND center_lon BETWEEN #{minLon} AND #{maxLon}
+    </select>
 
 
 </mapper>
