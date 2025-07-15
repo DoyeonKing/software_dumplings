@@ -25,6 +25,16 @@ public class DailyDispatchSuggestion {
     private Integer suggestedBikeCount; // 建议调配数量
     private LocalDateTime suggestionTime; // 建议生成时间
     private LocalDateTime createdAt; // 记录创建时间
+    private String suggestionStatus; // 【新增字段】建议状态：PENDING, ADOPTED, REJECTED
+
+    public String getSuggestionStatus() {
+        return suggestionStatus;
+    }
+
+    public void setSuggestionStatus(String suggestionStatus) {
+        this.suggestionStatus = suggestionStatus;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
