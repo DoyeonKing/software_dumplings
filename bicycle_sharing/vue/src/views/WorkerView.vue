@@ -260,8 +260,6 @@
               v-for="task in filteredTasks"
               :key="task.taskId"
               class="task-card"
-              :class="{ 'selected': selectedTaskId === task.taskId }"
-              @click="selectTask(task)"
             >
               <div class="task-card-header">
                 <span class="task-id">任务 #{{ task.taskId }}</span>
@@ -294,14 +292,47 @@
                   <span class="info-value">{{ formatDateTime(task.completedAt) }}</span>
                 </div>
                 <div class="task-actions">
-                  <el-button
-                    type="primary"
-                    size="small"
-                    :icon="Location"
-                    @click.stop="navigateToTask(task)"
-                  >
-                    导航该路线
-                  </el-button>
+                  <!-- 任务状态操作按钮组 -->
+                  <div class="status-actions">
+                    <el-button
+                      v-if="task.status === '未处理'"
+                      type="success"
+                      size="small"
+                      @click.stop="handleStartTask(task.taskId)"
+                      :loading="taskOperationLoading === task.taskId"
+                    >
+                      开始任务
+                    </el-button>
+                    <el-button
+                      v-else-if="task.status === '处理中'"
+                      type="warning"
+                      size="small"
+                      @click.stop="handleCompleteTask(task.taskId)"
+                      :loading="taskOperationLoading === task.taskId"
+                    >
+                      完成任务
+                    </el-button>
+                  </div>
+                  
+                  <!-- 导航功能按钮组 -->
+                  <div class="navigation-actions">
+                    <el-button
+                      type="info"
+                      size="small"
+                      @click.stop="showTaskDetailDialog(task)"
+                    >
+                      查看详情
+                    </el-button>
+                    <el-button
+                      type="primary"
+                      size="small"
+                      :icon="Location"
+                      @click.stop="navigateToTask(task)"
+                    >
+                      导航该路线
+                    </el-button>
+
+                  </div>
                 </div>
               </div>
             </el-card>
@@ -339,15 +370,138 @@
       <!-- 右侧地图区域 -->
       <div class="right-panel" :class="{ 'expanded': !showWorkbench }">
         <WorkerMapComponent
-          :selectedTaskId="selectedTaskId"
           :showBicycles="showBicycles"
           :showParkingAreas="showParkingAreas"
           :showHeatmap="showHeatmap"
-          @update:selectedTaskId="selectedTaskId = $event"
           ref="mapComponentRef"
         />
       </div>
     </div>
+
+    <!-- 任务详情弹窗 -->
+    <el-dialog
+      v-model="showTaskDetail"
+      title="调度任务详情"
+      width="600px"
+      :before-close="closeTaskDetailDialog"
+    >
+      <div v-if="currentTaskDetail" class="task-detail-content">
+        <!-- 任务基本信息 -->
+        <div class="detail-section">
+          <h3>📋 任务信息</h3>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-label">任务编号:</span>
+              <span class="detail-value">#{{ currentTaskDetail.taskId }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">任务状态:</span>
+              <el-tag :type="getTaskStatusType(currentTaskDetail.status)" size="small">
+                {{ currentTaskDetail.status }}
+              </el-tag>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">分配给:</span>
+              <span class="detail-value">员工ID {{ currentTaskDetail.assignedTo || '未分配' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">运输数量:</span>
+              <span class="detail-value">{{ currentTaskDetail.bikeCount }} 辆</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">起点区域:</span>
+              <span class="detail-value">{{ currentTaskDetail.startGeohash }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">终点区域:</span>
+              <span class="detail-value">{{ currentTaskDetail.endGeohash }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">创建时间:</span>
+              <span class="detail-value">{{ formatDateTime(currentTaskDetail.createdAt) }}</span>
+            </div>
+            <div class="detail-item" v-if="currentTaskDetail.completedAt">
+              <span class="detail-label">完成时间:</span>
+              <span class="detail-value">{{ formatDateTime(currentTaskDetail.completedAt) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 单车列表 -->
+        <div class="detail-section">
+          <h3>🚴 调度单车列表</h3>
+          <div v-loading="taskDetailLoading" class="bikes-container">
+            <div v-if="taskBikes.length === 0 && !taskDetailLoading" class="no-bikes">
+              <el-empty 
+                description="暂无单车信息" 
+                :image-size="80"
+              >
+                <template #description>
+                  <p v-if="currentTaskDetail.status === '未处理'">
+                    任务尚未开始，暂无分配的单车
+                  </p>
+                  <p v-else>
+                    未获取到单车信息
+                  </p>
+                </template>
+              </el-empty>
+            </div>
+            <div v-else class="bikes-grid">
+              <div 
+                v-for="(bikeId, index) in taskBikes" 
+                :key="bikeId"
+                class="bike-item"
+              >
+                <div class="bike-icon">🚲</div>
+                <div class="bike-info">
+                  <div class="bike-number">单车 #{{ index + 1 }}</div>
+                  <div class="bike-id">{{ bikeId }}</div>
+                </div>
+              </div>
+            </div>
+            <div v-if="taskBikes.length > 0" class="bikes-summary">
+              <el-alert
+                :title="`共 ${taskBikes.length} 辆单车`"
+                type="info"
+                :closable="false"
+                show-icon
+              >
+                <template #default>
+                  <p v-if="currentTaskDetail.status === '处理中'">
+                    这些单车已被选中用于调度，请前往起点区域取车
+                  </p>
+                  <p v-else-if="currentTaskDetail.status === '处理完成'">
+                    这些单车已成功调度到目标区域
+                  </p>
+                </template>
+              </el-alert>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="closeTaskDetailDialog">关闭</el-button>
+          <el-button 
+            v-if="currentTaskDetail?.status === '未处理'"
+            type="success" 
+            @click="handleStartTask(currentTaskDetail.taskId)"
+            :loading="taskOperationLoading === currentTaskDetail?.taskId"
+          >
+            开始任务
+          </el-button>
+          <el-button 
+            v-else-if="currentTaskDetail?.status === '处理中'"
+            type="warning" 
+            @click="handleCompleteTask(currentTaskDetail.taskId)"
+            :loading="taskOperationLoading === currentTaskDetail?.taskId"
+          >
+            完成任务
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -356,6 +510,7 @@ import { ref, computed, onMounted } from 'vue';
 import { ArrowLeft, ArrowRight, ArrowDown, Location } from '@element-plus/icons-vue';
 import WorkerMapComponent from '@/components/map/WorkerMapComponent.vue';
 import { getAllTasks, getDispatchTasksByStaff } from '@/api/assignment/task';
+import { startDispatchTask, completeDispatchTask, getDispatchTaskBikes } from '@/api/assignment/wzm_task';
 import { ElMessage } from 'element-plus';
 import { useRouter } from 'vue-router';
 
@@ -376,7 +531,6 @@ const currentMapStyle = ref('normal');
 const hideUI = ref(false);
 const mapComponentRef = ref(null);
 const taskFilter = ref('all');
-const selectedTaskId = ref(null);
 const tasks = ref([]);
 const stats = ref({
   pending: 0,
@@ -393,6 +547,15 @@ const sortBy = ref('createdAt-desc');
 const selectedWorkerId = ref(3); // 默认员工ID为3
 const tasksLoading = ref(false);
 const commonWorkerIds = ref([1, 2, 3, 4, 5]); // 常用员工ID
+
+// 任务操作状态
+const taskOperationLoading = ref(null); // 当前正在操作的任务ID
+
+// 任务详情状态
+const showTaskDetail = ref(false); // 控制详情弹窗显示
+const currentTaskDetail = ref(null); // 当前查看详情的任务
+const taskBikes = ref([]); // 任务关联的单车列表
+const taskDetailLoading = ref(false); // 加载任务详情状态
 
 // 地图样式选项
 const mapStyles = [
@@ -496,14 +659,7 @@ const getTaskStatusType = (status) => {
   return statusMap[status] || 'info';
 };
 
-// 选择任务
-const selectTask = (task) => {
-  selectedTaskId.value = task.taskId;
-  // 如果工作台是收起状态，则展开
-  if (!showWorkbench.value) {
-    showWorkbench.value = true;
-  }
-};
+
 
 // 刷新任务列表
 const refreshTasks = async () => {
@@ -573,9 +729,16 @@ const handleLogout = () => {
 
 // 导航到任务路线
 const navigateToTask = (task) => {
-  // TODO: 实现导航功能
-  ElMessage.info('导航功能开发中...');
+  if (!mapComponentRef.value) {
+    ElMessage.error('地图组件未准备就绪');
+    return;
+  }
+
+  // 调用地图组件的导航功能
+  mapComponentRef.value.showNavigationRoutes(task);
 };
+
+
 
 // 格式化时间显示
 const formatDateTime = (dateTime) => {
@@ -604,6 +767,130 @@ const handleSearch = () => {
 const selectWorkerQuick = (workerId) => {
   selectedWorkerId.value = workerId;
   refreshTasksForWorker();
+};
+
+// 开始任务
+const handleStartTask = async (taskId) => {
+  if (!taskId) {
+    ElMessage.error('任务ID无效');
+    return;
+  }
+
+  try {
+    taskOperationLoading.value = taskId;
+    
+    const result = await startDispatchTask(taskId);
+    
+    if (result.code === '200' || result.code === 200) {
+      ElMessage.success('任务已开始！已为您选择调度单车');
+      
+      // 显示选中的单车信息
+      if (result.data && Array.isArray(result.data) && result.data.length > 0) {
+        ElMessage.info({
+          message: `已选择 ${result.data.length} 辆单车进行调度`,
+          duration: 3000
+        });
+        console.log('选中的单车ID列表:', result.data);
+      }
+      
+      // 刷新任务列表
+      await refreshTasksForWorker();
+      
+      // 如果当前正在查看任务详情，刷新详情内容
+      if (showTaskDetail.value && currentTaskDetail.value?.taskId === taskId) {
+        const updatedTask = tasks.value.find(t => t.taskId === taskId);
+        if (updatedTask) {
+          currentTaskDetail.value = updatedTask;
+          // 重新获取单车列表
+          const bikeResult = await getDispatchTaskBikes(taskId);
+          if (bikeResult.code === '200' || bikeResult.code === 200) {
+            taskBikes.value = bikeResult.data || [];
+          }
+        }
+      }
+    } else {
+      ElMessage.error(result.msg || '开始任务失败');
+    }
+  } catch (error) {
+    console.error('开始任务失败:', error);
+    ElMessage.error('开始任务失败，请重试');
+  } finally {
+    taskOperationLoading.value = null;
+  }
+};
+
+// 完成任务
+const handleCompleteTask = async (taskId) => {
+  if (!taskId) {
+    ElMessage.error('任务ID无效');
+    return;
+  }
+
+  try {
+    taskOperationLoading.value = taskId;
+    
+    const result = await completeDispatchTask(taskId);
+    
+    if (result.code === '200' || result.code === 200) {
+      ElMessage.success('任务已完成！单车已重新分配到目标区域');
+      
+      // 刷新任务列表
+      await refreshTasksForWorker();
+      
+      // 如果当前正在查看任务详情，刷新详情内容
+      if (showTaskDetail.value && currentTaskDetail.value?.taskId === taskId) {
+        const updatedTask = tasks.value.find(t => t.taskId === taskId);
+        if (updatedTask) {
+          currentTaskDetail.value = updatedTask;
+        }
+      }
+    } else {
+      ElMessage.error(result.msg || '完成任务失败');
+    }
+  } catch (error) {
+    console.error('完成任务失败:', error);
+    ElMessage.error('完成任务失败，请重试');
+  } finally {
+    taskOperationLoading.value = null;
+  }
+};
+
+// 显示任务详情
+const showTaskDetailDialog = async (task) => {
+  if (!task) {
+    ElMessage.error('任务信息无效');
+    return;
+  }
+
+  try {
+    taskDetailLoading.value = true;
+    currentTaskDetail.value = task;
+    
+    // 获取任务关联的单车列表
+    const result = await getDispatchTaskBikes(task.taskId);
+    
+    if (result.code === '200' || result.code === 200) {
+      taskBikes.value = result.data || [];
+    } else {
+      console.warn('获取任务单车列表失败:', result.msg);
+      taskBikes.value = [];
+    }
+    
+    showTaskDetail.value = true;
+  } catch (error) {
+    console.error('获取任务详情失败:', error);
+    ElMessage.error('获取任务详情失败');
+    taskBikes.value = [];
+  } finally {
+    taskDetailLoading.value = false;
+  }
+};
+
+// 关闭任务详情
+const closeTaskDetailDialog = () => {
+  showTaskDetail.value = false;
+  currentTaskDetail.value = null;
+  taskBikes.value = [];
 };
 
 // 初始化
@@ -889,9 +1176,7 @@ onMounted(() => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.task-card.selected {
-  border: 2px solid var(--el-color-primary);
-}
+
 
 .task-card-header {
   display: flex;
@@ -941,7 +1226,26 @@ onMounted(() => {
 .task-actions {
   margin-top: 12px;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.status-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.navigation-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.task-actions .el-button {
+  margin: 0; /* 移除默认边距，使用gap控制间距 */
 }
 
 .statistics {
@@ -1077,5 +1381,131 @@ onMounted(() => {
 
 .zoom-controls button:hover {
   background-color: #f5f7fa;
+}
+
+/* 任务详情弹窗样式 */
+.task-detail-content {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.detail-section {
+  margin-bottom: 24px;
+}
+
+.detail-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  color: #333;
+  font-weight: 600;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.detail-label {
+  font-weight: 500;
+  color: #666;
+  min-width: 80px;
+  margin-right: 12px;
+}
+
+.detail-value {
+  color: #333;
+  font-weight: 400;
+}
+
+.bikes-container {
+  min-height: 100px;
+}
+
+.no-bikes {
+  padding: 20px;
+  text-align: center;
+  color: #999;
+}
+
+.bikes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.bike-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  transition: all 0.3s ease;
+}
+
+.bike-item:hover {
+  background: #e3f2fd;
+  border-color: #2196f3;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.1);
+}
+
+.bike-icon {
+  font-size: 24px;
+  margin-right: 12px;
+  color: #2196f3;
+}
+
+.bike-info {
+  flex: 1;
+}
+
+.bike-number {
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.bike-id {
+  font-size: 12px;
+  color: #666;
+  font-family: 'Courier New', monospace;
+  background: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  word-break: break-all;
+}
+
+.bikes-summary {
+  margin-top: 16px;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .bikes-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style> 
