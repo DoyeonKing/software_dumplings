@@ -1,12 +1,14 @@
 package com.example.springboot.mapper;
 
 import com.example.springboot.entity.Bikes;
+import org.apache.ibatis.annotations.MapKey;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 /**
  * BikesMapper接口空壳
@@ -126,4 +128,15 @@ public interface BikesMapper { // 接口名与实体类名保持一致，改为B
             @Param("newLat") BigDecimal newLat,
             @Param("newLon") BigDecimal newLon,
             @Param("newGeohash") String newGeohash); // SQL 移至 XML
+
+/**
+     * 根据地理哈希列表，从数据库中统计每个区域的自行车数量。
+     * 返回一个列表，其中每个 Map 包含 'geohash' (String) 和 'count' (Long) 两个键值对。
+     *
+     * @param geohashes 包含需要统计自行车数量的地理哈希编码的列表。
+     * @return 一个 List，其中每个 Map 包含 'geohash' (String) 和 'count' (Long) 两个键值对。
+     */
+    // 【关键修改】：移除 @MapKey 注解，返回类型改为 List<Map<String, Object>>
+    List<Map<String, Object>> selectBikesCountByGeohashes(@Param("list") List<String> geohashes);
+
 }

@@ -30,4 +30,9 @@ public class EliteSitesServiceImpl implements IEliteSitesService {
         // 调用Mapper获取所有精英站点数据
         return eliteSitesMapper.findAll(); // 假设您的EliteSitesMapper有一个findAll方法
     }
+
+    @Override
+    public List<EliteSites> getEliteSitesInBounds(double minLat, double maxLat, double minLon, double maxLon) {
+        return eliteSitesMapper.selectEliteSitesByBounds(minLat, maxLat, minLon, maxLon);
+    }
 }

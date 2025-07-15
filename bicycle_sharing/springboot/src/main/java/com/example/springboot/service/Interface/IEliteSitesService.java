@@ -19,4 +19,7 @@ public interface IEliteSitesService {
      * @return 所有精英站点的列表
      */
     List<EliteSites> getAllEliteSites();
+
+    //根据经纬度范围获取精英站点
+    List<EliteSites> getEliteSitesInBounds(double minLat, double maxLat, double minLon, double maxLon);
 }
