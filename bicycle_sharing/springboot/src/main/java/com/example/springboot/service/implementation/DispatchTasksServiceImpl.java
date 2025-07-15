@@ -34,6 +34,7 @@ import java.util.stream.Collectors;
 @Service // 标记这是一个Spring管理的Service组件
 public class DispatchTasksServiceImpl implements IDispatchTasksService { // 实现接口名纠正为IDispatchTasksService
 
+
     // 空壳：不在此处定义任何方法实现
     @Autowired // 自动注入 DispatchTasksMapper
     private DispatchTasksMapper dispatchTasksMapper;
@@ -262,5 +263,21 @@ public class DispatchTasksServiceImpl implements IDispatchTasksService { // 实�
         task.setStatus("处理完成");
         task.setCompletedAt(LocalDateTime.now()); // 记录任务完成时间
         dispatchTasksMapper.updateDispatchTask(task); // 假设您有updateDispatchTask方法
+    }
+
+
+    /**
+     * 获取特定调度任务关联的所有自行车ID。
+     */
+    @Override
+    public List<String> getBikesForDispatchTask(Long taskId) {
+        // 1. 校验任务是否存在 (可选，但推荐，确保获取的ID是有效的任务)
+        // 您可能需要 DispatchTasksMapper 中有一个 findById 方法
+        // DispatchTasks task = dispatchTasksMapper.findById(taskId);
+        // if (task == null) {
+        //    throw new IllegalArgumentException("调度任务ID: " + taskId + " 不存在。");
+        // }
+        // 2. 调用 BikesInTasksMapper 获取关联的自行车ID列表
+        return bikesInTasksMapper.findBikeIdsByTaskId(taskId);
     }
 }

@@ -53,4 +53,15 @@
         </set>
         WHERE bike_id = #{bikeId}
     </update>
+
+    <select id="selectBikesCountByGeohashes" resultType="java.util.Map"> SELECT
+            current_geohash AS geohash,  COUNT(bike_id) AS count        FROM bikes
+        WHERE current_geohash IN
+        <foreach item="geohashParam" collection="list" open="(" separator="," close=")">
+            #{geohashParam}
+        </foreach>
+        GROUP BY current_geohash
+    </select>
+
+
     </mapper>

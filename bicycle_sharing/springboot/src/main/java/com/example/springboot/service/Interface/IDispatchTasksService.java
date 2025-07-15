@@ -13,6 +13,8 @@ import java.util.List; // 导入List
  * 定义调度任务相关的业务操作契约框架
  */
 public interface IDispatchTasksService { // 接口名与实体类名保持一致，改为IDispatchTasksService
+
+
     /**
      * 创建调度任务。
      * @param request 调度任务请求体
@@ -83,4 +85,12 @@ public interface IDispatchTasksService { // 接口名与实体类名保持一致
      * @throws IllegalArgumentException 如果任务不存在、状态不正确或更新失败。
      */
     void completeDispatch(Long taskId);
+
+    /**
+     * 获取特定调度任务关联的所有自行车ID。
+     * @param taskId 调度任务的ID。
+     * @return 关联的自行车ID列表。
+     * @throws IllegalArgumentException 如果任务不存在。
+     */
+    List<String> getBikesForDispatchTask(Long taskId);
 }

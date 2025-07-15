@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.springboot.mapper.DailyDispatchSuggestionMapper">
+
+    <insert id="insertBatch" parameterType="java.util.List">
+        INSERT INTO daily_dispatch_suggestions (
+            report_date, prediction_target_time, source_geohash, source_latitude, source_longitude,
+            target_geohash, target_latitude, target_longitude, suggested_bike_count, suggestion_time
+        ) VALUES
+        <foreach collection="list" item="suggestion" separator=",">
+        (
+            #{suggestion.reportDate},
+            #{suggestion.predictionTargetTime},
+            #{suggestion.sourceGeohash},
+            #{suggestion.sourceLatitude},
+            #{suggestion.sourceLongitude},
+            #{suggestion.targetGeohash},
+            #{suggestion.targetLatitude},
+            #{suggestion.targetLongitude},
+            #{suggestion.suggestedBikeCount},
+            #{suggestion.suggestionTime}
+        )
+        </foreach>
+    </insert>
+
+    <select id="selectSuggestionsByDateAndBounds" resultType="com.example.springboot.entity.DailyDispatchSuggestion">
+        SELECT
+            id, report_date, prediction_target_time, source_geohash, source_latitude, source_longitude,
+            target_geohash, target_latitude, target_longitude, suggested_bike_count, suggestion_time, created_at
+        FROM daily_dispatch_suggestions
+        WHERE report_date = #{reportDate}
+          AND (
+                (source_latitude BETWEEN #{minLat} AND #{maxLat} AND source_longitude BETWEEN #{minLon} AND #{maxLon}) OR
+                (target_latitude BETWEEN #{minLat} AND #{maxLat} AND target_longitude BETWEEN #{minLon} AND #{maxLon})
+              )
+    </select>
+
+    <delete id="deleteByDate">
+        DELETE FROM daily_dispatch_suggestions WHERE report_date = #{reportDate}
+    </delete>
+
+</mapper>
