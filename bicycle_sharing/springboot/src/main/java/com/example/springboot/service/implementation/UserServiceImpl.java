@@ -10,95 +10,72 @@ import com.example.springboot.mapper.UserMapper;
 import com.example.springboot.service.Interface.IUserService;
 import com.example.springboot.util.JwtTokenUtil;
 import jakarta.annotation.Resource;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder; // 导入密码编码器
+// 移除对 BCryptPasswordEncoder 的导入
+// import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.UUID; // 用于生成唯一的用户ID
+import java.util.UUID;
 
-@Service // 标记这是一个Spring Service组件
+@Service
 public class UserServiceImpl implements IUserService {
 
     @Resource
-    private UserMapper userMapper; // 注入UserMapper，用于数据库操作
+    private UserMapper userMapper;
 
-    @Resource
-    private BCryptPasswordEncoder bCryptPasswordEncoder; // 注入密码编码器
+    // 移除对 BCryptPasswordEncoder 的注入
+    // @Resource
+    // private BCryptPasswordEncoder bCryptPasswordEncoder;
 
     @Resource
     private JwtTokenUtil jwtTokenUtil;
 
-    /**
-     * 处理普通用户登录逻辑
-     * @param loginRequest 登录请求 DTO
-     * @return 登录成功的用户响应对象（包含用户信息和Token）
-     * @throws CustomException 如果登录失败（如用户名密码错误）
-     */
     @Override
-    public LoginResponse login(LoginRequest loginRequest) { // 返回类型改为 LoginResponse
-        // 1. 根据用户名查询用户
+    public LoginResponse login(LoginRequest loginRequest) {
         User dbUser = userMapper.findByUsername(loginRequest.getUsername());
         if (dbUser == null) {
             throw new CustomException("用户名或密码错误", "401");
         }
 
-        // 2. 密码比对：使用 SHA256 对输入的明文密码进行哈希，然后与数据库中的哈希值比对
         String inputHashedPassword = SecureUtil.sha256(loginRequest.getPassword());
         if (!inputHashedPassword.equals(dbUser.getPasswordHash())) {
             throw new CustomException("用户名或密码错误", "401");
         }
 
-        // 3. 登录成功，生成 JWT Token
-        // 假设 user 表中没有 role 字段，这里默认给 "user" 角色
         String token = jwtTokenUtil.generateToken(dbUser.getUserid(), dbUser.getUsername(), "user");
-
-        // 4. 返回脱敏后的 User 对象和 Token
-        dbUser.setPasswordHash(null); // 脱敏
-        return new LoginResponse(dbUser, token); // 返回 LoginResponse 对象
+        dbUser.setPasswordHash(null);
+        return new LoginResponse(dbUser, token);
     }
 
-    /**
-     * 处理普通用户注册逻辑
-     * @param registerRequest 注册请求 DTO
-     * @return 注册成功的用户对象（已脱敏）
-     * @throws CustomException 如果注册失败（如用户名/手机号已存在）
-     */
     @Override
     public User register(RegisterRequest registerRequest) {
-        // 1. 校验用户名是否已存在 (username 对应前端输入的“姓名”)
         User existingUserByUsername = userMapper.findByUsername(registerRequest.getUsername());
         if (existingUserByUsername != null) {
             throw new CustomException("用户名已存在", "409");
         }
 
-        // 2. 校验手机号是否已存在
         User existingUserByPhoneNumber = userMapper.findByPhoneNumber(registerRequest.getPhoneNumber());
         if (existingUserByPhoneNumber != null) {
             throw new CustomException("手机号已注册", "409");
         }
 
-        // 3. 校验密码和确认密码是否一致 (前端已做，后端可再次校验)
         if (!registerRequest.getPassword().equals(registerRequest.getConfirmPassword())) {
             throw new CustomException("两次输入的密码不一致", "400");
         }
 
-        // 4. 密码哈希：使用 SHA256 对明文密码进行哈希，准备存储
-        String hashedPassword = SecureUtil.sha256(registerRequest.getPassword()); // 使用 Hutool 的 SHA256
+        String hashedPassword = SecureUtil.sha256(registerRequest.getPassword());
 
-        // 5. 构建 User 实体并设置字段
         User newUser = new User();
-        newUser.setUserid(UUID.randomUUID().toString()); // 生成唯一的用户ID
-        newUser.setUsername(registerRequest.getUsername()); // 前端“用户名输入”（姓名）映射到 username
+        newUser.setUserid(UUID.randomUUID().toString());
+        newUser.setUsername(registerRequest.getUsername());
         newUser.setPasswordHash(hashedPassword);
-        newUser.setPhoneNumber(registerRequest.getPhoneNumber()); // 前端“手机号”映射到 phoneNumber
-        newUser.setTotalRides(0); // 设置默认值
-        newUser.setTotalDurationMinutes(0); // 设置默认值
-        newUser.setTotalCost(BigDecimal.ZERO); // 设置默认值
+        newUser.setPhoneNumber(registerRequest.getPhoneNumber());
+        newUser.setTotalRides(0);
+        newUser.setTotalDurationMinutes(0);
+        newUser.setTotalCost(BigDecimal.ZERO);
 
-        // 6. 调用Mapper插入用户
         userMapper.insert(newUser);
 
-        // 返回脱敏后的用户信息
         newUser.setPasswordHash(null);
         return newUser;
     }
@@ -127,7 +104,6 @@ public class UserServiceImpl implements IUserService {
      */
     @Override
     public void updateUserProfile(User user) {
-        // 1. 验证用户ID
         if (user.getUserid() == null) {
             throw new CustomException("用户ID不能为空", "400");
         }
@@ -191,7 +167,4 @@ public class UserServiceImpl implements IUserService {
     public User getById(String id) {
         return userMapper.getById(id);
     }
-
-
-
 }

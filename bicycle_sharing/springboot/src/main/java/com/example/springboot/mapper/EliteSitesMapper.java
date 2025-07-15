@@ -32,4 +32,11 @@ public interface EliteSitesMapper {
                                        @Param("maxLat") BigDecimal maxLat,
                                        @Param("minLon") BigDecimal minLon,
                                        @Param("maxLon") BigDecimal maxLon);
+
+
+    /**
+     * 查询所有精英站点
+     * @return 所有精英站点的列表
+     */
+    List<EliteSites> findAll();
 }

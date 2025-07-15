@@ -169,4 +169,28 @@ public class DispatchTasksController { // 控制器类名与资源名复数形�
             return Result.error(Result.CODE_SYS_ERROR, "完成调度任务失败: " + e.getMessage());
         }
     }
+
+
+
+    /**
+     * API: GET /dispatchTasks/{taskId}/bikes
+     * 作用：获取特定调度任务关联的所有自行车ID。
+     * @param taskId 调度任务的ID
+     * @return 关联的自行车ID列表，或错误响应。
+     */
+    @GetMapping("/{taskId}/bikes") // 定义为 GET 请求，路径包含任务ID和 /bikes
+    public Result getBikesForDispatchTask(@PathVariable Long taskId) {
+        try {
+            // 调用 Service 层的方法获取关联的自行车ID列表
+            List<String> bikeIds = dispatchTasksService.getBikesForDispatchTask(taskId);
+            // 返回成功响应，包含自行车ID列表
+            return Result.success("成功获取任务关联自行车ID", bikeIds);
+        } catch (IllegalArgumentException e) {
+            // 如果任务不存在，返回参数错误
+            return Result.error(Result.CODE_PARAM_ERROR, e.getMessage());
+        } catch (Exception e) {
+            // 捕获其他未知异常，返回系统错误
+            return Result.error(Result.CODE_SYS_ERROR, "获取任务关联自行车ID失败: " + e.getMessage());
+        }
+    }
 }

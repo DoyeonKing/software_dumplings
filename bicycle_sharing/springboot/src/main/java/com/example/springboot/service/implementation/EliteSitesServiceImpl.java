@@ -24,4 +24,10 @@ public class EliteSitesServiceImpl implements IEliteSitesService {
     public List<EliteSites> findByLatLngRange(BigDecimal minLat, BigDecimal maxLat, BigDecimal minLon, BigDecimal maxLon) {
         return eliteSitesMapper.findByLatLngRange(minLat, maxLat, minLon, maxLon);
     }
+
+     @Override
+    public List<EliteSites> getAllEliteSites() {
+        // 调用Mapper获取所有精英站点数据
+        return eliteSitesMapper.findAll(); // 假设您的EliteSitesMapper有一个findAll方法
+    }
 }
