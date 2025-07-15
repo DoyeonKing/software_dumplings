@@ -60,7 +60,7 @@ export function getAllParkingAreas() {
 // 根据地图边界获取停车点数据
 export function getParkingAreasInBounds(params) {
     return request({
-        url: '/geohashInfo/parkingAreasByLatLng',
+        url: '/elitesites/parkingAreasByLatLng',
         method: 'get',
         params: {
             minLat: params.minLat,
