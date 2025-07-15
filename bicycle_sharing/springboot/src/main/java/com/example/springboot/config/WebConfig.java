@@ -48,7 +48,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/elite-sites/**",  // 精华站点接口
                         "/user/**",          // 用户
                         "/dispatchTasks/**", // 调度任务接口
-                        "/geohashInfo/**", // Geohash信息接口
+                        "/elitesites/**", // Geohash信息接口
                         "/weatherRecord/**", // 天气信息接口
                         "/user/**",        // 用户信息接口
                         "/orders/**",        // 用车详情
