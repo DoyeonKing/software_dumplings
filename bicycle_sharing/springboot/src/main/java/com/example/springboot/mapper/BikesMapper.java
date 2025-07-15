@@ -135,7 +135,7 @@ public interface BikesMapper { // 接口名与实体类名保持一致，改为B
      */
     @Select("SELECT bike_id AS bikeId, current_lat AS lat, current_lon AS lon FROM bikes")
     List<Bikes> getAllBikeLocations();
-<<<<<<< Updated upstream
+
 /**
      * 根据地理哈希列表，从数据库中统计每个区域的自行车数量。
      * 返回一个列表，其中每个 Map 包含 'geohash' (String) 和 'count' (Long) 两个键值对。
@@ -145,7 +145,6 @@ public interface BikesMapper { // 接口名与实体类名保持一致，改为B
      */
     // 【关键修改】：移除 @MapKey 注解，返回类型改为 List<Map<String, Object>>
     List<Map<String, Object>> selectBikesCountByGeohashes(@Param("list") List<String> geohashes);
-=======
->>>>>>> Stashed changes
+
 
 }
