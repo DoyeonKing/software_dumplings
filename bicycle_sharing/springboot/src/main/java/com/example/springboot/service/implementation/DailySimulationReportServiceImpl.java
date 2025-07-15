@@ -4,7 +4,7 @@ import com.example.springboot.entity.DailySimulationReport;
 import com.example.springboot.mapper.DailySimulationReportMapper;
 import com.example.springboot.service.Interface.IDailySimulationReportService;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional; // 导入 @Transactional
+import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -24,10 +24,9 @@ public class DailySimulationReportServiceImpl implements IDailySimulationReportS
     @Transactional // 确保批量插入在事务中，保证数据一致性
     public void saveDailyReports(List<DailySimulationReport> reports) {
         if (reports != null && !reports.isEmpty()) {
-            // 在插入前，先删除该日期已有的报告，确保数据唯一性并避免重复插入
-            // 假设所有报告都属于同一个日期
-            LocalDate reportDate = reports.get(0).getReportDate();
-            dailySimulationReportMapper.deleteByDate(reportDate);
+            // 【关键修改】：移除了这里对该日期所有报告进行删除的逻辑。
+            // LocalDate reportDate = reports.get(0).getReportDate();
+            // dailySimulationReportMapper.deleteByDate(reportDate); // Removed this line
             dailySimulationReportMapper.insertBatch(reports);
         }
     }

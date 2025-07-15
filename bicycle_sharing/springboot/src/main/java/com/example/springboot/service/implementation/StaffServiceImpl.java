@@ -13,9 +13,7 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap; // 不再需要
 import java.util.List;
-import java.util.Map; // 不再需要
 
 @Service
 public class StaffServiceImpl implements IStaffService {
@@ -186,5 +184,17 @@ public class StaffServiceImpl implements IStaffService {
     public Staff findByStaffId(Integer staffId) {
         // 调用 Mapper 查询用户信息
         return staffMapper.selectById(staffId);
+    }
+
+
+    /**
+     * 根据管理员ID获取其管理的所有工作人员信息
+     * @param managerId 管理员ID
+     * @return 该管理员管理的所有工作人员对象的列表
+     */
+    @Override
+    public List<Staff> getStaffByManagerId(Integer managerId) {
+        // 直接调用 StaffMapper 来根据 managerId 查询工作人员列表
+        return staffMapper.selectStaffByManagerId(managerId);
     }
 }

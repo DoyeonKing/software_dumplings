@@ -37,4 +37,6 @@ public class DailyDispatchSuggestionServiceImpl implements IDailyDispatchSuggest
     public void deleteSuggestionsByDate(LocalDate reportDate) {
         dailyDispatchSuggestionMapper.deleteByDate(reportDate);
     }
+
+
 }

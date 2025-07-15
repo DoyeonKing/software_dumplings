@@ -8,4 +8,7 @@ public interface IDailyDispatchSuggestionService {
     void saveDailySuggestions(List<DailyDispatchSuggestion> suggestions);
     List<DailyDispatchSuggestion> getSuggestionsByDateAndBounds(LocalDate reportDate, double minLat, double maxLat, double minLon, double maxLon);
     void deleteSuggestionsByDate(LocalDate reportDate);
+
+
+
 }
