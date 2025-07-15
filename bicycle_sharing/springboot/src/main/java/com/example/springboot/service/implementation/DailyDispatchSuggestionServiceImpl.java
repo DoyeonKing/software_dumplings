@@ -38,5 +38,15 @@ public class DailyDispatchSuggestionServiceImpl implements IDailyDispatchSuggest
         dailyDispatchSuggestionMapper.deleteByDate(reportDate);
     }
 
+    @Override
+    public List<DailyDispatchSuggestion> getAllSuggestions() {
+        return dailyDispatchSuggestionMapper.selectAllSuggestions();
+    }
+
+    @Override
+    @Transactional
+    public void updateSuggestionStatus(Integer suggestionId, String newStatus) {
+        dailyDispatchSuggestionMapper.updateStatus(suggestionId, newStatus);
+    }
 
 }

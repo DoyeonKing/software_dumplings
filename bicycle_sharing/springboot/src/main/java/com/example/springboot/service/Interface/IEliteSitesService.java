@@ -22,4 +22,6 @@ public interface IEliteSitesService {
 
     //根据经纬度范围获取精英站点
     List<EliteSites> getEliteSitesInBounds(double minLat, double maxLat, double minLon, double maxLon);
+
+    EliteSites getNearestEliteSite(BigDecimal currentLat, BigDecimal currentLon);
 }

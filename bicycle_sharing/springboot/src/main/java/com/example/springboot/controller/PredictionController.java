@@ -1,12 +1,11 @@
 package com.example.springboot.controller;
 
 import com.example.springboot.common.Result;
-import com.example.springboot.dto.AreaStatusDTO;
-import com.example.springboot.dto.DispatchSuggestionDTO;
-import com.example.springboot.dto.MapBoundsRequest;
-import com.example.springboot.dto.MapPredictionResponseDTO;
+import com.example.springboot.dto.*;
+import com.example.springboot.entity.DailyDispatchSuggestion;
 import com.example.springboot.entity.DailySimulationReport;
 import com.example.springboot.entity.EliteSites;
+import com.example.springboot.service.Interface.IDailyDispatchSuggestionService;
 import com.example.springboot.service.Interface.IDailySimulationReportService;
 import com.example.springboot.service.Interface.IEliteSitesService;
 import org.springframework.web.bind.annotation.*;
@@ -27,13 +26,15 @@ public class PredictionController {
 
     private final IDailySimulationReportService dailySimulationReportService;
     private final IEliteSitesService eliteSitesService;
+    private final IDailyDispatchSuggestionService dailyDispatchSuggestionService; // 【新增注入】
 
     public PredictionController(IDailySimulationReportService dailySimulationReportService,
-                                IEliteSitesService eliteSitesService) {
+                                IEliteSitesService eliteSitesService,
+                                IDailyDispatchSuggestionService dailyDispatchSuggestionService) { // 【修改构造函数】
         this.dailySimulationReportService = dailySimulationReportService;
         this.eliteSitesService = eliteSitesService;
+        this.dailyDispatchSuggestionService = dailyDispatchSuggestionService; // 【新增赋值】
     }
-
     @PostMapping("/map_area")
     public Result getPredictionsByMapArea(
             @RequestBody MapBoundsRequest request,
@@ -224,5 +225,40 @@ public class PredictionController {
                 * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return R * c;
+    }
+
+
+    /**
+     * 获取所有调度建议信息
+     * 返回全部调度建议的详细信息
+     */
+    @GetMapping("/suggestions/all")
+    public Result getAllSuggestions() {
+        try {
+            List<DailyDispatchSuggestion> suggestions = dailyDispatchSuggestionService.getAllSuggestions();
+            // 可以在这里对返回的数据进行进一步处理或脱敏，例如只返回部分字段
+            return Result.success(suggestions);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("500", "获取调度建议失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 更改调度建议的状态
+     * @param request 包含suggestionId和newStatus的请求体
+     */
+    @PutMapping("/suggestions/status")
+    public Result updateSuggestionStatus(@RequestBody UpdateSuggestionStatusRequest request) {
+        try {
+            if (request.getSuggestionId() == null || request.getNewStatus() == null || request.getNewStatus().isEmpty()) {
+                return Result.error("400", "调度建议ID和新状态不能为空。");
+            }
+            dailyDispatchSuggestionService.updateSuggestionStatus(request.getSuggestionId(), request.getNewStatus());
+            return Result.success("调度建议状态更新成功。");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("500", "更新调度建议状态失败: " + e.getMessage());
+        }
     }
 }
