@@ -109,4 +109,7 @@ public interface DispatchTasksMapper { // 接口名与实体类名保持一致�
      * @return 数据库受影响的行数。
      */
     int updateDispatchTask(DispatchTasks task); // 方法签名，SQL 在 XML 中定义
+
+
+
 }

@@ -52,7 +52,9 @@ public class WebConfig implements WebMvcConfigurer {
                         // 其他
                         "/files/**",        // 文件服务
                         "/swagger-ui.html", // Swagger文档页面
-                        "/v3/api-docs/**"   // Swagger API数据
+                        "/v3/api-docs/**",   // Swagger API数据
+                        "/api/llm/**",
+                        "/api/simulate/**"
                 );
     }
 }

@@ -46,10 +46,6 @@
             <version>1.4.0</version>
         </dependency>
 
-        <!--
-          REMOVED: The SQL Server (mssql-jdbc) dependency was here.
-          ADDED: The MySQL Connector/J dependency for MySQL 8.0+.
-        -->
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
@@ -62,44 +58,55 @@
             <version>5.8.26</version>
         </dependency>
 
-        <!-- ========== 添加 SpringDoc OpenAPI 依赖 (核心) ========== -->
+        <!-- SpringDoc OpenAPI 依赖 -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>2.8.9</version> <!-- 推荐使用最新稳定版，这里是兼容3.2.x的推荐版本 -->
+            <version>2.8.9</version>
         </dependency>
-        <!-- ==================================================== -->
+
         <!-- JWT Dependencies -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
-            <version>0.11.5</version> <!-- 请使用最新稳定版 -->
+            <version>0.11.5</version>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-impl</artifactId>
-            <version>0.11.5</version> <!-- 请使用最新稳定版 -->
+            <version>0.11.5</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-jackson</artifactId>
-            <version>0.11.5</version> <!-- 请使用最新稳定版 -->
+            <version>0.11.5</version>
             <scope>runtime</scope>
         </dependency>
+
+        <!-- 移除 Spring Boot Security Starter，因为它不再被需要 -->
+        <!-- <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency> -->
+
+        <!-- Spring Boot WebFlux Starter (提供WebClient和Reactor Core) -->
         <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-core</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
         </dependency>
+
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
         </dependency>
+
+        <!-- 其他测试依赖 -->
         <dependency>
-            <groupId>ch.hsr</groupId>
-            <artifactId>geohash</artifactId>
-            <version>1.4.0</version>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
 
     </dependencies>

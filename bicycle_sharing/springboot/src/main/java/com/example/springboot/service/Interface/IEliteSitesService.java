@@ -13,4 +13,10 @@ import java.util.List;
 public interface IEliteSitesService {
 
     List<EliteSites> findByLatLngRange(BigDecimal minLat, BigDecimal maxLat, BigDecimal minLon, BigDecimal maxLon);
+
+    /**
+     * 获取所有精英站点信息
+     * @return 所有精英站点的列表
+     */
+    List<EliteSites> getAllEliteSites();
 }
