@@ -87,7 +87,7 @@ public class OrdersServiceImpl implements IOrdersService { // 实现接口命名
         String startGeohash = GeohashUtil.encode(
                 bike.getCurrentLat().doubleValue(),
                 bike.getCurrentLon().doubleValue(),
-                6 // Geohash精度
+                7 // Geohash精度
         );
         newOrder.setStartGeohash(startGeohash);
 
@@ -143,7 +143,7 @@ public class OrdersServiceImpl implements IOrdersService { // 实现接口命名
         // 2. 检查停车区域是否合法 (判断结束经纬度是否在任一精英站点区域内)
         boolean isParkingAllowed = false;
         List<EliteSites> allEliteSites = eliteSitesMapper.findAll(); // 获取所有停车区域信息
-        String endGeohash = GeohashUtil.encode(endLat, endLon, 6); // 计算结束Geohash
+        String endGeohash = GeohashUtil.encode(endLat, endLon, 7); // 计算结束Geohash
 
         for (EliteSites site : allEliteSites) {
             if (site.getGeohash().equals(endGeohash) || LocationUtil.isWithinGeohashBounds(endLat, endLon, site)) {
