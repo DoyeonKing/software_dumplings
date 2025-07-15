@@ -15,7 +15,7 @@ import java.util.List;
  * 负责接收和处理与Geohash区域信息相关的HTTP请求
  */
 @RestController
-@RequestMapping("/geohashInfo") // 定义这个控制器的基础URL路径
+@RequestMapping("/elitesites") // 定义这个控制器的基础URL路径
 public class EliteSitesController {
     @Resource
     private IEliteSitesService eliteSitesService;
