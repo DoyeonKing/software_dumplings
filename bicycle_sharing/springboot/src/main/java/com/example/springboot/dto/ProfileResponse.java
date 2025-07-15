@@ -3,16 +3,19 @@ package com.example.springboot.dto;
 public class ProfileResponse {
     private Integer staffId;
     private String username;
-    // 移除：private String staffType; // 这个字段之前存在，现在已经移除
+    private Integer managerId; // 新增字段
+    private Integer geohash;   // 新增字段
 
-    // 无参数构造器 (如果需要，建议保留，JSON反序列化可能需要)
+    // 无参数构造器 (建议保留，JSON 反序列化可能需要)
     public ProfileResponse() {
     }
 
-    // 新增/修改：接受 Integer staffId 和 String username 的构造器
-    public ProfileResponse(Integer staffId, String username) {
+    // 更新的构造器：现在接受 staffId, username, managerId, geohash
+    public ProfileResponse(Integer staffId, String username, Integer managerId, Integer geohash) {
         this.staffId = staffId;
         this.username = username;
+        this.managerId = managerId; // 设置 managerId
+        this.geohash = geohash;     // 设置 geohash
     }
 
     // Getter 和 Setter 方法
@@ -32,7 +35,21 @@ public class ProfileResponse {
         this.username = username;
     }
 
-    // 移除 staffType 的 Getter 和 Setter (如果之前有的话)
-    // public String getStaffType() { /* ... */ }
-    // public void setStaffType(String staffType) { /* ... */ }
+    // 新增 managerId 的 Getter 和 Setter
+    public Integer getManagerId() {
+        return managerId;
+    }
+
+    public void setManagerId(Integer managerId) {
+        this.managerId = managerId;
+    }
+
+    // 新增 geohash 的 Getter 和 Setter
+    public Integer getGeohash() {
+        return geohash;
+    }
+
+    public void setGeohash(Integer geohash) {
+        this.geohash = geohash;
+    }
 }

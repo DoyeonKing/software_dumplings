@@ -41,9 +41,12 @@ public class WebConfig implements WebMvcConfigurer {
 
                         // 公开数据查询
                         "/bikes/**",        // 所有与车辆信息查看相关的接口
-                        "/weather/**",      // 天气接口
+                        "/weatherRecord/**",      // 天气接口
                         "/route/**",        // 路线规划接口
+                        "/staff/**",        // 工作人员
+                        "/managers/**",      // 管理员
                         "/elite-sites/**",  // 精华站点接口
+                        "/user/**",          // 用户
                         "/dispatchTasks/**", // 调度任务接口
                         "/geohashInfo/**", // Geohash信息接口
                         "/weatherRecord/**", // 天气信息接口

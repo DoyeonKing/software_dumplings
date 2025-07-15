@@ -139,4 +139,10 @@ public interface BikesMapper { // 接口名与实体类名保持一致，改为B
     // 【关键修改】：移除 @MapKey 注解，返回类型改为 List<Map<String, Object>>
     List<Map<String, Object>> selectBikesCountByGeohashes(@Param("list") List<String> geohashes);
 
+    /**
+     * 获取所有单车的经纬度信息
+     * @return 单车的经纬度信息列表
+     */
+    @Select("SELECT bike_id AS bikeId, current_lat AS lat, current_lon AS lon FROM bikes")
+    List<Bikes> getAllBikeLocations();
 }

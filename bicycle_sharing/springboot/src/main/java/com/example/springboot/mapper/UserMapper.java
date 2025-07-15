@@ -11,25 +11,25 @@ import org.apache.ibatis.annotations.Param;
 @Mapper // 标记这是一个MyBatis Mapper接口，Spring Boot会自动扫描并创建其实现
 public interface UserMapper {
 
-   /**
-     * 根据用户名查询用户
-     * @param username 用户名
-     * @return 匹配的用户对象或 null
-     */
-    User findByUsername(@Param("username") String username);
+ /**
+  * 根据用户名查询用户
+  * @param username 用户名
+  * @return 匹配的用户对象或 null
+  */
+ User findByUsername(@Param("username") String username);
 
-    /**
-     * 根据手机号查询用户
-     * @param phoneNumber 手机号
-     * @return 匹配的用户对象或 null
-     */
-    User findByPhoneNumber(@Param("phoneNumber") String phoneNumber);
+ /**
+  * 根据手机号查询用户
+  * @param phoneNumber 手机号
+  * @return 匹配的用户对象或 null
+  */
+ User findByPhoneNumber(@Param("phoneNumber") String phoneNumber);
 
-    /**
-     * 插入新用户
-     * @param user 待插入的用户对象
-     */
-    void insert(User user);
+ /**
+  * 插入新用户
+  * @param user 待插入的用户对象
+  */
+ void insert(User user);
 
  /**
   * 根据用户ID查询用户
@@ -46,10 +46,10 @@ public interface UserMapper {
   */
  void update(User user);
 
-/**
-     * 根据ID查找用户。
-     * 核心修正：确保 @Param 的值为 "id"，与参数名保持一致。
-     * 并且ID类型为String，与数据库和业务逻辑一致。
-     */
-    User getById(@Param("id") String id);
+ /**
+  * 根据ID查找用户。
+  * 核心修正：确保 @Param 的值为 "id"，与参数名保持一致。
+  * 并且ID类型为String，与数据库和业务逻辑一致。
+  */
+ User getById(@Param("id") String id);
 }
