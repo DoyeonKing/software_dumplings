@@ -20,12 +20,10 @@ public class Orders { // 实体类名根据表名 'trips' 命名为 Trips
     // 骑行用户ID，PRIMARY KEY NOT NULL，FOREIGN KEY (userid)
     private String userid;
 
-    // 骑行开始时间，DATETIME，NOT NULL
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private LocalDateTime startTime;
 
-    // 骑行结束时间，DATETIME，NOT NULL
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private LocalDateTime endTime;
 
     // 骑行开始纬度，DECIMAL(13, 10)，NOT NULL

@@ -145,6 +145,4 @@ public interface BikesMapper { // 接口名与实体类名保持一致，改为B
      */
     // 【关键修改】：移除 @MapKey 注解，返回类型改为 List<Map<String, Object>>
     List<Map<String, Object>> selectBikesCountByGeohashes(@Param("list") List<String> geohashes);
-
-
 }

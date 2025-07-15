@@ -116,6 +116,14 @@
             <scope>test</scope>
         </dependency>
 
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>2.15.2</version> <!-- 版本号与项目中 Jackson 其他组件保持一致 -->
+        </dependency>
+
+
     </dependencies>
 
     <build>
