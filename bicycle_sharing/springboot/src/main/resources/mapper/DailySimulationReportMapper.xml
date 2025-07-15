@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.springboot.mapper.DailySimulationReportMapper">
+
+    <!-- 批量插入每日模拟报告数据 -->
+    <insert id="insertBatch" parameterType="java.util.List">
+        INSERT INTO daily_simulation_reports (
+            report_date, prediction_target_time, geohash, latitude, longitude,
+            status, utilization_rate, current_bikes, parking_capacity,
+            predicted_pickups, predicted_dropoffs, future_bikes, future_remaining_spots
+        ) VALUES
+        <foreach collection="list" item="report" separator=",">
+        (
+            #{report.reportDate},
+            #{report.predictionTargetTime},
+            #{report.geohash},
+            #{report.latitude},
+            #{report.longitude},
+            #{report.status},
+            #{report.utilizationRate},
+            #{report.currentBikes},
+            #{report.parkingCapacity},
+            #{report.predictedPickups},
+            #{report.predictedDropoffs},
+            #{report.futureBikes},
+            #{report.futureRemainingSpots}
+        )
+        </foreach>
+    </insert>
+
+    <!-- 根据日期和地图范围查询模拟报告数据 -->
+    <select id="selectReportsByDateAndBounds" resultType="com.example.springboot.entity.DailySimulationReport">
+        SELECT
+            id, report_date, prediction_target_time, geohash, latitude, longitude,
+            status, utilization_rate, current_bikes, parking_capacity,
+            predicted_pickups, predicted_dropoffs, future_bikes, future_remaining_spots, created_at
+        FROM daily_simulation_reports
+        WHERE report_date = #{reportDate}
+          AND latitude BETWEEN #{minLat} AND #{maxLat}
+          AND longitude BETWEEN #{minLon} AND #{maxLon}
+    </select>
+
+    <!-- 根据日期删除已有报告 -->
+    <delete id="deleteByDate">
+        DELETE FROM daily_simulation_reports WHERE report_date = #{reportDate}
+    </delete>
+
+</mapper>

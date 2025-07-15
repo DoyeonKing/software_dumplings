@@ -1,29 +1,55 @@
 package com.example.springboot.dto;
 
-// 不再需要 import lombok 的东西了
-
-import lombok.Getter;
-import lombok.Setter;
-
-@Setter
-@Getter
 public class ProfileResponse {
-    // 为了完整，最好也把getter/setter加上
     private Integer staffId;
     private String username;
-    private String staffType;
+    private Integer managerId; // 新增字段
+    private Integer geohash;   // 新增字段
 
-    // --- 手动写下面的代码 ---
-
-    // 1. 无参数的构造函数
+    // 无参数构造器 (建议保留，JSON 反序列化可能需要)
     public ProfileResponse() {
     }
 
-    // 2. 包含所有参数的构造函数
-    public ProfileResponse(Integer staffId, String username, String staffType) {
+    // 更新的构造器：现在接受 staffId, username, managerId, geohash
+    public ProfileResponse(Integer staffId, String username, Integer managerId, Integer geohash) {
         this.staffId = staffId;
         this.username = username;
-        this.staffType = staffType;
+        this.managerId = managerId; // 设置 managerId
+        this.geohash = geohash;     // 设置 geohash
     }
 
+    // Getter 和 Setter 方法
+    public Integer getStaffId() {
+        return staffId;
+    }
+
+    public void setStaffId(Integer staffId) {
+        this.staffId = staffId;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    // 新增 managerId 的 Getter 和 Setter
+    public Integer getManagerId() {
+        return managerId;
+    }
+
+    public void setManagerId(Integer managerId) {
+        this.managerId = managerId;
+    }
+
+    // 新增 geohash 的 Getter 和 Setter
+    public Integer getGeohash() {
+        return geohash;
+    }
+
+    public void setGeohash(Integer geohash) {
+        this.geohash = geohash;
+    }
 }

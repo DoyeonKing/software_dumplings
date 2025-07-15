@@ -12,4 +12,25 @@
         <result column="completed_at" property="completedAt"/>
     </resultMap>
 
+    <select id="findById" resultType="com.example.springboot.entity.DispatchTasks">
+        SELECT
+            task_id, start_geohash, end_geohash, bike_count,
+            assigned_to, status, created_at, completed_at
+        FROM dispatch_tasks
+        WHERE task_id = #{taskId}
+    </select>
+
+    <update id="updateDispatchTask" parameterType="com.example.springboot.entity.DispatchTasks">
+        UPDATE dispatch_tasks
+        <set>
+            <if test="startGeohash != null">start_geohash = #{startGeohash},</if>
+            <if test="endGeohash != null">end_geohash = #{endGeohash},</if>
+            <if test="bikeCount != null">bike_count = #{bikeCount},</if>
+            <if test="assignedTo != null">assigned_to = #{assignedTo},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="createdAt != null">created_at = #{createdAt},</if>
+            <if test="completedAt != null">completed_at = #{completedAt},</if>
+        </set>
+        WHERE task_id = #{taskId}
+    </update>
     </mapper>

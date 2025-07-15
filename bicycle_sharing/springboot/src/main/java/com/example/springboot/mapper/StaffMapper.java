@@ -12,20 +12,27 @@ public interface StaffMapper {
      * @param username 用户名
      * @return 匹配的工作人员对象或 null
      */
+    // 移除 staff_type 字段的查询
+    @Select("SELECT staff_id, username, password_hash, managerId, geohash FROM staff WHERE username = #{username}")
     Staff findByUsername(@Param("username") String username);
 
     /**
      * 插入新工作人员
      * @param staff 待插入的工作人员对象
      */
+    // 移除 staff_type 字段的插入
+    @Insert("INSERT INTO staff (username, password_hash) VALUES (#{username}, #{passwordHash})")
+    @Options(useGeneratedKeys = true, keyProperty = "staffId", keyColumn = "staff_id") // 确保自增ID能返回给实体
     void insert(Staff staff);
 
     /**
-     * 根据用户名查询员工信息
+     * 根据用户名查询员工信息 (与 findByUsername 功能相似，但明确带注解)
+     * 保持与 findByUsername 一致，只查必要的字段
      * @param username 用户名
      * @return 对应的 Staff 对象，如果不存在则返回 null
      */
-    @Select("SELECT staff_id, username, password_hash, staff_type FROM staff WHERE username = #{username}")
+    // 移除 staff_type 字段的查询
+    @Select("SELECT staff_id, username, password_hash, managerId, geohash FROM staff WHERE username = #{username}")
     Staff selectByUsername(@Param("username") String username);
 
     // 如果你有注册功能，也可以添加一个检查用户名是否存在的方法
@@ -33,10 +40,11 @@ public interface StaffMapper {
     int countByUsername(@Param("username") String username);
 
     /**
-     * 查询所有工作人员
+     * 查询所有工作人员 (现在将查询所有员工，不再区分角色)
      * @return 所有工作人员对象的列表
      */
-    @Select("SELECT staff_id, username, password_hash FROM staff")
+    // 移除 staff_type 的过滤条件
+    @Select("SELECT staff_id, username, managerId, geohash FROM staff")
     List<Staff> findAllWorkers();
 
     /**
@@ -59,6 +67,7 @@ public interface StaffMapper {
 
 
     //使用token码获得staff信息
-    @Select("SELECT staff_id, username, password_hash, staff_type FROM staff WHERE staff_id = #{staffId}")
+    // 移除 staff_type 字段的查询
+    @Select("SELECT staff_id, username, password_hash, managerId, geohash FROM staff WHERE staff_id = #{staffId}")
     Staff selectById(@Param("staffId") Integer staffId);
 }

@@ -36,4 +36,32 @@
             AND bike_status = #{bikeStatus}
         </if>
     </select>
+
+    <select id="findAvailableBikesByGeohash" resultType="com.example.springboot.entity.Bikes">
+        SELECT bike_id, current_lat, current_lon, current_geohash, bike_status, last_updated_time
+        FROM bikes WHERE current_geohash = #{geohash} AND bike_status = '待使用'
+    </select>
+
+    <update id="updateBikeStatusAndLocation">
+        UPDATE bikes
+        <set>
+            bike_status = #{newStatus},
+            last_updated_time = NOW()
+            <if test="newLat != null">, current_lat = #{newLat}</if>
+            <if test="newLon != null">, current_lon = #{newLon}</if>
+            <if test="newGeohash != null">, current_geohash = #{newGeohash}</if>
+        </set>
+        WHERE bike_id = #{bikeId}
+    </update>
+
+    <select id="selectBikesCountByGeohashes" resultType="java.util.Map"> SELECT
+            current_geohash AS geohash,  COUNT(bike_id) AS count        FROM bikes
+        WHERE current_geohash IN
+        <foreach item="geohashParam" collection="list" open="(" separator="," close=")">
+            #{geohashParam}
+        </foreach>
+        GROUP BY current_geohash
+    </select>
+
+
     </mapper>

@@ -107,30 +107,162 @@
         <div class="task-list">
           <div class="panel-header">
             <h3>调度任务</h3>
-            <el-button type="primary" size="small" @click="refreshTasks">刷新</el-button>
+            <div class="header-info">
+              <span class="current-worker-info">
+                当前查看：员工ID {{ selectedWorkerId }}
+              </span>
+              <el-button type="primary" size="small" @click="refreshTasks" :loading="tasksLoading">
+                刷新
+              </el-button>
+            </div>
           </div>
 
           <!-- 任务过滤器 -->
           <div class="task-filters">
             <el-radio-group v-model="taskFilter" size="small">
               <el-radio-button label="all">全部</el-radio-button>
-              <el-radio-button label="未处理">待处理</el-radio-button>
-              <el-radio-button label="处理中">进行中</el-radio-button>
-              <el-radio-button label="处理完成">已完成</el-radio-button>
+              <el-radio-button label="未处理">未处理</el-radio-button>
+              <el-radio-button label="处理中">处理中</el-radio-button>
+              <el-radio-button label="处理完成">处理完成</el-radio-button>
             </el-radio-group>
+          </div>
+          
+          <!-- 员工ID选择 (测试阶段) -->
+          <div class="worker-id-selector">
+            <el-row :gutter="16">
+              <el-col :span="12">
+                <el-input-number 
+                  v-model="selectedWorkerId" 
+                  placeholder="员工ID" 
+                  size="small" 
+                  :min="1"
+                  controls-position="right"
+                  style="width: 100%"
+                  @keyup.enter="refreshTasksForWorker"
+                />
+              </el-col>
+              <el-col :span="12">
+                <el-button 
+                  type="primary" 
+                  size="small" 
+                  @click="refreshTasksForWorker"
+                  :loading="tasksLoading"
+                  style="width: 100%"
+                >
+                  查看该员工任务
+                </el-button>
+              </el-col>
+            </el-row>
+            
+            <!-- 快捷选择常用员工ID -->
+            <div class="quick-select-workers" style="margin-top: 8px;">
+              <span style="font-size: 12px; color: #666; margin-right: 8px;">快捷选择：</span>
+              <el-button 
+                v-for="workerId in commonWorkerIds" 
+                :key="workerId"
+                size="small"
+                type="text"
+                @click="selectWorkerQuick(workerId)"
+                :style="{ 
+                  color: selectedWorkerId === workerId ? '#409EFF' : '#666',
+                  fontWeight: selectedWorkerId === workerId ? 'bold' : 'normal'
+                }"
+              >
+                员工{{ workerId }}
+              </el-button>
+            </div>
+            
+            <el-alert 
+              title="测试模式" 
+              type="info" 
+              size="small" 
+              :closable="false"
+              style="margin-top: 8px"
+            >
+              当前为测试阶段，可以查看指定员工ID的调度任务
+            </el-alert>
+          </div>
+
+          <!-- 高级筛选 -->
+          <div class="advanced-filters">
+            <el-row :gutter="16">
+              <el-col :span="8">
+                <el-select v-model="dateFilter" placeholder="时间筛选" size="small" clearable>
+                  <el-option label="全部" value="all"></el-option>
+                  <el-option label="今天" value="today"></el-option>
+                  <el-option label="昨天" value="yesterday"></el-option>
+                  <el-option label="最近7天" value="week"></el-option>
+                  <el-option label="最近30天" value="month"></el-option>
+                </el-select>
+              </el-col>
+              <el-col :span="8">
+                <el-input 
+                  v-model="searchKeyword" 
+                  placeholder="搜索任务ID或地点" 
+                  size="small" 
+                  clearable
+                  @input="handleSearch"
+                />
+              </el-col>
+              <el-col :span="8">
+                <el-select v-model="sortBy" placeholder="排序方式" size="small">
+                  <el-option label="创建时间(最新)" value="createdAt-desc"></el-option>
+                  <el-option label="创建时间(最旧)" value="createdAt-asc"></el-option>
+                  <el-option label="完成时间" value="completedAt-desc"></el-option>
+                  <el-option label="单车数量" value="bikeCount-desc"></el-option>
+                </el-select>
+              </el-col>
+            </el-row>
           </div>
 
           <!-- 任务卡片列表 -->
           <div class="task-cards">
+            <div v-if="tasksLoading" class="loading-tasks">
+              <el-skeleton 
+                v-for="i in 3" 
+                :key="i" 
+                :loading="true" 
+                animated
+              >
+                <template #default>
+                  <el-card class="task-card">
+                    <div class="task-card-header">
+                      <span class="task-id">任务 #--</span>
+                      <el-tag size="small">--</el-tag>
+                    </div>
+                    <div class="task-card-content">
+                      <div class="task-info-row">
+                        <span class="info-label">出发地：</span>
+                        <span class="info-value">--</span>
+                      </div>
+                      <div class="task-info-row">
+                        <span class="info-label">目的地：</span>
+                        <span class="info-value">--</span>
+                      </div>
+                    </div>
+                  </el-card>
+                </template>
+              </el-skeleton>
+            </div>
+            
+            <div v-else-if="filteredTasks.length === 0" class="empty-tasks">
+              <el-empty description="暂无调度任务">
+                <template #description>
+                  <div style="color: #999; font-size: 14px;">
+                    <p>当前员工ID {{ selectedWorkerId }} 暂无调度任务</p>
+                    <p>请尝试切换其他员工ID或联系管理员</p>
+                  </div>
+                </template>
+              </el-empty>
+            </div>
+            
             <el-card
               v-for="task in filteredTasks"
-              :key="task.task_id"
+              :key="task.taskId"
               class="task-card"
-              :class="{ 'selected': selectedTaskId === task.task_id }"
-              @click="selectTask(task)"
             >
               <div class="task-card-header">
-                <span class="task-id">任务 #{{ task.task_id }}</span>
+                <span class="task-id">任务 #{{ task.taskId }}</span>
                 <el-tag
                   :type="getTaskStatusType(task.status)"
                   size="small"
@@ -141,33 +273,66 @@
               <div class="task-card-content">
                 <div class="task-info-row">
                   <span class="info-label">出发地：</span>
-                  <span class="info-value">{{ task.start_geohash }}</span>
+                  <span class="info-value">{{ task.startGeohash }}</span>
                 </div>
                 <div class="task-info-row">
                   <span class="info-label">目的地：</span>
-                  <span class="info-value">{{ task.end_geohash }}</span>
+                  <span class="info-value">{{ task.endGeohash }}</span>
                 </div>
                 <div class="task-info-row">
                   <span class="info-label">运输数量：</span>
-                  <span class="info-value">{{ task.bike_count }} 辆</span>
+                  <span class="info-value">{{ task.bikeCount }} 辆</span>
                 </div>
                 <div class="task-info-row">
                   <span class="info-label">创建时间：</span>
-                  <span class="info-value">{{ task.created_at }}</span>
+                  <span class="info-value">{{ formatDateTime(task.createdAt) }}</span>
                 </div>
-                <div v-if="task.completed_at" class="task-info-row">
+                <div v-if="task.completedAt" class="task-info-row">
                   <span class="info-label">完成时间：</span>
-                  <span class="info-value">{{ task.completed_at }}</span>
+                  <span class="info-value">{{ formatDateTime(task.completedAt) }}</span>
                 </div>
                 <div class="task-actions">
-                  <el-button
-                    type="primary"
-                    size="small"
-                    :icon="Location"
-                    @click.stop="navigateToTask(task)"
-                  >
-                    导航该路线
-                  </el-button>
+                  <!-- 任务状态操作按钮组 -->
+                  <div class="status-actions">
+                    <el-button
+                      v-if="task.status === '未处理'"
+                      type="success"
+                      size="small"
+                      @click.stop="handleStartTask(task.taskId)"
+                      :loading="taskOperationLoading === task.taskId"
+                    >
+                      开始任务
+                    </el-button>
+                    <el-button
+                      v-else-if="task.status === '处理中'"
+                      type="warning"
+                      size="small"
+                      @click.stop="handleCompleteTask(task.taskId)"
+                      :loading="taskOperationLoading === task.taskId"
+                    >
+                      完成任务
+                    </el-button>
+                  </div>
+                  
+                  <!-- 导航功能按钮组 -->
+                  <div class="navigation-actions">
+                    <el-button
+                      type="info"
+                      size="small"
+                      @click.stop="showTaskDetailDialog(task)"
+                    >
+                      查看详情
+                    </el-button>
+                    <el-button
+                      type="primary"
+                      size="small"
+                      :icon="Location"
+                      @click.stop="navigateToTask(task)"
+                    >
+                      导航该路线
+                    </el-button>
+
+                  </div>
                 </div>
               </div>
             </el-card>
@@ -177,26 +342,26 @@
         <!-- 统计信息 -->
         <div class="statistics">
           <div class="panel-header">
-            <h3>今日统计</h3>
+            <h3>显示任务统计</h3>
           </div>
           <div class="stat-cards">
             <el-card class="stat-card">
               <template #header>
                 <div class="stat-header">待处理任务</div>
               </template>
-              <div class="stat-number">{{ stats.pending }}</div>
+              <div class="stat-number">{{ filteredStats.pending }}</div>
             </el-card>
             <el-card class="stat-card">
               <template #header>
                 <div class="stat-header">进行中任务</div>
               </template>
-              <div class="stat-number">{{ stats.inProgress }}</div>
+              <div class="stat-number">{{ filteredStats.inProgress }}</div>
             </el-card>
             <el-card class="stat-card">
               <template #header>
                 <div class="stat-header">已完成任务</div>
               </template>
-              <div class="stat-number">{{ stats.completed }}</div>
+              <div class="stat-number">{{ filteredStats.completed }}</div>
             </el-card>
           </div>
         </div>
@@ -205,15 +370,138 @@
       <!-- 右侧地图区域 -->
       <div class="right-panel" :class="{ 'expanded': !showWorkbench }">
         <WorkerMapComponent
-          :selectedTaskId="selectedTaskId"
           :showBicycles="showBicycles"
           :showParkingAreas="showParkingAreas"
           :showHeatmap="showHeatmap"
-          @update:selectedTaskId="selectedTaskId = $event"
           ref="mapComponentRef"
         />
       </div>
     </div>
+
+    <!-- 任务详情弹窗 -->
+    <el-dialog
+      v-model="showTaskDetail"
+      title="调度任务详情"
+      width="600px"
+      :before-close="closeTaskDetailDialog"
+    >
+      <div v-if="currentTaskDetail" class="task-detail-content">
+        <!-- 任务基本信息 -->
+        <div class="detail-section">
+          <h3>📋 任务信息</h3>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-label">任务编号:</span>
+              <span class="detail-value">#{{ currentTaskDetail.taskId }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">任务状态:</span>
+              <el-tag :type="getTaskStatusType(currentTaskDetail.status)" size="small">
+                {{ currentTaskDetail.status }}
+              </el-tag>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">分配给:</span>
+              <span class="detail-value">员工ID {{ currentTaskDetail.assignedTo || '未分配' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">运输数量:</span>
+              <span class="detail-value">{{ currentTaskDetail.bikeCount }} 辆</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">起点区域:</span>
+              <span class="detail-value">{{ currentTaskDetail.startGeohash }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">终点区域:</span>
+              <span class="detail-value">{{ currentTaskDetail.endGeohash }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">创建时间:</span>
+              <span class="detail-value">{{ formatDateTime(currentTaskDetail.createdAt) }}</span>
+            </div>
+            <div class="detail-item" v-if="currentTaskDetail.completedAt">
+              <span class="detail-label">完成时间:</span>
+              <span class="detail-value">{{ formatDateTime(currentTaskDetail.completedAt) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 单车列表 -->
+        <div class="detail-section">
+          <h3>🚴 调度单车列表</h3>
+          <div v-loading="taskDetailLoading" class="bikes-container">
+            <div v-if="taskBikes.length === 0 && !taskDetailLoading" class="no-bikes">
+              <el-empty 
+                description="暂无单车信息" 
+                :image-size="80"
+              >
+                <template #description>
+                  <p v-if="currentTaskDetail.status === '未处理'">
+                    任务尚未开始，暂无分配的单车
+                  </p>
+                  <p v-else>
+                    未获取到单车信息
+                  </p>
+                </template>
+              </el-empty>
+            </div>
+            <div v-else class="bikes-grid">
+              <div 
+                v-for="(bikeId, index) in taskBikes" 
+                :key="bikeId"
+                class="bike-item"
+              >
+                <div class="bike-icon">🚲</div>
+                <div class="bike-info">
+                  <div class="bike-number">单车 #{{ index + 1 }}</div>
+                  <div class="bike-id">{{ bikeId }}</div>
+                </div>
+              </div>
+            </div>
+            <div v-if="taskBikes.length > 0" class="bikes-summary">
+              <el-alert
+                :title="`共 ${taskBikes.length} 辆单车`"
+                type="info"
+                :closable="false"
+                show-icon
+              >
+                <template #default>
+                  <p v-if="currentTaskDetail.status === '处理中'">
+                    这些单车已被选中用于调度，请前往起点区域取车
+                  </p>
+                  <p v-else-if="currentTaskDetail.status === '处理完成'">
+                    这些单车已成功调度到目标区域
+                  </p>
+                </template>
+              </el-alert>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="closeTaskDetailDialog">关闭</el-button>
+          <el-button 
+            v-if="currentTaskDetail?.status === '未处理'"
+            type="success" 
+            @click="handleStartTask(currentTaskDetail.taskId)"
+            :loading="taskOperationLoading === currentTaskDetail?.taskId"
+          >
+            开始任务
+          </el-button>
+          <el-button 
+            v-else-if="currentTaskDetail?.status === '处理中'"
+            type="warning" 
+            @click="handleCompleteTask(currentTaskDetail.taskId)"
+            :loading="taskOperationLoading === currentTaskDetail?.taskId"
+          >
+            完成任务
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -221,7 +509,8 @@
 import { ref, computed, onMounted } from 'vue';
 import { ArrowLeft, ArrowRight, ArrowDown, Location } from '@element-plus/icons-vue';
 import WorkerMapComponent from '@/components/map/WorkerMapComponent.vue';
-import { getAllTasks } from '@/api/assignment/task';
+import { getAllTasks, getDispatchTasksByStaff } from '@/api/assignment/task';
+import { startDispatchTask, completeDispatchTask, getDispatchTaskBikes } from '@/api/assignment/wzm_task';
 import { ElMessage } from 'element-plus';
 import { useRouter } from 'vue-router';
 
@@ -242,13 +531,31 @@ const currentMapStyle = ref('normal');
 const hideUI = ref(false);
 const mapComponentRef = ref(null);
 const taskFilter = ref('all');
-const selectedTaskId = ref(null);
 const tasks = ref([]);
 const stats = ref({
   pending: 0,
   inProgress: 0,
   completed: 0
 });
+
+// 高级筛选变量
+const dateFilter = ref('all'); // 默认显示全部任务
+const searchKeyword = ref('');
+const sortBy = ref('createdAt-desc');
+
+// 测试阶段变量
+const selectedWorkerId = ref(3); // 默认员工ID为3
+const tasksLoading = ref(false);
+const commonWorkerIds = ref([1, 2, 3, 4, 5]); // 常用员工ID
+
+// 任务操作状态
+const taskOperationLoading = ref(null); // 当前正在操作的任务ID
+
+// 任务详情状态
+const showTaskDetail = ref(false); // 控制详情弹窗显示
+const currentTaskDetail = ref(null); // 当前查看详情的任务
+const taskBikes = ref([]); // 任务关联的单车列表
+const taskDetailLoading = ref(false); // 加载任务详情状态
 
 // 地图样式选项
 const mapStyles = [
@@ -267,10 +574,79 @@ const toggleWorkbench = () => {
 
 // 根据过滤器筛选任务
 const filteredTasks = computed(() => {
-  if (taskFilter.value === 'all') {
-    return tasks.value;
+  let filtered = tasks.value;
+  
+  // 状态筛选
+  if (taskFilter.value !== 'all') {
+    filtered = filtered.filter(task => task.status === taskFilter.value);
   }
-  return tasks.value.filter(task => task.status === taskFilter.value);
+  
+  // 时间筛选
+  if (dateFilter.value && dateFilter.value !== 'all') {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    filtered = filtered.filter(task => {
+      const taskDate = new Date(task.createdAt);
+      switch (dateFilter.value) {
+        case 'today':
+          return taskDate >= today;
+        case 'yesterday':
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+          return taskDate >= yesterday && taskDate < today;
+        case 'week':
+          const weekAgo = new Date(today);
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          return taskDate >= weekAgo;
+        case 'month':
+          const monthAgo = new Date(today);
+          monthAgo.setDate(monthAgo.getDate() - 30);
+          return taskDate >= monthAgo;
+        default:
+          return true;
+      }
+    });
+  }
+  
+  // 关键字搜索
+  if (searchKeyword.value) {
+    const keyword = searchKeyword.value.toLowerCase();
+    filtered = filtered.filter(task => 
+      task.taskId.toString().includes(keyword) ||
+      task.startGeohash.toLowerCase().includes(keyword) ||
+      task.endGeohash.toLowerCase().includes(keyword)
+    );
+  }
+  
+  // 排序
+  filtered.sort((a, b) => {
+    switch (sortBy.value) {
+      case 'createdAt-desc':
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      case 'createdAt-asc':
+        return new Date(a.createdAt) - new Date(b.createdAt);
+      case 'completedAt-desc':
+        const aCompleted = a.completedAt ? new Date(a.completedAt) : new Date(0);
+        const bCompleted = b.completedAt ? new Date(b.completedAt) : new Date(0);
+        return bCompleted - aCompleted;
+      case 'bikeCount-desc':
+        return b.bikeCount - a.bikeCount;
+      default:
+        return 0;
+    }
+  });
+  
+  return filtered;
+});
+
+// 计算当前筛选显示的任务统计
+const filteredStats = computed(() => {
+  return {
+    pending: filteredTasks.value.filter(t => t.status === '未处理').length,
+    inProgress: filteredTasks.value.filter(t => t.status === '处理中').length,
+    completed: filteredTasks.value.filter(t => t.status === '处理完成').length
+  };
 });
 
 // 任务状态样式映射
@@ -283,26 +659,35 @@ const getTaskStatusType = (status) => {
   return statusMap[status] || 'info';
 };
 
-// 选择任务
-const selectTask = (task) => {
-  selectedTaskId.value = task.task_id;
-  // 如果工作台是收起状态，则展开
-  if (!showWorkbench.value) {
-    showWorkbench.value = true;
-  }
-};
+
 
 // 刷新任务列表
 const refreshTasks = async () => {
+  await refreshTasksForWorker();
+};
+
+// 刷新指定员工的任务列表
+const refreshTasksForWorker = async () => {
+  if (!selectedWorkerId.value) {
+    ElMessage.error('请输入员工ID');
+    return;
+  }
+  
+  tasksLoading.value = true;
   try {
-    const response = await getAllTasks();
-    if (response.code === 200) {
-      tasks.value = response.data;
+    const response = await getDispatchTasksByStaff(selectedWorkerId.value);
+    if (response.code === 200 || response.code === '200') {
+      tasks.value = response.data || [];
       updateStats();
+      ElMessage.success(`已获取员工ID ${selectedWorkerId.value} 的调度任务`);
+    } else {
+      ElMessage.error(response.msg || '获取调度任务失败');
     }
   } catch (error) {
     console.error('刷新任务列表失败：', error);
     ElMessage.error('刷新任务列表失败');
+  } finally {
+    tasksLoading.value = false;
   }
 };
 
@@ -344,8 +729,168 @@ const handleLogout = () => {
 
 // 导航到任务路线
 const navigateToTask = (task) => {
-  // TODO: 实现导航功能
-  ElMessage.info('导航功能开发中...');
+  if (!mapComponentRef.value) {
+    ElMessage.error('地图组件未准备就绪');
+    return;
+  }
+
+  // 调用地图组件的导航功能
+  mapComponentRef.value.showNavigationRoutes(task);
+};
+
+
+
+// 格式化时间显示
+const formatDateTime = (dateTime) => {
+  if (!dateTime) return '';
+  try {
+    const date = new Date(dateTime);
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  } catch (error) {
+    return dateTime;
+  }
+};
+
+// 处理搜索
+const handleSearch = () => {
+  // 搜索是实时的，由computed属性处理
+};
+
+// 快捷选择员工ID
+const selectWorkerQuick = (workerId) => {
+  selectedWorkerId.value = workerId;
+  refreshTasksForWorker();
+};
+
+// 开始任务
+const handleStartTask = async (taskId) => {
+  if (!taskId) {
+    ElMessage.error('任务ID无效');
+    return;
+  }
+
+  try {
+    taskOperationLoading.value = taskId;
+    
+    const result = await startDispatchTask(taskId);
+    
+    if (result.code === '200' || result.code === 200) {
+      ElMessage.success('任务已开始！已为您选择调度单车');
+      
+      // 显示选中的单车信息
+      if (result.data && Array.isArray(result.data) && result.data.length > 0) {
+        ElMessage.info({
+          message: `已选择 ${result.data.length} 辆单车进行调度`,
+          duration: 3000
+        });
+        console.log('选中的单车ID列表:', result.data);
+      }
+      
+      // 刷新任务列表
+      await refreshTasksForWorker();
+      
+      // 如果当前正在查看任务详情，刷新详情内容
+      if (showTaskDetail.value && currentTaskDetail.value?.taskId === taskId) {
+        const updatedTask = tasks.value.find(t => t.taskId === taskId);
+        if (updatedTask) {
+          currentTaskDetail.value = updatedTask;
+          // 重新获取单车列表
+          const bikeResult = await getDispatchTaskBikes(taskId);
+          if (bikeResult.code === '200' || bikeResult.code === 200) {
+            taskBikes.value = bikeResult.data || [];
+          }
+        }
+      }
+    } else {
+      ElMessage.error(result.msg || '开始任务失败');
+    }
+  } catch (error) {
+    console.error('开始任务失败:', error);
+    ElMessage.error('开始任务失败，请重试');
+  } finally {
+    taskOperationLoading.value = null;
+  }
+};
+
+// 完成任务
+const handleCompleteTask = async (taskId) => {
+  if (!taskId) {
+    ElMessage.error('任务ID无效');
+    return;
+  }
+
+  try {
+    taskOperationLoading.value = taskId;
+    
+    const result = await completeDispatchTask(taskId);
+    
+    if (result.code === '200' || result.code === 200) {
+      ElMessage.success('任务已完成！单车已重新分配到目标区域');
+      
+      // 刷新任务列表
+      await refreshTasksForWorker();
+      
+      // 如果当前正在查看任务详情，刷新详情内容
+      if (showTaskDetail.value && currentTaskDetail.value?.taskId === taskId) {
+        const updatedTask = tasks.value.find(t => t.taskId === taskId);
+        if (updatedTask) {
+          currentTaskDetail.value = updatedTask;
+        }
+      }
+    } else {
+      ElMessage.error(result.msg || '完成任务失败');
+    }
+  } catch (error) {
+    console.error('完成任务失败:', error);
+    ElMessage.error('完成任务失败，请重试');
+  } finally {
+    taskOperationLoading.value = null;
+  }
+};
+
+// 显示任务详情
+const showTaskDetailDialog = async (task) => {
+  if (!task) {
+    ElMessage.error('任务信息无效');
+    return;
+  }
+
+  try {
+    taskDetailLoading.value = true;
+    currentTaskDetail.value = task;
+    
+    // 获取任务关联的单车列表
+    const result = await getDispatchTaskBikes(task.taskId);
+    
+    if (result.code === '200' || result.code === 200) {
+      taskBikes.value = result.data || [];
+    } else {
+      console.warn('获取任务单车列表失败:', result.msg);
+      taskBikes.value = [];
+    }
+    
+    showTaskDetail.value = true;
+  } catch (error) {
+    console.error('获取任务详情失败:', error);
+    ElMessage.error('获取任务详情失败');
+    taskBikes.value = [];
+  } finally {
+    taskDetailLoading.value = false;
+  }
+};
+
+// 关闭任务详情
+const closeTaskDetailDialog = () => {
+  showTaskDetail.value = false;
+  currentTaskDetail.value = null;
+  taskBikes.value = [];
 };
 
 // 初始化
@@ -463,7 +1008,7 @@ onMounted(() => {
 
 .workbench {
   position: relative; /* 确保相对定位 */
-  width: 360px;
+  width: 480px; /* 增大宽度从360px到480px */
   height: 100%;
   background: #fff;
   border-right: 1px solid #eee;
@@ -509,7 +1054,7 @@ onMounted(() => {
 }
 
 .right-panel.expanded {
-  margin-left: -360px;
+  margin-left: -480px; /* 调整以匹配新的工作台宽度 */
 }
 
 /* 滑动动画 */
@@ -538,9 +1083,72 @@ onMounted(() => {
   color: #333;
 }
 
+.header-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.current-worker-info {
+  font-size: 12px;
+  color: #666;
+  background-color: #f0f2f5;
+  padding: 4px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
 .task-filters {
   padding: 16px;
   border-bottom: 1px solid #eee;
+}
+
+.worker-id-selector {
+  padding: 20px; /* 增加内边距 */
+  background-color: #fff8e1;
+  border-bottom: 1px solid #eee;
+}
+
+.worker-id-selector .el-row {
+  align-items: center;
+}
+
+.quick-select-workers {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.quick-select-workers .el-button {
+  padding: 2px 8px;
+  min-height: 24px;
+  font-size: 12px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.quick-select-workers .el-button:hover {
+  background-color: #ecf5ff;
+}
+
+.empty-tasks {
+  padding: 60px 20px; /* 增加空状态的内边距 */
+  text-align: center;
+}
+
+.loading-tasks {
+  padding: 16px;
+}
+
+.advanced-filters {
+  padding: 16px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #eee;
+}
+
+.advanced-filters .el-row {
+  align-items: center;
 }
 
 .task-list {
@@ -554,10 +1162,11 @@ onMounted(() => {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
+  min-height: 0; /* 确保在flex容器中正确滚动 */
 }
 
 .task-card {
-  margin-bottom: 12px;
+  margin-bottom: 16px; /* 增加卡片间距 */
   cursor: pointer;
   transition: all 0.3s ease;
 }
@@ -567,9 +1176,7 @@ onMounted(() => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.task-card.selected {
-  border: 2px solid var(--el-color-primary);
-}
+
 
 .task-card-header {
   display: flex;
@@ -595,7 +1202,7 @@ onMounted(() => {
 }
 
 .task-card-content {
-  padding: 8px 0;
+  padding: 12px 0; /* 增加内容区域的内边距 */
 }
 
 .task-info-row {
@@ -619,7 +1226,26 @@ onMounted(() => {
 .task-actions {
   margin-top: 12px;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.status-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.navigation-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.task-actions .el-button {
+  margin: 0; /* 移除默认边距，使用gap控制间距 */
 }
 
 .statistics {
@@ -631,7 +1257,7 @@ onMounted(() => {
   padding: 16px;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 16px; /* 增大间距 */
 }
 
 .stat-card {
@@ -755,5 +1381,131 @@ onMounted(() => {
 
 .zoom-controls button:hover {
   background-color: #f5f7fa;
+}
+
+/* 任务详情弹窗样式 */
+.task-detail-content {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.detail-section {
+  margin-bottom: 24px;
+}
+
+.detail-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  color: #333;
+  font-weight: 600;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.detail-label {
+  font-weight: 500;
+  color: #666;
+  min-width: 80px;
+  margin-right: 12px;
+}
+
+.detail-value {
+  color: #333;
+  font-weight: 400;
+}
+
+.bikes-container {
+  min-height: 100px;
+}
+
+.no-bikes {
+  padding: 20px;
+  text-align: center;
+  color: #999;
+}
+
+.bikes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.bike-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  transition: all 0.3s ease;
+}
+
+.bike-item:hover {
+  background: #e3f2fd;
+  border-color: #2196f3;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.1);
+}
+
+.bike-icon {
+  font-size: 24px;
+  margin-right: 12px;
+  color: #2196f3;
+}
+
+.bike-info {
+  flex: 1;
+}
+
+.bike-number {
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.bike-id {
+  font-size: 12px;
+  color: #666;
+  font-family: 'Courier New', monospace;
+  background: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  word-break: break-all;
+}
+
+.bikes-summary {
+  margin-top: 16px;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .bikes-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style> 

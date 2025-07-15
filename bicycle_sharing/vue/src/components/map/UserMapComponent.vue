@@ -174,7 +174,8 @@ import AMapLoader from '@amap/amap-jsapi-loader';
 // 导入单车数据API
 import { getMapAreaBicycles } from '@/api/map/bicycle';
 import { getAllParkingAreas, getParkingAreasInBounds, convertParkingAreaData } from '@/api/map/parking';
-import { getHeatMapData } from '@/api/map/heat';
+import { getHeatMapData, convertHeatMapData } from '@/api/map/heat';
+import { updateUserProfile } from '@/api/account/profile';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getRidingRoute } from '@/utils/amap';
 
@@ -222,6 +223,14 @@ export default {
     showHeatmap: {
       type: Boolean,
       default: false
+    },
+    userInfo: {
+      type: Object,
+      default: null
+    },
+    authToken: {
+      type: String,
+      default: ''
     }
   },
   setup(props, { emit }) {
@@ -306,6 +315,50 @@ export default {
       }
     };
 
+    // 更新热力图数据
+    const updateHeatmapData = async () => {
+      if (!map.value || !heatmap.value) return;
+
+      try {
+        // 获取当前地图边界
+        const bounds = map.value.getBounds();
+        const params = {
+          minLat: bounds.getSouthWest().lat,
+          maxLat: bounds.getNorthEast().lat,
+          minLon: bounds.getSouthWest().lng,
+          maxLon: bounds.getNorthEast().lng
+        };
+
+        // 获取热力图数据（基于单车数据）
+        const response = await getHeatMapData(params);
+        
+        // 处理单车API的响应格式
+        let bicycleData = [];
+        if (response && Array.isArray(response.data)) {
+          bicycleData = response.data;
+        } else if (Array.isArray(response)) {
+          bicycleData = response;
+        } else {
+          console.error('获取单车数据格式错误：', response);
+          return;
+        }
+
+        // 转换单车数据为热力图格式
+        const heatmapData = convertHeatMapData(bicycleData);
+        
+        // 设置热力图数据
+        heatmap.value.setDataSet({
+          data: heatmapData,
+          max: 10 // 调整最大权重值，因为每个单车权重为1
+        });
+
+        console.log('热力图数据已更新，单车数量：', bicycleData.length, '热力图点数：', heatmapData.length);
+      } catch (error) {
+        console.error('更新热力图数据失败：', error);
+        ElMessage.error('获取热力图数据失败');
+      }
+    };
+
     // 初始化热力图
     const initHeatmap = async () => {
       if (!map.value) return;
@@ -338,29 +391,14 @@ export default {
         }
 
         // 获取并设置热力图数据
-        try {
-          const response = await getHeatMapData();
-          if (response.code === 200 && Array.isArray(response.data)) {
-            heatmap.value.setDataSet({
-              data: response.data,
-              max: 100 // 最大权重值
-            });
+        await updateHeatmapData();
 
-            // 初始时隐藏热力图
-            heatmap.value.hide();
-            
-            // 只有在props.showHeatmap为true时才显示
-            if (props.showHeatmap) {
-              heatmap.value.show();
-            }
-            console.log('热力图数据已更新，数据点数：', response.data.length);
-          } else {
-            console.error('获取热力图数据格式错误：', response);
-            ElMessage.error('获取热力图数据格式错误');
-          }
-        } catch (error) {
-          console.error('获取热力图数据失败：', error);
-          ElMessage.error('获取热力图数据失败');
+        // 初始时隐藏热力图
+        heatmap.value.hide();
+        
+        // 只有在props.showHeatmap为true时才显示
+        if (props.showHeatmap) {
+          heatmap.value.show();
         }
       } catch (error) {
         console.error('初始化热力图失败：', error);
@@ -377,6 +415,8 @@ export default {
         await initHeatmap();
         if (heatmap.value) {
           heatmap.value.show();
+          // 更新热力图数据
+          await updateHeatmapData();
         }
       } else if (heatmap.value) {
         // 如果关闭热力图，隐藏热力图层
@@ -507,17 +547,20 @@ export default {
       map.value.setMapStyle(styleMapping[newStyle]);
     });
 
-    // 监听地图移动事件，更新单车和停车点数据
+    // 监听地图移动事件，更新单车、停车点和热力图数据
     const setupMapEventListeners = () => {
       if (!map.value) return;
 
-      // 当地图移动结束时，重新显示单车和停车点
+      // 当地图移动结束时，重新显示单车、停车点和热力图
       map.value.on('moveend', () => {
         if (props.showBicycles) {
           showBicycleMarkers();
         }
         if (props.showParkingAreas) {
           showParkingAreas();
+        }
+        if (props.showHeatmap) {
+          updateHeatmapData();
         }
       });
     };
@@ -1002,7 +1045,7 @@ export default {
 
         map.value = new AMap.Map('map', {
           zoom: 17, // 增加初始缩放级别
-          center: [114.00, 22.55],
+          center: [114.04346, 22.51351],
           mapStyle: styleMapping[props.mapStyle] || 'amap://styles/normal',
           zooms: [3, 20] // 设置地图缩放范围
         });
@@ -1397,6 +1440,9 @@ export default {
         console.log('用户关闭了骑行信息弹窗');
       }
       
+      // 更新用户信息
+      await updateUserData(ridingSummary);
+      
       // 重置状态
       bikeId.value = '';
       ridingTime.value = 0;
@@ -1504,11 +1550,10 @@ export default {
     };
 
     const calculateFee = () => {
-      // 简单的计费逻辑：2元起步，每分钟0.5元
-      const basePrice = 2;
-      const pricePerMinute = 0.5;
-      const minutes = Math.ceil(ridingTime.value / 60);
-      return (basePrice + (minutes > 0 ? (minutes - 1) * pricePerMinute : 0)).toFixed(2);
+      // 新的计费逻辑：每10秒1.5元
+      const pricePerTenSeconds = 1.5;
+      const tenSecondPeriods = Math.ceil(ridingTime.value / 10);
+      return (tenSecondPeriods * pricePerTenSeconds).toFixed(2);
     };
 
     const cancelRide = () => {
@@ -1516,6 +1561,43 @@ export default {
         stopRiding();
       }
       emit('update:showRide', false);
+    };
+
+    // 更新用户数据
+    const updateUserData = async (ridingSummary) => {
+      if (!props.userInfo || !props.authToken) {
+        console.warn('用户信息或认证令牌缺失，跳过数据更新');
+        return;
+      }
+
+      try {
+        // 计算新的用户数据
+        const updatedUserData = {
+          userid: props.userInfo.userid,
+          username: props.userInfo.username,
+          phoneNumber: props.userInfo.phoneNumber,
+          totalRides: (props.userInfo.totalRides || 0) + 1, // 总骑行数+1
+          totalDurationMinutes: (props.userInfo.totalDurationMinutes || 0) + Math.ceil(ridingSummary.ridingTime / 60), // 累加骑行时长（转换为分钟）
+          totalCost: parseFloat(((props.userInfo.totalCost || 0) + parseFloat(ridingSummary.fee)).toFixed(2)) // 累加总费用
+        };
+
+        console.log('更新用户数据:', updatedUserData);
+
+        // 调用API更新用户信息
+        const response = await updateUserProfile(props.authToken, updatedUserData);
+        
+        if (response.code === 200 || response.code === '200') {
+          console.log('用户数据更新成功');
+          // 发射事件通知父组件更新用户信息
+          emit('user-data-updated', updatedUserData);
+        } else {
+          console.error('用户数据更新失败:', response.msg);
+          ElMessage.warning('用户数据更新失败，但停车成功');
+        }
+      } catch (error) {
+        console.error('更新用户数据时出错:', error);
+        ElMessage.warning('用户数据更新失败，但停车成功');
+      }
     };
 
 
@@ -1592,7 +1674,8 @@ export default {
       formatDistance,
       formatPosition,
       calculateFee,
-      cancelRide
+      cancelRide,
+      updateUserData
     };
   }
 }

@@ -1,7 +1,5 @@
 package com.example.springboot.service.implementation;
 
-import ch.hsr.geohash.GeoHash;
-import ch.hsr.geohash.WGS84Point;
 import com.example.springboot.dto.HeatCell;
 import com.example.springboot.dto.UtilizationResponse;
 import com.example.springboot.entity.Bikes;
@@ -15,7 +13,10 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 
 /**
@@ -255,4 +256,34 @@ public PageInfo<Bikes> getBikesByPage(Integer pageNum, Integer pageSize, String 
         }
     }
 
+    @Override
+    public List<Bikes> getAllBikeLocations() throws CustomException {
+        try {
+            // 假设 BikesMapper 有一个方法可以获取所有单车的经纬度信息
+            return bikesMapper.getAllBikeLocations();
+        } catch (Exception e) {
+            throw new CustomException("获取单车位置信息失败: " + e.getMessage(), "500");
+        }
+    }
+
+/**
+     * 根据地理哈希列表实现统计每个区域的自行车数量。
+     * 该方法调用 BikesMapper 从数据库中批量获取指定 geohash 区域的自行车数量，
+     * 并在 Service 层手动构建为 Map<String, Long> 返回。
+     *
+     * @param geohashes 包含需要统计自行车数量的地理哈希编码的列表。
+     * @return 一个 Map，其中 key 是地理哈希编码 (String)，value 是该区域的自行车数量 (Long)。
+     */
+    @Override
+    public Map<String, Long> countBikesByGeohashes(List<String> geohashes) {
+        // 【关键修改】：Mapper 返回 List<Map<String, Object>>，然后在这里手动进行转换
+        List<Map<String, Object>> counts = bikesMapper.selectBikesCountByGeohashes(geohashes);
+
+        // 将 List<Map<String, Object>> 转换为 Map<String, Long>
+        return counts.stream()
+                     .collect(Collectors.toMap(
+                         map -> (String) map.get("geohash"), // Map 的键是 'geohash' 列的值
+                         map -> ((Number) map.get("count")).longValue() // Map 的值是 'count' 列的值，转换为 Long
+                     ));
+    }
 }
