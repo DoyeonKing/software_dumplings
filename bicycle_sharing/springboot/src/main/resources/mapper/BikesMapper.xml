@@ -55,6 +55,7 @@
     </update>
 
 
+<<<<<<< Updated upstream
     <select id="selectBikesCountByGeohashes" resultType="java.util.Map"> SELECT
             current_geohash AS geohash,  COUNT(bike_id) AS count        FROM bikes
         WHERE current_geohash IN
@@ -63,4 +64,7 @@
         </foreach>
         GROUP BY current_geohash
     </select>
+=======
+
+>>>>>>> Stashed changes
     </mapper>

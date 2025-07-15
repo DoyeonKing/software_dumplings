@@ -15,7 +15,6 @@ import java.util.List;
  */
 @Mapper
 public interface EliteSitesMapper {
-
     /**
      * 根据 geohashArea 查询停车点信息。
      * 【作用】：用于在调度时，通过目标 geohash 查找对应的精确经纬度。

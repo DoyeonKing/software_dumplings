@@ -1,9 +1,30 @@
 package com.example.springboot.service.Interface;
 
+import com.example.springboot.entity.Orders;
+
+import java.math.BigDecimal;
+
 /**
  * ITripsService接口空壳
  * 定义用户行程记录相关的业务操作契约框架
  */
 public interface IOrdersService { // 接口名与实体类名保持一致，命名为 ITripsService
-    // 空壳：不在此处定义任何方法签名
+
+    /**
+     * 用户租借单车。
+     * @param userId 用户ID
+     * @param bikeId 单车ID
+     * @return 创建的订单信息，如果失败则返回null
+     */
+    Orders rentBike(String userId, String bikeId);
+
+    /**
+     * 用户归还单车。
+     * @param userId 用户ID
+     * @param bikeId 单车ID
+     * @param endLat 结束纬度
+     * @param endLon 结束经度
+     * @return 完成的订单信息，如果失败则返回null
+     */
+    Orders returnBike(String userId, String bikeId, double endLat, double endLon);
 }

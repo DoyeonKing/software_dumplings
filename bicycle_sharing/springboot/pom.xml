@@ -24,6 +24,17 @@
         </dependency>
 
         <dependency>
+            <groupId>ch.hsr</groupId>
+            <artifactId>geohash</artifactId>
+            <version>1.4.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>org.mybatis.spring.boot</groupId>
             <artifactId>mybatis-spring-boot-starter</artifactId>
             <version>3.0.4</version>
@@ -38,12 +49,6 @@
                     <artifactId>mybatis</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-
-        <dependency>
-            <groupId>ch.hsr</groupId>
-            <artifactId>geohash</artifactId>
-            <version>1.4.0</version>
         </dependency>
 
         <dependency>

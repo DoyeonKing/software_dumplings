@@ -1,5 +1,7 @@
 package com.example.springboot.entity;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -10,7 +12,7 @@ import java.time.LocalDateTime;
  */
 public class Orders { // 实体类名根据表名 'trips' 命名为 Trips
     // 订单唯一标识符，PRIMARY KEY NOT NULL
-    private Integer orderid; // 对应INT
+    private String orderid; // 对应INT
 
     // 共享单车唯一标识符，PRIMARY KEY NOT NULL
     private String bikeid;
@@ -19,9 +21,11 @@ public class Orders { // 实体类名根据表名 'trips' 命名为 Trips
     private String userid;
 
     // 骑行开始时间，DATETIME，NOT NULL
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime startTime;
 
     // 骑行结束时间，DATETIME，NOT NULL
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime endTime;
 
     // 骑行开始纬度，DECIMAL(13, 10)，NOT NULL
@@ -64,7 +68,7 @@ public class Orders { // 实体类名根据表名 'trips' 命名为 Trips
     public Orders() {
     }
 
-    public Orders(Integer orderid, String bikeid, String userid, LocalDateTime startTime, LocalDateTime endTime, BigDecimal startLat, BigDecimal startLon, BigDecimal endLat, BigDecimal endLon, BigDecimal distanceM, BigDecimal cost, String startGeohash, String endGeohash, Integer startWeekday, Integer startHour, Integer isWeekend, Integer durationMinutes) {
+    public Orders(String orderid, String bikeid, String userid, LocalDateTime startTime, LocalDateTime endTime, BigDecimal startLat, BigDecimal startLon, BigDecimal endLat, BigDecimal endLon, BigDecimal distanceM, BigDecimal cost, String startGeohash, String endGeohash, Integer startWeekday, Integer startHour, Integer isWeekend, Integer durationMinutes) {
         this.orderid = orderid;
         this.bikeid = bikeid;
         this.userid = userid;
@@ -85,11 +89,11 @@ public class Orders { // 实体类名根据表名 'trips' 命名为 Trips
     }
 
     // --- Getter 和 Setter 方法 ---
-    public Integer getOrderid() {
+    public String getOrderid() {
         return orderid;
     }
 
-    public void setOrderid(Integer orderid) {
+    public void setOrderid(String orderid) {
         this.orderid = orderid;
     }
 
