@@ -1,8 +1,11 @@
 package com.example.springboot.mapper;
 
+import com.example.springboot.common.PasswordResetPair;
 import com.example.springboot.entity.Manager;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
 
 /**
  * @interface ManagerMapper
@@ -13,6 +16,13 @@ import org.apache.ibatis.annotations.Param;
  */
 @Mapper
 public interface ManagerMapper {
+
+    /**
+     * 批量更新用户密码
+     * @param resetPairs 密码重置对列表
+     * @return 更新成功的记录数
+     */
+    int batchUpdatePassword(@Param("resetPairs") List<PasswordResetPair> resetPairs);
 
     /**
      * 3. 根据用户名查找管理员。

@@ -5,6 +5,7 @@ import com.example.springboot.common.request.RegisterRequest;
 import com.example.springboot.common.response.LoginResponse;
 import com.example.springboot.dto.UpdatePasswordRequest;
 import com.example.springboot.entity.Manager;
+import com.example.springboot.exception.CustomException;
 
 /**
  * @interface IManagerService
@@ -14,6 +15,14 @@ import com.example.springboot.entity.Manager;
  * 2. 具体的实现由 ManagerServiceImpl 类完成。
  */
 public interface IManagerService {
+
+    /**
+     * 批量重置指定范围内管理员的密码为默认密码
+     * @param startId 起始ID（包含）
+     * @param endId 结束ID（包含）
+     * @return 更新成功的用户数量
+     */
+    int batchResetPasswords(int startId, int endId);
 
     /**
      * 3. 管理员登录。
