@@ -58,6 +58,17 @@
       </div>
     </div>
 
+    <!-- 热力图控制区域 -->
+    <div class="heatmap-control">
+      <button 
+        class="heatmap-btn yellow-btn" 
+        @click="toggleHeatmap"
+        :disabled="!hasSearched || isLoading"
+      >
+        {{ showHeatmap ? '关闭预测热力图' : '生成预测热力图' }}
+      </button>
+    </div>
+
     <!-- 区域数据列表 -->
     <div class="area-data-list">
       <div v-if="areaData.length === 0 && !isLoading" class="no-data">
@@ -144,7 +155,9 @@ export default {
       predictionHour: 0,
       isLoading: false,
       hasSearched: false,
-      selectedAreaGeohash: null
+      selectedAreaGeohash: null,
+      showHeatmap: false,
+      heatmapInstance: null
     }
   },
   computed: {
@@ -173,6 +186,11 @@ export default {
   mounted() {
     // 设置默认日期为2019-12-31
     this.reportDate = '2019-12-31';
+  },
+  
+  beforeUnmount() {
+    // 清理热力图
+    this.closeHeatmap();
   },
   methods: {
     getStatusClass(status) {
@@ -300,6 +318,120 @@ export default {
     },
     clearAreaSelection() {
       this.selectedAreaGeohash = null;
+    },
+    
+    // 热力图相关方法
+    async toggleHeatmap() {
+      if (this.showHeatmap) {
+        this.closeHeatmap();
+      } else {
+        await this.generateHeatmap();
+      }
+    },
+    
+    async generateHeatmap() {
+      if (!this.map || !this.reportDate || this.predictionHour < 0 || this.predictionHour > 24) {
+        alert('请先设置预测参数并获取区域数据');
+        return;
+      }
+      
+      try {
+        console.log('开始生成预测热力图...');
+        
+        // 调用热力图API
+        const response = await this.fetchHeatmapData();
+        
+        if (response && response.length > 0) {
+          this.createHeatmap(response);
+          this.showHeatmap = true;
+          console.log('预测热力图生成成功');
+        } else {
+          alert('未获取到热力图数据，请检查预测参数');
+        }
+      } catch (error) {
+        console.error('生成热力图失败:', error);
+        alert(`生成热力图失败: ${error.message}`);
+      }
+    },
+    
+    async fetchHeatmapData() {
+      const token = sessionStorage.getItem('authToken');
+      if (!token) {
+        throw new Error('登录已过期，请重新登录');
+      }
+      
+      // 构建查询参数
+      const queryParams = new URLSearchParams({
+        reportDateStr: this.reportDate,
+        predictionTimeHour: this.predictionHour.toString()
+      });
+      
+      console.log('热力图API参数:', queryParams.toString());
+      
+      // 使用GET方法，参数通过查询字符串传递
+      const response = await fetch(`http://localhost:8080/api/predict/heatmap_data?${queryParams}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log('热力图API响应:', result);
+      
+      if (result.code === '200' && result.data) {
+        return result.data;
+      } else {
+        throw new Error(result.msg || '获取热力图数据失败');
+      }
+    },
+    
+    createHeatmap(heatmapData) {
+      // 清除现有热力图
+      this.closeHeatmap();
+      
+      // 转换数据格式
+      const heatmapPoints = heatmapData.map(item => ({
+        lng: item.longitude,
+        lat: item.latitude,
+        count: item.weight
+      }));
+      
+      console.log('热力图数据点数量:', heatmapPoints.length);
+      
+      // 创建热力图
+      this.heatmapInstance = new window.AMap.HeatMap(this.map, {
+        radius: 25,
+        opacity: [0.1, 0.9],
+        gradient: {
+          0.2: 'blue',
+          0.4: 'green',
+          0.6: 'yellow',
+          0.8: 'orange',
+          1.0: 'red'
+        }
+      });
+      
+      // 设置热力图数据
+      this.heatmapInstance.setDataSet({
+        data: heatmapPoints,
+        max: Math.max(...heatmapPoints.map(p => p.count))
+      });
+      
+      console.log('热力图创建完成');
+    },
+    
+    closeHeatmap() {
+      if (this.heatmapInstance) {
+        this.heatmapInstance.setMap(null);
+        this.heatmapInstance = null;
+      }
+      this.showHeatmap = false;
+      console.log('热力图已关闭');
     }
   }
 };
@@ -373,6 +505,39 @@ export default {
 }
 
 .predict-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.heatmap-control {
+  display: flex;
+  justify-content: center;
+  padding: 8px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.heatmap-btn {
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  background: #FFD600;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.heatmap-btn:hover:not(:disabled) {
+  background: #FFC107;
+  transform: translateY(-1px);
+}
+
+.heatmap-btn:disabled {
   background: #ccc;
   cursor: not-allowed;
   transform: none;

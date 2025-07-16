@@ -11,16 +11,25 @@
       </span>
     </div>
 
-    <div class="top-right-btn-group btn-group">
-      <button class="yellow-btn" @click="onToggleBikes">
-        {{ showBikes ? '隐藏单车' : '显示单车' }}
-      </button>
-      <button class="yellow-btn" @click="onToggleHeatmap">
-        {{ showHeatmap ? '显示普通地图' : '显示热力图' }}
-      </button>
-      <button class="yellow-btn" @click="goHome">
-        返回主页
-      </button>
+    <div class="top-right-controls">
+      <div class="control-group">
+        <button class="control-btn" @click="onToggleBikes" :class="{ active: showBikes }">
+          <span class="btn-icon">🚲</span>
+          <span class="btn-text">{{ showBikes ? '隐藏单车' : '显示单车' }}</span>
+        </button>
+        <button class="control-btn" @click="onToggleHeatmap" :class="{ active: showHeatmap }">
+          <span class="btn-icon">🔥</span>
+          <span class="btn-text">{{ showHeatmap ? '普通地图' : '热力图' }}</span>
+        </button>
+        <button class="control-btn" @click="onToggleParkingAreas" :class="{ active: showParkingAreas }">
+          <span class="btn-icon">🅿️</span>
+          <span class="btn-text">{{ showParkingAreas ? '隐藏区域' : '显示区域' }}</span>
+        </button>
+        <button class="control-btn" @click="goHome">
+          <span class="btn-icon">🏠</span>
+          <span class="btn-text">主页</span>
+        </button>
+      </div>
     </div>
 
     <!-- 左侧信息面板 - 使用标签页设计 -->
@@ -180,7 +189,7 @@
 
             <button class="yellow-btn deploy-btn"
                     @click="publishTask"
-                    :disabled="(!selectedStartArea && !startInputValue.trim()) || (!selectedEndArea && !endInputValue.trim()) || !selectedWorker || dispatchAmount<1"
+                    :disabled="!selectedStartArea || !selectedEndArea || !selectedWorker || dispatchAmount<1"
             >确定发布</button>
           </div>
         </transition>
@@ -199,7 +208,6 @@ import bicycleIcon from '@/components/icons/bicycle.png';
 import { getMapAreaBicycles } from '@/api/map/bicycle';
 import { getParkingAreasInBounds, convertParkingAreaData } from '@/api/map/parking.js';
 import { getManagedStaff } from '@/api/account/staffService.js';
-import { createDispatchTask } from '@/api/assignment/dispatchService.js';
 
 // 颜色定义
 const HIGHLIGHT_COLORS = {
@@ -241,6 +249,7 @@ export default {
       parkingAreas: [],
       bikes: [],
       showBikes: true,
+      showParkingAreas: true, // 默认显示停车区域
       // 标签页状态
       activeTab: 'area', // 默认显示区域数据标签页
       // 添加高亮区域的颜色配置
@@ -329,6 +338,22 @@ export default {
       }
     },
 
+    onToggleParkingAreas() {
+      this.showParkingAreas = !this.showParkingAreas;
+      
+      if (this.polygons && this.polygons.length > 0) {
+        this.polygons.forEach(polygon => {
+          if (this.showParkingAreas) {
+            polygon.setMap(this.map);
+          } else {
+            polygon.setMap(null);
+          }
+        });
+      }
+      
+      console.log(`停车区域已${this.showParkingAreas ? '显示' : '隐藏'}`);
+    },
+
     updatePolygonStyles() {
       this.parkingAreas.forEach(area => {
         const polygon = this.polygonMap[area.id];
@@ -365,7 +390,11 @@ export default {
           zIndex: 50,
           cursor: "pointer"
         });
-        polygon.setMap(this.map);
+        
+        // 根据showParkingAreas状态决定是否显示
+        if (this.showParkingAreas) {
+          polygon.setMap(this.map);
+        }
 
         polygon.on("mouseover", () => {
           this.infoWindow.setContent(`
@@ -437,85 +466,13 @@ export default {
       this.updatePolygonStyles();
     },
 
-    async publishTask() {
-      // 检查是否有起点和终点（支持地图选择和输入框输入）
-      let startArea = this.selectedStartArea;
-      let endArea = this.selectedEndArea;
-      
-      // 如果地图没有选择，检查输入框是否有输入
-      if (!startArea && this.startInputValue.trim()) {
-        startArea = {
-          geohash: this.startInputValue.trim(),
-          id: this.startInputValue.trim()
-        };
-      }
-      
-      if (!endArea && this.endInputValue.trim()) {
-        endArea = {
-          geohash: this.endInputValue.trim(),
-          id: this.endInputValue.trim()
-        };
-      }
-      
-      // 验证所有必需字段
-      if (!startArea || !endArea || !this.selectedWorker || this.dispatchAmount < 1) {
-        alert('请确保已选择起点、终点、工作人员，且调度数量大于0！');
-        return;
-      }
-      
-      // 验证起点和终点不能相同
-      if (startArea.geohash === endArea.geohash) {
-        alert('起点和终点不能是同一个区域！');
-        return;
-      }
-      
-      try {
-        console.log('开始创建调度任务...');
-        console.log('任务数据:', {
-          startGeohash: startArea.geohash,
-          endGeohash: endArea.geohash,
-          assignedTo: this.selectedWorker.staffId,
-          bikeCount: this.dispatchAmount
-        });
-        
-        // 调用API创建调度任务
-        const response = await createDispatchTask({
-          startGeohash: startArea.geohash,
-          endGeohash: endArea.geohash,
-          assignedTo: this.selectedWorker.staffId,
-          bikeCount: this.dispatchAmount
-        });
-        
-        console.log('创建调度任务API响应:', response);
-        
-        if (response && (response.code === 200 || response.code === '200')) {
-          // 成功创建任务
-          alert(`调度任务已发布！\n\n` + 
-                `起点：${startArea.geohash}\n` + 
-                `终点：${endArea.geohash}\n` + 
-                `调度数量：${this.dispatchAmount}\n` + 
-                `执行工作人员：${this.selectedWorker.username} (ID: ${this.selectedWorker.staffId})\n` + 
-                `负责区域：${this.selectedWorker.geohash}`);
-          
-          // 清空选择状态
-          this.cancelOrClearSelection('start');
-          this.cancelOrClearSelection('end');
-          this.selectedWorker = null;
-          this.dispatchAmount = 1;
-          
-          // 清空输入框
-          this.startInputValue = '';
-          this.endInputValue = '';
-          
-        } else {
-          console.error('创建调度任务失败:', response);
-          alert(`创建调度任务失败: ${response?.msg || response?.message || '未知错误'}`);
-        }
-        
-      } catch (error) {
-        console.error('创建调度任务时发生错误:', error);
-        alert(`创建调度任务失败: ${error.message || '网络错误'}`);
-      }
+    publishTask() {
+      if (!this.selectedStartArea || !this.selectedEndArea || !this.selectedWorker || this.dispatchAmount < 1) return;
+      alert(`调度任务已发布！\n\n` + `起点：${this.selectedStartArea.geohash}\n` + `终点：${this.selectedEndArea.geohash}\n` + `调度数量：${this.dispatchAmount}\n` + `执行工作人员：${this.selectedWorker.username} (ID: ${this.selectedWorker.staffId})\n` + `负责区域：${this.selectedWorker.geohash}`);
+      this.cancelOrClearSelection('start');
+      this.cancelOrClearSelection('end');
+      this.selectedWorker = null;
+      this.dispatchAmount = 1;
     },
 
     onToggleHeatmap() {
@@ -735,7 +692,7 @@ export default {
       
       // 初始化地图
       this.map = new window.AMap.Map("mapContainer", {
-        center: [114.0620229340, 22.5390683891],
+        center: [114.0580, 22.5390],
         zoom: 18, // 更高的缩放级别
         dragEnable: true,
         zoomEnable: true,
@@ -818,7 +775,70 @@ export default {
 .location-view-root { position: relative; height: 100vh; overflow: hidden; }
 #mapContainer { width: 100vw; height: 100vh; position: fixed; top: 0; left: 0; z-index: 1; }
 .top-left-link-group { position: fixed; top: 0px; left: 15px; z-index: 30; }
-.top-right-btn-group { position: fixed; top: 20px; right: 30px; z-index: 30; }
+.top-right-controls {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+}
+
+.control-group {
+  display: flex;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 214, 0, 0.15);
+}
+
+.control-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.8);
+  color: #666;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.7rem;
+  font-weight: 500;
+  min-width: 60px;
+  backdrop-filter: blur(5px);
+}
+
+.control-btn:hover {
+  background: rgba(255, 214, 0, 0.15);
+  color: #333;
+  transform: translateY(-1px);
+}
+
+.control-btn.active {
+  background: #FFD600;
+  color: #333;
+  box-shadow: 0 2px 8px rgba(255, 214, 0, 0.3);
+}
+
+.btn-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.btn-text {
+  font-size: 0.65rem;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+
 .left-info-panel { position: fixed; top: 90px; left: 30px; z-index: 20; display: flex; flex-direction: column; gap: 14px; min-width: 260px; max-width: 320px; }
 .info-title { font-size: 1.1rem; font-weight: 700; color: #222; margin-bottom: 6px; }
 .info-content { font-size: 1rem; color: #444; }
@@ -839,7 +859,7 @@ export default {
 }
 
 
-.right-task-panel { position: fixed; top: 50px; right: 23px; z-index: 20; display: flex; flex-direction: column; min-width: 300px; max-width: 360px; align-items: flex-end; }
+.right-task-panel { position: fixed; top: 80px; right: 23px; z-index: 20; display: flex; flex-direction: column; min-width: 300px; max-width: 360px; align-items: flex-end; }
 .task-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; width: 100%; }
 .task-title-row { display: flex; align-items: center; justify-content: space-between; }
 .task-title { font-size: 1.1rem; font-weight: 700; color: #222; }

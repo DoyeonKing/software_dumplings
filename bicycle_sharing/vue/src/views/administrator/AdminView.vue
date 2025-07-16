@@ -38,13 +38,20 @@
     </div>
 
     <div class="top-right-controls">
-      <button class="toggle-btn" @click="onToggleBikes">
-        {{ showBikes ? '隐藏单车' : '显示单车' }}
-      </button>
-
-      <button class="toggle-btn" @click="onToggleHeatmap">
-        {{ showHeatmap ? '显示普通地图' : '显示热力图' }}
-      </button>
+      <div class="control-group">
+        <button class="control-btn" @click="onToggleBikes" :class="{ active: showBikes }">
+          <span class="btn-icon">🚲</span>
+          <span class="btn-text">{{ showBikes ? '隐藏单车' : '显示单车' }}</span>
+        </button>
+        <button class="control-btn" @click="onToggleHeatmap" :class="{ active: showHeatmap }">
+          <span class="btn-icon">🔥</span>
+          <span class="btn-text">{{ showHeatmap ? '普通地图' : '热力图' }}</span>
+        </button>
+        <button class="control-btn" @click="onToggleParkingAreas" :class="{ active: showParkingAreas }">
+          <span class="btn-icon">🅿️</span>
+          <span class="btn-text">{{ showParkingAreas ? '隐藏区域' : '显示区域' }}</span>
+        </button>
+      </div>
 
       <div class="user-menu-container">
         <img
@@ -102,6 +109,7 @@ export default {
       parkingPolygons: [],
       bikes: [],
       showBikes: true,
+      showParkingAreas: true, // 默认显示停车区域
     };
   },
   mounted() {
@@ -159,7 +167,7 @@ export default {
 
       // 加载初始数据
       this.loadBicycles();
-      this.showParkingAreas();
+      this.loadParkingAreas();
 
       // 监听地图移动和缩放事件，但使用防抖来减少API调用频率
       let timeout;
@@ -167,7 +175,7 @@ export default {
         clearTimeout(timeout);
         timeout = setTimeout(() => {
           this.loadBicycles();
-          this.showParkingAreas();
+          this.loadParkingAreas();
         }, 500); // 500ms的防抖延迟
       };
 
@@ -185,8 +193,8 @@ export default {
       // 【修改】移除所有监听器
       this.map.off('moveend', this.loadBicycles);
       this.map.off('zoomend', this.loadBicycles);
-      this.map.off('moveend', this.showParkingAreas);
-      this.map.off('zoomend', this.showParkingAreas);
+      this.map.off('moveend', this.loadParkingAreas);
+      this.map.off('zoomend', this.loadParkingAreas);
     }
   },
   methods: {
@@ -221,7 +229,7 @@ export default {
       }
     },
     // 【新增】显示停车区域的主方法 (参考 UserMapComponent.vue)
-    async showParkingAreas() {
+    async loadParkingAreas() {
       if (!this.map) return;
       try {
         // 清除旧的图层
@@ -319,7 +327,12 @@ export default {
           zIndex: 40,
           cursor: "pointer"
         });
-        this.map.add(polygon);
+        
+        // 根据showParkingAreas状态决定是否显示
+        if (this.showParkingAreas) {
+          this.map.add(polygon);
+        }
+        
         this.parkingPolygons.push(polygon);
 
         polygon.on("mouseover", (e) => {
@@ -350,6 +363,26 @@ export default {
       if (!this.showHeatmap && !this.showBikes) {
         this.markers.forEach(marker => marker.hide());
       }
+    },
+
+    onToggleParkingAreas() {
+      this.showParkingAreas = !this.showParkingAreas;
+      
+      if (this.parkingPolygons && this.parkingPolygons.length > 0) {
+        if (this.showParkingAreas) {
+          // 显示停车区域
+          this.parkingPolygons.forEach(polygon => {
+            polygon.setMap(this.map);
+          });
+        } else {
+          // 隐藏停车区域
+          this.parkingPolygons.forEach(polygon => {
+            polygon.setMap(null);
+          });
+        }
+      }
+      
+      console.log(`停车区域已${this.showParkingAreas ? '显示' : '隐藏'}`);
     },
     handleProfileSaved(formData) {
       this.form = { ...this.form, ...formData };
@@ -409,28 +442,65 @@ html, body, #app, .dashboard-view-root {
 .top-right-controls {
   position: fixed;
   top: 20px;
-  right: 30px;
+  right: 20px;
   z-index: 1001;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 16px;
 }
 
-.toggle-btn {
-  background: #ffd600;
-  color: #222;
-  border: none;
-  border-radius: 20px;
-  padding: 10px 22px;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  transition: background 0.2s;
+.control-group {
+  display: flex;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 214, 0, 0.15);
 }
 
-.toggle-btn:hover {
-  background: #ffe066;
+.control-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.8);
+  color: #666;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.7rem;
+  font-weight: 500;
+  min-width: 60px;
+  backdrop-filter: blur(5px);
+}
+
+.control-btn:hover {
+  background: rgba(255, 214, 0, 0.15);
+  color: #333;
+  transform: translateY(-1px);
+}
+
+.control-btn.active {
+  background: #FFD600;
+  color: #333;
+  box-shadow: 0 2px 8px rgba(255, 214, 0, 0.3);
+}
+
+.btn-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.btn-text {
+  font-size: 0.65rem;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  font-weight: 500;
 }
 
 .user-menu-container {

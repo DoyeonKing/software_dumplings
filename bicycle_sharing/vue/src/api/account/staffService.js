@@ -10,4 +10,16 @@ export function getManagedStaff() {
             'Authorization': token ? 'Bearer ' + token : '' // 使用Bearer格式
         }
     });
+}
+
+// 获取所有工作人员
+export function getAllWorkers() {
+    const token = sessionStorage.getItem('authToken');
+    return request({
+        url: '/staff/workers',
+        method: 'get',
+        headers: {
+            'Authorization': token ? 'Bearer ' + token : ''
+        }
+    });
 } 

@@ -96,16 +96,25 @@
       </div>
     </div>
 
-    <div class="top-right-btn-group btn-group">
-      <button class="yellow-btn" @click="onToggleBikes">
-        {{ showBikes ? '隐藏单车' : '显示单车' }}
-      </button>
-      <button class="yellow-btn" @click="onToggleHeatmap">
-        {{ showHeatmap ? '显示普通地图' : '显示热力图' }}
-      </button>
-      <button class="yellow-btn" @click="goHome">
-        返回主页
-      </button>
+    <div class="top-right-controls">
+      <div class="control-group">
+        <button class="control-btn" @click="onToggleBikes" :class="{ active: showBikes }">
+          <span class="btn-icon">🚲</span>
+          <span class="btn-text">{{ showBikes ? '隐藏单车' : '显示单车' }}</span>
+        </button>
+        <button class="control-btn" @click="onToggleHeatmap" :class="{ active: showHeatmap }">
+          <span class="btn-icon">🔥</span>
+          <span class="btn-text">{{ showHeatmap ? '普通地图' : '热力图' }}</span>
+        </button>
+        <button class="control-btn" @click="onToggleParkingAreas" :class="{ active: showParkingAreas }">
+          <span class="btn-icon">🅿️</span>
+          <span class="btn-text">{{ showParkingAreas ? '隐藏区域' : '显示区域' }}</span>
+        </button>
+        <button class="control-btn" @click="goHome">
+          <span class="btn-icon">🏠</span>
+          <span class="btn-text">主页</span>
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -157,6 +166,7 @@ export default {
       parkingPolygons: [],
       bikes: [],
       showBikes: true,
+      showParkingAreas: true, // 默认显示停车区域
       // 添加默认缩放级别
       defaultZoom: 18,
       // 添加特定区域的坐标映射
@@ -241,7 +251,7 @@ export default {
 
       // 加载初始数据
       this.loadBicycles();
-      this.showParkingAreas();
+      this.loadParkingAreas();
 
       // 监听地图移动和缩放事件，但使用防抖来减少API调用频率
       let timeout;
@@ -249,7 +259,7 @@ export default {
         clearTimeout(timeout);
         timeout = setTimeout(() => {
           this.loadBicycles();
-          this.showParkingAreas();
+          this.loadParkingAreas();
         }, 500); // 500ms的防抖延迟
       };
 
@@ -301,7 +311,7 @@ export default {
       }
     },
     // 【新增】显示停车区域的主方法
-    async showParkingAreas() {
+    async loadParkingAreas() {
       if (!this.map) return;
       try {
         if (this.parkingPolygons && this.parkingPolygons.length > 0) {
@@ -400,6 +410,26 @@ export default {
       }
     },
 
+    onToggleParkingAreas() {
+      this.showParkingAreas = !this.showParkingAreas;
+      
+      if (this.parkingPolygons && this.parkingPolygons.length > 0) {
+        if (this.showParkingAreas) {
+          // 显示停车区域
+          this.parkingPolygons.forEach(polygon => {
+            polygon.setMap(this.map);
+          });
+        } else {
+          // 隐藏停车区域
+          this.parkingPolygons.forEach(polygon => {
+            polygon.setMap(null);
+          });
+        }
+      }
+      
+      console.log(`停车区域已${this.showParkingAreas ? '显示' : '隐藏'}`);
+    },
+
     toggleHeatmap() {
       this.showHeatmap = !this.showHeatmap;
 
@@ -453,7 +483,12 @@ export default {
           zIndex: 40,
           cursor: "pointer"
         });
-        this.map.add(polygon);
+        
+        // 根据showParkingAreas状态决定是否显示
+        if (this.showParkingAreas) {
+          this.map.add(polygon);
+        }
+        
         // 将新创建的多边形存起来，方便下次清除
         this.parkingPolygons.push(polygon);
 
@@ -558,10 +593,10 @@ export default {
 
           // 使用 Promise 和 setTimeout 优化数据加载
           Promise.resolve().then(() => {
-            setTimeout(() => {
-              this.loadBicycles();
-              this.showParkingAreas();
-            }, 400); // 等地图动画结束后再加载数据
+                      setTimeout(() => {
+            this.loadBicycles();
+            this.loadParkingAreas();
+          }, 400); // 等地图动画结束后再加载数据
           });
         }
       }
@@ -772,42 +807,67 @@ export default {
   font-weight: 600;
 }
 
-.top-right-btn-group {
+.top-right-controls {
   position: fixed;
   top: 20px;
-  right: 30px;
+  right: 20px;
   z-index: 30;
   display: flex;
-  gap: 10px;
+  align-items: flex-end;
 }
 
-.btn-group {
+.control-group {
   display: flex;
-  gap: 10px;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 214, 0, 0.15);
 }
 
-.yellow-btn {
+.control-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.8);
+  color: #666;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.7rem;
+  font-weight: 500;
+  min-width: 60px;
+  backdrop-filter: blur(5px);
+}
+
+.control-btn:hover {
+  background: rgba(255, 214, 0, 0.15);
+  color: #333;
+  transform: translateY(-1px);
+}
+
+.control-btn.active {
   background: #FFD600;
   color: #333;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(255, 214, 0, 0.3);
 }
 
-.yellow-btn:hover {
-  background: #e6c100;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+.btn-icon {
+  font-size: 1rem;
+  line-height: 1;
 }
 
-.yellow-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+.btn-text {
+  font-size: 0.65rem;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  font-weight: 500;
 }
 
 @media (max-width: 900px) {
@@ -824,7 +884,7 @@ export default {
     font-size: 0.85rem;
   }
 
-  .top-right-btn-group {
+  .top-right-controls {
     right: 10px;
   }
 }
