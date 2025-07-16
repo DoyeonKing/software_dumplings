@@ -208,4 +208,101 @@ public class OrdersServiceImpl implements IOrdersService { // 实现接口命名
         System.out.println("用户 " + userId + " 成功归还单车 " + bikeId + "。订单ID: " + activeOrder.getOrderid());
         return activeOrder;
     }
+
+
+    @Override
+    @Transactional
+    public Orders rentBikeLonLat(String userId, String bikeId, BigDecimal userLat, BigDecimal userLon) {
+        // 1. 查找单车信息
+        Bikes bike = bikesMapper.findByBikeId(bikeId);
+        if (bike == null) {
+            System.out.println("单车不存在: " + bikeId);
+            return null; // 单车不存在
+        }
+
+        // 2. 检查单车状态
+        if ("使用中".equals(bike.getBikeStatus())) {
+            System.out.println("该单车当前正在使用中，无法租借: " + bikeId);
+            return null; // 单车正在使用中，无法租借
+        }
+
+        // 3. 检查用户是否有未完成的订单 (可选，根据业务需求决定是否允许一人多开)
+        Orders existingActiveOrder = ordersMapper.findActiveOrderByUserAndBike(userId, bikeId);
+        if (existingActiveOrder != null) {
+            System.out.println("用户 " + userId + " 已有正在进行的单车 " + bikeId + " 的订单，请勿重复租借。");
+            return null;
+        }
+
+        // 4. 检查用户是否在停车区域内
+        boolean isParkingAllowed = false;
+        List<EliteSites> allEliteSites = eliteSitesMapper.findAll(); // 获取所有停车区域信息
+        if (allEliteSites == null || allEliteSites.isEmpty()) {
+            System.out.println("未找到任何停车区域信息。");
+            return null; // 没有停车区域信息
+        }
+
+        String userGeohash = null;
+        for (EliteSites site : allEliteSites) {
+            boolean isWithinBounds = LocationUtil.isWithinParkingArea(userLat, userLon, site);
+            if (isWithinBounds) {
+                isParkingAllowed = true;
+                userGeohash = site.getGeohash();
+                break;
+            }
+        }
+
+        if (!isParkingAllowed) {
+            System.out.println("借车失败：该区域不是停车区域，不允许借车。用户经纬度: (" + userLat + ", " + userLon + ")");
+            return null;
+        }
+
+        // 5. 检查用户所在区域与单车所在区域是否相同
+        if (!bike.getCurrentGeohash().equals(userGeohash)) {
+            System.out.println("借车失败：用户所在区域与单车所在区域不同。用户区域: " + userGeohash + ", 单车区域: " + bike.getCurrentGeohash());
+            return null;
+        }
+
+        // 6. 创建订单对象并填写初始信息
+        Orders newOrder = new Orders();
+        newOrder.setOrderid(UUID.randomUUID().toString()); // 生成一个随机的UUID字符串作为订单ID
+        System.out.println("生成的订单ID: " + newOrder.getOrderid()); // 方便调试查看生成的ID
+
+        newOrder.setBikeid(bikeId);
+        newOrder.setUserid(userId);
+
+        LocalDateTime startTime = LocalDateTime.now();
+        newOrder.setStartTime(startTime);
+        newOrder.setStartLat(userLat);
+        newOrder.setStartLon(userLon);
+        newOrder.setStartGeohash(userGeohash);
+
+        // 计算日期时间相关信息
+        newOrder.setStartWeekday(startTime.getDayOfWeek().getValue()); // 1=Monday, 7=Sunday
+        newOrder.setStartHour(startTime.getHour());
+        newOrder.setIsWeekend(startTime.getDayOfWeek() == DayOfWeek.SATURDAY ||
+                startTime.getDayOfWeek() == DayOfWeek.SUNDAY ? 1 : 0);
+
+        // 7. 插入订单
+        int insertedRows = ordersMapper.insert(newOrder);
+        if (insertedRows == 0) {
+            System.out.println("创建订单失败。");
+            return null; // 订单插入失败
+        }
+
+        // 8. 更新单车状态为“使用中”
+        int updatedBikeRows = bikesMapper.updateBikeStatusAndLocation(
+                bikeId,
+                "使用中",
+                userLat, // 保持起始经纬度不变，表示正在使用
+                userLon,
+                userGeohash // 更新单车的 Geohash
+        );
+        if (updatedBikeRows == 0) {
+            System.out.println("更新单车状态失败，可能导致数据不一致。");
+            throw new RuntimeException("更新单车状态失败"); // 抛出异常触发事务回滚
+        }
+
+        System.out.println("用户 " + userId + " 成功租借单车 " + bikeId + "。订单ID: " + newOrder.getOrderid());
+        return newOrder;
+    }
 }

@@ -33,6 +33,23 @@ public class OrdersController {
         }
     }
 
+    @GetMapping("/rent-lonlat")
+    public ResponseEntity<Map<String, Object>> rentBike(@RequestParam String userId, @RequestParam String bikeId,
+                                                        @RequestParam BigDecimal userLat, @RequestParam BigDecimal userLon) {
+        if (userId == null || userId.isEmpty() || bikeId == null || bikeId.isEmpty() ||
+                userLat == null || userLon == null) {
+            return ResponseEntity.badRequest().body(createErrorResponse("用户ID、单车ID、用户经纬度不能为空。"));
+        }
+
+        Orders order = ordersService.rentBikeLonLat(userId, bikeId, userLat, userLon);
+
+        if (order != null) {
+            return ResponseEntity.ok(createSuccessResponse("租借成功！", order));
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(createErrorResponse("租借失败，请检查单车状态、用户是否有活跃订单或所在区域是否匹配。"));
+        }
+    }
+
     @GetMapping("/return")
     public ResponseEntity<Map<String, Object>> returnBike(@RequestParam String userId, @RequestParam String bikeId,
                                                           @RequestParam BigDecimal endLat, @RequestParam BigDecimal endLon) {
