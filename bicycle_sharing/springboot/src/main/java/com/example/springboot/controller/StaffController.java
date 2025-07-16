@@ -75,7 +75,9 @@ public class StaffController {
                     staff.getStaffId(),
                     staff.getUsername(),
                     staff.getManagerId(),
-                    staff.getGeohash()
+                    staff.getGeohash(),
+                    staff.getLatitude(),
+                    staff.getLongitude()
             );
 
             // 5. 返回成功响应
@@ -90,6 +92,7 @@ public class StaffController {
             return ResponseEntity.internalServerError().body("获取用户信息失败: 服务器内部错误。");
         }
     }
+
 
     /**
      * 获取所有工作人员信息
@@ -108,7 +111,9 @@ public class StaffController {
                             staff.getStaffId(),
                             staff.getUsername(),
                             staff.getManagerId(),
-                            staff.getGeohash()
+                            staff.getGeohash(),
+                            staff.getLatitude(),
+                            staff.getLongitude()
                     ))
                     .collect(Collectors.toList());
 

@@ -1,21 +1,27 @@
 package com.example.springboot.dto;
 
+import java.math.BigDecimal;
+
 public class ProfileResponse {
     private Integer staffId;
     private String username;
     private Integer managerId; // 新增字段
     private Integer geohash;   // 新增字段
+    private BigDecimal latitude;
+    private BigDecimal longitude;
 
     // 无参数构造器 (建议保留，JSON 反序列化可能需要)
     public ProfileResponse() {
     }
 
     // 更新的构造器：现在接受 staffId, username, managerId, geohash
-    public ProfileResponse(Integer staffId, String username, Integer managerId, Integer geohash) {
+    public ProfileResponse(Integer staffId, String username, Integer managerId, Integer geohash, BigDecimal latitude, BigDecimal longitude) {
         this.staffId = staffId;
         this.username = username;
         this.managerId = managerId; // 设置 managerId
         this.geohash = geohash;     // 设置 geohash
+        this.latitude = latitude;
+        this.longitude = longitude;
     }
 
     // Getter 和 Setter 方法
@@ -51,5 +57,21 @@ public class ProfileResponse {
 
     public void setGeohash(Integer geohash) {
         this.geohash = geohash;
+    }
+
+    public BigDecimal getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(BigDecimal latitude) {
+        this.latitude = latitude;
+    }
+
+    public BigDecimal getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(BigDecimal longitude) {
+        this.longitude = longitude;
     }
 }
