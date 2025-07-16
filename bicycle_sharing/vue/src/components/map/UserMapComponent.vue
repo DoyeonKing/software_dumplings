@@ -506,6 +506,8 @@ export default {
     const parkingPolygons = ref([]);
     const parkingMarkers = ref([]); // 存储停车场图标标记
     const heatmap = ref(null); // 热力图实例
+const predictionHeatmap = ref(null); // 预测热力图实例
+const currentHeatmapType = ref('current'); // 'current' 或 'prediction'
 
     // 导航相关的状态
     const startPoint = ref(null);
@@ -639,6 +641,70 @@ export default {
       }
     };
 
+    // 更新预测热力图数据
+    const updatePredictionHeatmap = (predictionData) => {
+      if (!map.value) return;
+
+      try {
+        // 如果预测热力图实例不存在，创建一个
+        if (!predictionHeatmap.value) {
+          predictionHeatmap.value = new window.AMap.HeatMap(map.value, {
+            radius: 35,
+            opacity: [0, 0.8],
+            gradient: {
+              0.4: 'rgb(0, 255, 255)',
+              0.65: 'rgb(0, 255, 0)',
+              0.85: 'rgb(255, 255, 0)',
+              1.0: 'rgb(255, 0, 0)'
+            },
+            zooms: [1, 20],
+            visible: true
+          });
+        }
+
+        // 设置预测热力图数据
+        predictionHeatmap.value.setDataSet({
+          data: predictionData,
+          max: Math.max(...predictionData.map(item => item.count), 1) // 动态计算最大权重
+        });
+
+        // 隐藏当前热力图，显示预测热力图
+        if (heatmap.value) {
+          heatmap.value.hide();
+        }
+        predictionHeatmap.value.show();
+
+        currentHeatmapType.value = 'prediction';
+        console.log('预测热力图数据已更新，点数：', predictionData.length);
+      } catch (error) {
+        console.error('更新预测热力图失败：', error);
+        ElMessage.error('更新预测热力图失败');
+      }
+    };
+
+    // 切换回当前热力图
+    const switchToCurrentHeatmap = async () => {
+      if (!map.value) return;
+
+      try {
+        // 隐藏预测热力图
+        if (predictionHeatmap.value) {
+          predictionHeatmap.value.hide();
+        }
+
+        // 显示当前热力图
+        if (heatmap.value) {
+          heatmap.value.show();
+          await updateHeatmapData();
+        }
+
+        currentHeatmapType.value = 'current';
+      } catch (error) {
+        console.error('切换回当前热力图失败：', error);
+        ElMessage.error('切换热力图失败');
+      }
+    };
+
     // 初始化热力图
     const initHeatmap = async () => {
       if (!map.value) return;
@@ -693,14 +759,23 @@ export default {
       if (newVal) {
         // 如果开启热力图，确保已初始化并显示
         await initHeatmap();
-        if (heatmap.value) {
+        
+        // 根据当前热力图类型显示相应的热力图
+        if (currentHeatmapType.value === 'prediction' && predictionHeatmap.value) {
+          predictionHeatmap.value.show();
+        } else if (heatmap.value) {
           heatmap.value.show();
-          // 更新热力图数据
+          // 更新当前热力图数据
           await updateHeatmapData();
         }
-      } else if (heatmap.value) {
-        // 如果关闭热力图，隐藏热力图层
-        heatmap.value.hide();
+      } else {
+        // 如果关闭热力图，隐藏所有热力图层
+        if (heatmap.value) {
+          heatmap.value.hide();
+        }
+        if (predictionHeatmap.value) {
+          predictionHeatmap.value.hide();
+        }
       }
     });
 
@@ -2739,7 +2814,10 @@ export default {
       findNearestParkingArea,
       navigateToNearestParking,
       // 未完成骑行记录处理
-      handleUnfinishedRideOrders
+      handleUnfinishedRideOrders,
+      // 热力图相关方法
+      updatePredictionHeatmap,
+      switchToCurrentHeatmap
     };
   }
 }
