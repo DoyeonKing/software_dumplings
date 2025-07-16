@@ -40,6 +40,12 @@
                   active-text="显示热力图"
                 />
               </el-dropdown-item>
+              <el-dropdown-item>
+                <el-switch
+                  v-model="showStaff"
+                  active-text="显示工作人员"
+                />
+              </el-dropdown-item>
               <el-dropdown-item divided @click="showMapSettings = true">
                 地图设置
               </el-dropdown-item>
@@ -54,7 +60,7 @@
           </span>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item>个人信息</el-dropdown-item>
+              <el-dropdown-item @click="showProfileModal">个人信息</el-dropdown-item>
               <el-dropdown-item divided @click="handleLogout">退出登录</el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -106,10 +112,10 @@
         <!-- 任务列表 -->
         <div class="task-list">
           <div class="panel-header">
-            <h3>调度任务</h3>
+            <h3>我的调度任务</h3>
             <div class="header-info">
               <span class="current-worker-info">
-                当前查看：员工ID {{ selectedWorkerId }}
+                员工ID：{{ currentWorkerId }}
               </span>
               <el-button type="primary" size="small" @click="refreshTasks" :loading="tasksLoading">
                 刷新
@@ -127,61 +133,7 @@
             </el-radio-group>
           </div>
           
-          <!-- 员工ID选择 (测试阶段) -->
-          <div class="worker-id-selector">
-            <el-row :gutter="16">
-              <el-col :span="12">
-                <el-input-number 
-                  v-model="selectedWorkerId" 
-                  placeholder="员工ID" 
-                  size="small" 
-                  :min="1"
-                  controls-position="right"
-                  style="width: 100%"
-                  @keyup.enter="refreshTasksForWorker"
-                />
-              </el-col>
-              <el-col :span="12">
-                <el-button 
-                  type="primary" 
-                  size="small" 
-                  @click="refreshTasksForWorker"
-                  :loading="tasksLoading"
-                  style="width: 100%"
-                >
-                  查看该员工任务
-                </el-button>
-              </el-col>
-            </el-row>
-            
-            <!-- 快捷选择常用员工ID -->
-            <div class="quick-select-workers" style="margin-top: 8px;">
-              <span style="font-size: 12px; color: #666; margin-right: 8px;">快捷选择：</span>
-              <el-button 
-                v-for="workerId in commonWorkerIds" 
-                :key="workerId"
-                size="small"
-                type="text"
-                @click="selectWorkerQuick(workerId)"
-                :style="{ 
-                  color: selectedWorkerId === workerId ? '#409EFF' : '#666',
-                  fontWeight: selectedWorkerId === workerId ? 'bold' : 'normal'
-                }"
-              >
-                员工{{ workerId }}
-              </el-button>
-            </div>
-            
-            <el-alert 
-              title="测试模式" 
-              type="info" 
-              size="small" 
-              :closable="false"
-              style="margin-top: 8px"
-            >
-              当前为测试阶段，可以查看指定员工ID的调度任务
-            </el-alert>
-          </div>
+
 
           <!-- 高级筛选 -->
           <div class="advanced-filters">
@@ -249,8 +201,8 @@
               <el-empty description="暂无调度任务">
                 <template #description>
                   <div style="color: #999; font-size: 14px;">
-                    <p>当前员工ID {{ selectedWorkerId }} 暂无调度任务</p>
-                    <p>请尝试切换其他员工ID或联系管理员</p>
+                    <p>您暂无调度任务</p>
+                    <p>请等待管理员分配任务或联系管理员</p>
                   </div>
                 </template>
               </el-empty>
@@ -373,8 +325,103 @@
           :showBicycles="showBicycles"
           :showParkingAreas="showParkingAreas"
           :showHeatmap="showHeatmap"
+          :showStaff="showStaff"
+          :workerInitialLocation="workerInitialLocation"
           ref="mapComponentRef"
         />
+      </div>
+    </div>
+
+    <!-- 个人信息弹窗 -->
+    <div v-if="showProfile" class="profile-modal-overlay" @click="closeProfileModal">
+      <div class="profile-modal" @click.stop>
+        <div class="profile-card">
+          <div class="profile-header">
+            <div class="profile-avatar">
+              <img src="@/components/icons/staff.png" alt="工作人员头像" />
+            </div>
+            <div>
+              <div class="profile-name">{{ profileData?.username || '工作人员' }}</div>
+              <div class="profile-username">员工ID：{{ profileData?.staffId || '-' }}</div>
+            </div>
+            <button class="close-btn" @click="closeProfileModal">×</button>
+          </div>
+
+          <div v-if="profileLoading" class="loading-section">
+            <div class="loading-spinner"></div>
+            <p>正在加载个人信息...</p>
+          </div>
+
+          <div v-else-if="profileData" class="profile-content">
+            <!-- 工作人员基本信息 -->
+            <div class="info-section">
+              <h4>工作人员基本信息</h4>
+              <div class="info-grid">
+                <div class="info-item">
+                  <span class="info-label">员工ID</span>
+                  <span class="info-value primary">{{ profileData.staffId }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">用户名</span>
+                  <span class="info-value success">{{ profileData.username }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">初始纬度</span>
+                  <span class="info-value info">{{ profileData.latitude }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">初始经度</span>
+                  <span class="info-value info">{{ profileData.longitude }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Geohash</span>
+                  <span class="info-value info">{{ profileData.geohash || '未设置' }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">管理员ID</span>
+                  <span class="info-value info">{{ profileData.managerId || '未分配' }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 位置信息卡片 -->
+            <div class="info-section">
+              <h4>📍 初始位置信息</h4>
+              <div class="location-cards">
+                <div class="location-card">
+                  <div class="location-icon">🌍</div>
+                  <div class="location-content">
+                    <div class="location-value">{{ profileData.latitude }}</div>
+                    <div class="location-label">初始纬度</div>
+                  </div>
+                </div>
+                <div class="location-card">
+                  <div class="location-icon">🌐</div>
+                  <div class="location-content">
+                    <div class="location-value">{{ profileData.longitude }}</div>
+                    <div class="location-label">初始经度</div>
+                  </div>
+                </div>
+                <div class="location-card">
+                  <div class="location-icon">📍</div>
+                  <div class="location-content">
+                    <div class="location-value">{{ profileData.geohash || '未设置' }}</div>
+                    <div class="location-label">Geohash</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-else class="error-section">
+            <p>{{ profileError || '获取个人信息失败' }}</p>
+            <button class="retry-btn" @click="fetchWorkerProfile">重试</button>
+          </div>
+
+          <div class="button-row">
+            <button class="action-btn" @click="closeProfileModal">关闭</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -526,6 +573,7 @@ const showWorkbench = ref(true); // 默认显示工作台
 const showBicycles = ref(false);
 const showParkingAreas = ref(false);
 const showHeatmap = ref(false);
+const showStaff = ref(false);
 const showMapSettings = ref(false);
 const currentMapStyle = ref('normal');
 const hideUI = ref(false);
@@ -543,10 +591,8 @@ const dateFilter = ref('all'); // 默认显示全部任务
 const searchKeyword = ref('');
 const sortBy = ref('createdAt-desc');
 
-// 测试阶段变量
-const selectedWorkerId = ref(3); // 默认员工ID为3
+// 任务相关变量
 const tasksLoading = ref(false);
-const commonWorkerIds = ref([1, 2, 3, 4, 5]); // 常用员工ID
 
 // 任务操作状态
 const taskOperationLoading = ref(null); // 当前正在操作的任务ID
@@ -556,6 +602,32 @@ const showTaskDetail = ref(false); // 控制详情弹窗显示
 const currentTaskDetail = ref(null); // 当前查看详情的任务
 const taskBikes = ref([]); // 任务关联的单车列表
 const taskDetailLoading = ref(false); // 加载任务详情状态
+
+// 个人信息弹窗相关
+const showProfile = ref(false)
+const profileData = ref(null)
+const profileLoading = ref(false)
+const profileError = ref('')
+
+// 当前工人ID计算属性
+const currentWorkerId = computed(() => {
+  return userInfo.value?.staffId || '未知'
+})
+
+// 工作人员初始位置计算属性
+const workerInitialLocation = computed(() => {
+  if (userInfo.value?.latitude && userInfo.value?.longitude) {
+    return {
+      latitude: userInfo.value.latitude,
+      longitude: userInfo.value.longitude
+    }
+  }
+  // 默认位置（深圳市中心）
+  return {
+    latitude: 22.547,
+    longitude: 114.085947
+  }
+})
 
 // 地图样式选项
 const mapStyles = [
@@ -663,23 +735,18 @@ const getTaskStatusType = (status) => {
 
 // 刷新任务列表
 const refreshTasks = async () => {
-  await refreshTasksForWorker();
-};
-
-// 刷新指定员工的任务列表
-const refreshTasksForWorker = async () => {
-  if (!selectedWorkerId.value) {
-    ElMessage.error('请输入员工ID');
+  if (!currentWorkerId.value || currentWorkerId.value === '未知') {
+    ElMessage.error('无法获取当前工人信息');
     return;
   }
   
   tasksLoading.value = true;
   try {
-    const response = await getDispatchTasksByStaff(selectedWorkerId.value);
+    const response = await getDispatchTasksByStaff(currentWorkerId.value);
     if (response.code === 200 || response.code === '200') {
       tasks.value = response.data || [];
       updateStats();
-      ElMessage.success(`已获取员工ID ${selectedWorkerId.value} 的调度任务`);
+      ElMessage.success('已刷新调度任务');
     } else {
       ElMessage.error(response.msg || '获取调度任务失败');
     }
@@ -721,6 +788,9 @@ const handleZoom = (type) => {
 // 退出登录
 const handleLogout = () => {
   // 清除登录状态
+  sessionStorage.removeItem('authToken');
+  sessionStorage.removeItem('userInfo');
+  sessionStorage.removeItem('userRole');
   localStorage.removeItem('worker_token');
   localStorage.removeItem('worker_info');
   // 跳转到登录页
@@ -763,11 +833,7 @@ const handleSearch = () => {
   // 搜索是实时的，由computed属性处理
 };
 
-// 快捷选择员工ID
-const selectWorkerQuick = (workerId) => {
-  selectedWorkerId.value = workerId;
-  refreshTasksForWorker();
-};
+
 
 // 开始任务
 const handleStartTask = async (taskId) => {
@@ -794,7 +860,7 @@ const handleStartTask = async (taskId) => {
       }
       
       // 刷新任务列表
-      await refreshTasksForWorker();
+      await refreshTasks();
       
       // 如果当前正在查看任务详情，刷新详情内容
       if (showTaskDetail.value && currentTaskDetail.value?.taskId === taskId) {
@@ -835,7 +901,7 @@ const handleCompleteTask = async (taskId) => {
       ElMessage.success('任务已完成！单车已重新分配到目标区域');
       
       // 刷新任务列表
-      await refreshTasksForWorker();
+      await refreshTasks();
       
       // 如果当前正在查看任务详情，刷新详情内容
       if (showTaskDetail.value && currentTaskDetail.value?.taskId === taskId) {
@@ -893,6 +959,65 @@ const closeTaskDetailDialog = () => {
   taskBikes.value = [];
 };
 
+// 个人信息弹窗相关方法
+const showProfileModal = () => {
+  showProfile.value = true;
+  fetchWorkerProfile();
+};
+
+const closeProfileModal = () => {
+  showProfile.value = false;
+  profileData.value = null;
+  profileError.value = '';
+};
+
+const fetchWorkerProfile = async () => {
+  console.log('开始获取工作人员个人信息')
+  console.log('使用的token:', authToken.value)
+  
+  if (!authToken.value) {
+    console.error('Token为空，无法获取个人信息')
+    profileError.value = '未找到认证令牌，请重新登录';
+    return;
+  }
+
+  profileLoading.value = true;
+  profileError.value = '';
+  
+  try {
+    // 从sessionStorage获取工作人员信息
+    const storedUserInfo = sessionStorage.getItem('userInfo')
+    if (storedUserInfo && storedUserInfo !== 'undefined' && storedUserInfo !== 'null') {
+      try {
+        const userInfo = JSON.parse(storedUserInfo)
+        console.log('从sessionStorage获取的工作人员信息:', userInfo)
+        
+        // 设置role为staff（根据要求）
+        userInfo.role = 'staff'
+        
+        profileData.value = userInfo;
+        console.log('个人信息获取成功, 数据:', profileData.value)
+      } catch (e) {
+        console.error('解析工作人员信息失败:', e)
+        profileError.value = '解析工作人员信息失败';
+      }
+    } else {
+      console.error('sessionStorage中没有工作人员信息')
+      profileError.value = '未找到工作人员信息，请重新登录';
+    }
+  } catch (error) {
+    console.error('获取个人信息时发生异常:', error);
+    console.error('错误详情:', {
+      message: error.message,
+      stack: error.stack,
+      response: error.response
+    })
+    profileError.value = '网络错误，请稍后重试';
+  } finally {
+    profileLoading.value = false;
+  }
+};
+
 // 初始化
 onMounted(() => {
   // 获取存储的认证信息
@@ -926,6 +1051,7 @@ onMounted(() => {
     return
   }
   
+  // 获取当前工人的调度任务
   refreshTasks();
 });
 </script>
@@ -1507,5 +1633,257 @@ onMounted(() => {
   .bikes-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* 个人信息弹窗样式 */
+.profile-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  backdrop-filter: blur(2px);
+}
+
+.profile-modal {
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.profile-card {
+  width: 600px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  padding: 24px;
+  position: relative;
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.profile-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin-right: 16px;
+  border: 2px solid #4F6EF7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+}
+
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-name {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.profile-username {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  background: #ff4757;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-btn:hover {
+  background: #ff3742;
+}
+
+.loading-section {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #4F6EF7;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.profile-content {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.info-section {
+  margin-bottom: 24px;
+}
+
+.info-section h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.info-label {
+  font-weight: 500;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.info-value {
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.info-value.primary {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.info-value.success {
+  background: #e8f5e8;
+  color: #2e7d32;
+}
+
+.info-value.info {
+  background: #e0f7fa;
+  color: #0097a7;
+}
+
+.location-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.location-card {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+  border: 1px solid #dee2e6;
+}
+
+.location-icon {
+  font-size: 2rem;
+  margin-right: 12px;
+}
+
+.location-content {
+  flex: 1;
+}
+
+.location-value {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.location-label {
+  font-size: 0.8rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.error-section {
+  text-align: center;
+  padding: 40px 20px;
+  color: #d33;
+}
+
+.retry-btn {
+  margin-top: 16px;
+  padding: 8px 16px;
+  background: #4F6EF7;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.retry-btn:hover {
+  background: #3d5af5;
+}
+
+.button-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+
+.action-btn {
+  padding: 10px 24px;
+  background: #4F6EF7;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.action-btn:hover {
+  background: #3d5af5;
 }
 </style> 

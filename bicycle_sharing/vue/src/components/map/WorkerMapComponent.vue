@@ -153,10 +153,12 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import AMapLoader from '@amap/amap-jsapi-loader';
 import parkingIcon from '@/components/icons/parking_area.png';
 import bicycleIcon from '@/components/icons/bicycle.png';
+import staffPositionIcon from '@/components/icons/staff_position.png';
 import { getAllTasks, acceptTask, completeTask } from '@/api/assignment/task';
 import { getAllParkingAreas, getParkingAreasInBounds, convertParkingAreaData } from '@/api/map/parking';
 import { getMapAreaBicycles } from '@/api/map/bicycle';
 import { getHeatMapData, convertHeatMapData } from '@/api/map/heat';
+import { getAllStaff } from '@/api/map/staff';
 import { getTaskNavigationRoutes, formatDistance, formatDuration } from '@/api/navigation';
 import { ElMessage } from 'element-plus';
 import { Close, LocationInformation, Aim, ArrowDown, ArrowUp, Minus } from '@element-plus/icons-vue';
@@ -175,9 +177,20 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  showStaff: {
+    type: Boolean,
+    default: false
+  },
   selectedTaskId: {
     type: String,
     default: null
+  },
+  workerInitialLocation: {
+    type: Object,
+    default: () => ({
+      latitude: 22.547,
+      longitude: 114.085947
+    })
   }
 });
 
@@ -199,6 +212,11 @@ const workerLocation = ref({
   lat: null,
   lng: null
 });
+
+// 所有工作人员相关
+const allStaff = ref([]);
+const staffMarkers = ref([]);
+const staffInfoWindow = ref(null);
 const workerLocationMarker = ref(null);
 const isSettingLocation = ref(false);
 const mapClickListener = ref(null);
@@ -333,10 +351,10 @@ const centerToWorkerLocation = () => {
 
 // 初始化默认位置
 const initDefaultWorkerLocation = () => {
-  // 设置一个默认位置（深圳市南山区）
+  // 使用传入的工作人员初始位置
   workerLocation.value = {
-    lat: 22.547,
-    lng: 114.085947
+    lat: props.workerInitialLocation.latitude,
+    lng: props.workerInitialLocation.longitude
   };
   
   // 创建位置标记
@@ -391,17 +409,12 @@ const showNavigationRoutes = async (task) => {
     const routeNames = ['工作人员到起点', '起点到终点'];
 
     navigationResult.routes.forEach((route, index) => {
-      console.log(`绘制路径 ${index + 1}:`, route.name, '坐标点数量:', route.coordinates?.length);
-      
       if (route.coordinates && route.coordinates.length > 0) {
         // 确保坐标格式正确
         const validCoordinates = route.coordinates.filter(coord => 
           Array.isArray(coord) && coord.length === 2 && 
           !isNaN(coord[0]) && !isNaN(coord[1])
         );
-        
-        console.log(`有效坐标点数量:`, validCoordinates.length);
-        console.log(`前3个坐标点:`, validCoordinates.slice(0, 3));
         
         if (validCoordinates.length < 2) {
           console.error(`路径 ${index + 1} 坐标点不足，无法绘制`);
@@ -421,8 +434,6 @@ const showNavigationRoutes = async (task) => {
 
         polyline.setMap(map.value);
         navigationPolylines.value.push(polyline);
-        
-        console.log(`路径 ${index + 1} 已添加到地图`);
 
                  // 添加起点和终点标记
          if (index === 0) {
@@ -526,7 +537,7 @@ const showNavigationRoutes = async (task) => {
     const message = `导航路径规划完成！\n总距离：${formatDistance(summary.totalDistance)}\n预计时间：${formatDuration(summary.totalDuration)}`;
     ElMessage.success(message);
 
-    console.log('导航路径显示成功:', navigationResult);
+
 
   } catch (error) {
     console.error('导航路径规划失败:', error);
@@ -556,7 +567,7 @@ const clearNavigationRoutes = () => {
   isNavigationPanelMinimized.value = false;
   isUpdatingMapView.value = false;
   
-  console.log('导航路径已清除');
+
 };
 
 // 切换导航面板收起状态
@@ -648,6 +659,96 @@ const loadBicycles = async () => {
     console.error('Failed to load bicycles:', error);
     ElMessage.error('加载单车失败');
   }
+};
+
+// 加载工作人员
+const loadStaff = async () => {
+  try {
+    // 如果不需要显示工作人员，清除现有标记
+    if (!props.showStaff) {
+      staffMarkers.value.forEach(marker => {
+        marker.setMap(null);
+      });
+      staffMarkers.value = [];
+      return;
+    }
+
+    // 如果已经有工作人员数据，直接显示
+    if (allStaff.value.length > 0) {
+      displayStaffMarkers();
+      return;
+    }
+
+    // 获取所有工作人员信息
+    const response = await getAllStaff();
+    
+    if (response.code === '200' || response.code === 200) {
+      allStaff.value = response.data || [];
+      displayStaffMarkers();
+    } else {
+      console.error('获取工作人员信息失败:', response.msg);
+      ElMessage.error('获取工作人员信息失败');
+    }
+  } catch (error) {
+    console.error('Failed to load staff:', error);
+    ElMessage.error('加载工作人员失败');
+  }
+};
+
+// 显示工作人员标记
+const displayStaffMarkers = () => {
+  // 清除现有标记
+  staffMarkers.value.forEach(marker => {
+    marker.setMap(null);
+  });
+  staffMarkers.value = [];
+
+  // 创建工作人员标记
+  allStaff.value.forEach((staff) => {
+    // 跳过当前登录的工作人员
+    const currentWorkerId = sessionStorage.getItem('userInfo') ? 
+      JSON.parse(sessionStorage.getItem('userInfo')).staffId : null;
+    if (staff.staffId === currentWorkerId) {
+      return;
+    }
+
+    const marker = new AMap.Marker({
+      position: [staff.longitude, staff.latitude],
+      icon: new AMap.Icon({
+        image: staffPositionIcon,
+        size: new AMap.Size(32, 32),
+        imageSize: new AMap.Size(32, 32)
+      }),
+      title: `工作人员 #${staff.staffId}`,
+      map: map.value
+    });
+
+    // 添加点击事件
+    marker.on('click', () => {
+      // 创建信息窗口
+      const infoContent = `
+        <div class="info-window" style="padding: 10px; min-width: 200px;">
+          <h4 style="margin: 0 0 8px 0; color: #333;">工作人员信息</h4>
+          <p style="margin: 5px 0; color: #666;">
+            <strong>员工ID：</strong>${staff.staffId}
+          </p>
+          <p style="margin: 5px 0; color: #666;">
+            <strong>用户名：</strong>${staff.username}
+          </p>
+        </div>
+      `;
+
+      const infoWindow = new AMap.InfoWindow({
+        content: infoContent,
+        offset: new AMap.Pixel(0, -30)
+      });
+
+      infoWindow.open(map.value, marker.getPosition());
+      staffInfoWindow.value = infoWindow;
+    });
+
+    staffMarkers.value.push(marker);
+  });
 };
 
 // 加载停车点
@@ -1012,7 +1113,7 @@ const updateHeatmapData = async () => {
       console.error('设置热力图数据失败：', error);
     }
 
-    console.log('工作人员热力图数据已更新，单车数量：', bicycleData.length, '有效热力图点数：', validHeatmapData.length);
+
   } catch (error) {
     console.error('更新热力图数据失败：', error);
     // 不显示错误消息，避免在导航过程中频繁提示
@@ -1047,7 +1148,7 @@ const initHeatmap = async () => {
         visible: true
       });
 
-      console.log('热力图实例创建成功，可用方法：', Object.getOwnPropertyNames(heatmap.value));
+
     }
 
     // 获取并设置热力图数据
@@ -1117,14 +1218,13 @@ watch(() => props.showParkingAreas, async (show) => {
 watch(() => props.showHeatmap, async (newVal) => {
   if (!map.value) return;
 
-  console.log('热力图显示状态变化:', newVal);
+
 
   if (newVal) {
     // 如果开启热力图，确保已初始化并显示
     await initHeatmap();
     if (heatmap.value && typeof heatmap.value.show === 'function') {
       heatmap.value.show();
-      console.log('热力图已显示');
       // 更新热力图数据
       await updateHeatmapData();
     } else {
@@ -1133,7 +1233,6 @@ watch(() => props.showHeatmap, async (newVal) => {
   } else if (heatmap.value && typeof heatmap.value.hide === 'function') {
     // 如果关闭热力图，隐藏热力图层
     heatmap.value.hide();
-    console.log('热力图已隐藏');
   }
 });
 
@@ -1223,7 +1322,6 @@ const initMap = async () => {
         // 检查AMap对象是否完整（检查必需的插件）
         const hasRequiredPlugins = window.AMap.HeatMap && window.AMap.ControlBar && window.AMap.Scale && window.AMap.ToolBar;
         if (!hasRequiredPlugins) {
-          console.log('检测到不完整的AMap状态，清理后重新加载...');
           existingScript.remove();
           delete window.AMap;
           // 清理可能存在的其他相关全局变量
@@ -1257,7 +1355,7 @@ const initMap = async () => {
 
     map.value = new AMap.Map(mapContainer.value, {
       zoom: 16, // 放大地图比例尺
-      center: [114.085947, 22.547],  // 深圳市中心
+      center: [props.workerInitialLocation.longitude, props.workerInitialLocation.latitude],  // 使用工作人员初始位置
       viewMode: '2D'
     });
 
@@ -1284,6 +1382,9 @@ const initMap = async () => {
       if (props.showHeatmap) {
         updateHeatmapData();
       }
+      if (props.showStaff) {
+        loadStaff();
+      }
     });
 
     map.value.on('zoomend', () => {
@@ -1298,6 +1399,9 @@ const initMap = async () => {
       }
       if (props.showHeatmap) {
         updateHeatmapData();
+      }
+      if (props.showStaff) {
+        loadStaff();
       }
     });
 
@@ -1315,11 +1419,8 @@ const initMap = async () => {
     // 更详细的错误处理和重试机制
     if (error.message && error.message.includes('必需的地图插件未正确加载')) {
       ElMessage.error('地图插件加载失败，请刷新页面重试');
-      console.log('建议：可能存在地图加载器冲突，请刷新页面');
     } else if (error.message && error.message.includes('load')) {
       // 可能是加载器冲突，尝试一次重试
-      console.log('检测到可能的加载器冲突，尝试重试...');
-      
       setTimeout(async () => {
         try {
           // 强制清理所有相关状态
@@ -1346,6 +1447,19 @@ onMounted(() => {
   initMap();
 });
 
+// 监听 showStaff prop 变化
+watch(() => props.showStaff, (newVal) => {
+  if (newVal) {
+    loadStaff();
+  } else {
+    // 清除工作人员标记
+    staffMarkers.value.forEach(marker => {
+      marker.setMap(null);
+    });
+    staffMarkers.value = [];
+  }
+});
+
 onUnmounted(() => {
   // 清理地图点击监听器
   if (mapClickListener.value && map.value) {
@@ -1355,6 +1469,17 @@ onUnmounted(() => {
   // 清理工作人员位置标记
   if (workerLocationMarker.value) {
     workerLocationMarker.value.setMap(null);
+  }
+
+  // 清理工作人员标记
+  staffMarkers.value.forEach(marker => {
+    marker.setMap(null);
+  });
+  staffMarkers.value = [];
+
+  // 清理工作人员信息窗口
+  if (staffInfoWindow.value) {
+    staffInfoWindow.value.close();
   }
 
   // 清理导航路径
