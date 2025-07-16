@@ -143,6 +143,5 @@ public interface BikesMapper { // 接口名与实体类名保持一致，改为B
      * @param geohashes 包含需要统计自行车数量的地理哈希编码的列表。
      * @return 一个 List，其中每个 Map 包含 'geohash' (String) 和 'count' (Long) 两个键值对。
      */
-    // 【关键修改】：移除 @MapKey 注解，返回类型改为 List<Map<String, Object>>
     List<Map<String, Object>> selectBikesCountByGeohashes(@Param("list") List<String> geohashes);
 }

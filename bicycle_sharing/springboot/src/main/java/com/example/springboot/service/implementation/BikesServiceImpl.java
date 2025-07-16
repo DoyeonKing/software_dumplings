@@ -3,17 +3,31 @@ package com.example.springboot.service.implementation;
 import com.example.springboot.dto.HeatCell;
 import com.example.springboot.dto.UtilizationResponse;
 import com.example.springboot.entity.Bikes;
+import com.example.springboot.entity.DailySimulationReport;
+import com.example.springboot.entity.EliteSites;
 import com.example.springboot.exception.CustomException;
+import com.example.springboot.mapper.BikesInTasksMapper;
 import com.example.springboot.mapper.BikesMapper;
+import com.example.springboot.mapper.DispatchTasksMapper;
+import com.example.springboot.mapper.EliteSitesMapper;
 import com.example.springboot.service.Interface.IBikesService;
+import com.example.springboot.service.Interface.IDailySimulationReportService;
+import com.example.springboot.service.Interface.IEliteSitesService;
+import com.example.springboot.service.Interface.IPredictionService;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -24,10 +38,22 @@ import java.util.stream.Collectors;
  * 实现IBikesService接口，包含自行车业务逻辑的具体实现框架
  */
 @Service // 标记这是一个Spring管理的Service组件
-public class BikesServiceImpl implements IBikesService { // 实现接口名纠正为IBikesService
 
-    @Resource // 注入BikesMapper
-    private BikesMapper bikesMapper; // 注入的Mapper类型纠正为BikesMapper
+public class BikesServiceImpl implements IBikesService { // 实现接口名纠正为IBikesService
+    @Value("${dispatch.shortage-threshold}")
+private double shortageThreshold;
+@Value("${dispatch.surplus-threshold}")
+private double surplusThreshold;
+    @Autowired
+    private  IPredictionService predictionService;
+    @Autowired
+    private  IEliteSitesService eliteSitesService;
+    @Autowired
+    private  IDailySimulationReportService dailySimulationReportService;
+    @Resource
+    private BikesMapper bikesMapper;
+
+
 
     public int getAllBikeCountByGeohash(String geohash) {
         return bikesMapper.countAllByCurrentGeohash(geohash);
@@ -286,4 +312,109 @@ public PageInfo<Bikes> getBikesByPage(Integer pageNum, Integer pageSize, String 
                          map -> ((Number) map.get("count")).longValue() // Map 的值是 'count' 列的值，转换为 Long
                      ));
     }
+
+    /**
+     * 【核心修改】重新计算并保存受影响区域的每小时报告，并连锁更新后续小时的报告。
+     * 从变化发生后的下一个整点小时开始，**一直更新到数据库中最晚的预测时间点**。
+     *
+     * @param geohash 发生变化的区域 geohash
+     * @param changeTime 变化发生的具体时间 (例如：调度任务完成时间)
+     */
+    @Transactional
+    public void recalculateAndSaveHourlyReport(String geohash, LocalDateTime changeTime) {
+        System.out.println("DEBUG: Triggered recalculateAndSaveHourlyReport for geohash: " + geohash + " at " + changeTime);
+
+        // 1. 获取该 geohash 下最新的“待使用”自行车数量 (作为连锁计算的起点)
+        Map<String, Long> currentBikesMap = this.countBikesByGeohashes(Collections.singletonList(geohash));
+        long currentBikesForPrediction = currentBikesMap.getOrDefault(geohash, 0L);
+        System.out.println("DEBUG: Initial current bikes for " + geohash + " (from DB): " + currentBikesForPrediction);
+
+        // 2. 获取站点容量信息
+        EliteSites site = eliteSitesService.getEliteSiteByGeohash(geohash);
+        if (site == null || site.getParkingCapacity() == null || site.getParkingCapacity() <= 0) {
+            System.err.println("ERROR: 站点 " + geohash + " 信息无效或容量为零，无法重新计算报告。");
+            return;
+        }
+        Integer parkingCapacity = site.getParkingCapacity();
+        System.out.println("DEBUG: Parking capacity for " + geohash + ": " + parkingCapacity);
+
+        // 3. 确定开始重新计算的第一个预测时间点 (下一个整点小时)
+        LocalDateTime startPredictionTime = changeTime.truncatedTo(ChronoUnit.HOURS).plusHours(1);
+        System.out.println("DEBUG: Start prediction time for recalculation loop: " + startPredictionTime);
+
+        // 4. 【新增】获取该geohash在数据库中最晚的预测时间点
+        // 如果数据库中没有该geohash的记录，或者最晚时间早于startPredictionTime，则以startPredictionTime为结束点
+        LocalDateTime latestDbPredictionTime = dailySimulationReportService.findLatestPredictionTargetTimeByGeohash(geohash);
+        LocalDateTime endPredictionTime = latestDbPredictionTime != null && latestDbPredictionTime.isAfter(startPredictionTime)
+                                            ? latestDbPredictionTime
+                                            : startPredictionTime; // 如果没有数据或数据更早，就只预测startPredictionTime这一个点
+
+        System.out.println("DEBUG: Latest DB prediction time for " + geohash + ": " + latestDbPredictionTime + ", calculated loop end time: " + endPredictionTime);
+
+
+        // 5. 循环从起始预测时间到数据库中已有的最晚预测时间点 (或当天23:00，如果数据库中时间更早)
+        for (LocalDateTime predictionTargetTime = startPredictionTime;
+             !predictionTargetTime.isAfter(endPredictionTime); // 循环直到等于或超过最晚时间点
+             predictionTargetTime = predictionTargetTime.plusHours(1)) {
+
+            System.out.println("DEBUG: Processing recalculation for " + geohash + " at " + predictionTargetTime + " with currentBikes: " + currentBikesForPrediction);
+
+            // a. 调用预测API获取预测的取车量和停库量 (对于每个预测时间点都需调用)
+            Integer predictedPickups = null;
+            Integer predictedDropoffs = null;
+            try {
+                predictedPickups = predictionService.getPredictedPickupCount(geohash, predictionTargetTime).block();
+                predictedDropoffs = predictionService.getPredictedParkingCount(geohash, predictionTargetTime).block();
+                System.out.println("DEBUG: Predicted pickups for " + geohash + " at " + predictionTargetTime + ": " + predictedPickups);
+                System.out.println("DEBUG: Predicted dropoffs for " + geohash + " at " + predictionTargetTime + ": " + predictedDropoffs);
+            } catch (Exception e) {
+                System.err.println("ERROR: 调用预测API失败，无法更新报告 for geohash " + geohash + " at " + predictionTargetTime + ": " + e.getMessage());
+                return; // 预测失败则停止连锁更新
+            }
+
+            if (predictedPickups == null || predictedDropoffs == null) {
+                System.err.println("ERROR: 区域 " + geohash + " 在 " + predictionTargetTime + " 未能获取到完整的预测数据，无法更新报告。");
+                return; // 数据缺失则停止连锁更新
+            }
+
+            // b. 重新计算未来车辆数、利用率和状态
+            long futureBikes = currentBikesForPrediction - predictedPickups + predictedDropoffs;
+            futureBikes = Math.max(0, futureBikes);
+            double utilizationRate = (double) futureBikes / parkingCapacity;
+
+            String areaStatus;
+            if (utilizationRate < shortageThreshold) {
+                areaStatus = "稀缺区";
+            } else if (utilizationRate > surplusThreshold) {
+                areaStatus = "富余区";
+            } else {
+                areaStatus = "稳定区";
+            }
+            System.out.println("DEBUG: New status for " + geohash + " at " + predictionTargetTime + ": " + areaStatus + ", Utilization: " + utilizationRate);
+
+
+            // c. 构建 DailySimulationReport 实体并保存到数据库 (使用 upsert 逻辑)
+            DailySimulationReport updatedReport = new DailySimulationReport();
+            updatedReport.setReportDate(predictionTargetTime.toLocalDate());
+            updatedReport.setPredictionTargetTime(predictionTargetTime);
+            updatedReport.setGeohash(geohash);
+            updatedReport.setLatitude(site.getCenterLat().setScale(8, RoundingMode.HALF_UP));
+            updatedReport.setLongitude(site.getCenterLon().setScale(8, RoundingMode.HALF_UP));
+            updatedReport.setStatus(areaStatus);
+            updatedReport.setUtilizationRate(new BigDecimal(utilizationRate).setScale(4, RoundingMode.HALF_UP));
+            updatedReport.setCurrentBikes(currentBikesForPrediction); // 这个小时的起始车辆数
+            updatedReport.setParkingCapacity(parkingCapacity);
+            updatedReport.setPredictedPickups(predictedPickups);
+            updatedReport.setPredictedDropoffs(predictedDropoffs);
+            updatedReport.setFutureBikes(futureBikes);
+            updatedReport.setFutureRemainingSpots(parkingCapacity - futureBikes);
+
+            dailySimulationReportService.upsertDailyReport(updatedReport);
+            System.out.println("DEBUG: DailySimulationReport for " + geohash + " at " + predictionTargetTime + " successfully updated/inserted.");
+
+            // 【关键】为下一个小时的预测，更新 currentBikesForPrediction 为当前小时的 futureBikes
+            currentBikesForPrediction = futureBikes;
+        }
+    }
+
 }

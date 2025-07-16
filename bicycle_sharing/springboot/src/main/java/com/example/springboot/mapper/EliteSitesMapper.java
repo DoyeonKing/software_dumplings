@@ -49,6 +49,8 @@ public interface EliteSitesMapper {
             @Param("minLon") double minLon,
             @Param("maxLon") double maxLon
     );
+        EliteSites getEliteSiteByGeohash(@Param("geohash") String geohash);
+
 
     /**
      * 根据 geohash 查询停车区域中心点的经纬度

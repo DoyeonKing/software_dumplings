@@ -29,5 +29,4 @@
         </set>
         WHERE staff_id = #{staffId}
     </update>
-
 </mapper>

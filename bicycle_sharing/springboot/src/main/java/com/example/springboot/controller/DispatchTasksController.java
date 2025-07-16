@@ -14,6 +14,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*; // 导入Spring Web注解
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List; // 导入List
 import java.util.Map; // 导入Map
 
@@ -150,23 +153,31 @@ public class DispatchTasksController { // 控制器类名与资源名复数形�
         }
     }
 
-    /**
-     * API: PUT /dispatchTasks/{taskId}/complete
-     * 作用：完成调度任务，更新关联自行车的最终位置和状态。
-     * @param taskId 调度任务的ID
-     * @return 成功信息
+       /**
+     * 完成调度任务。
+     * @param taskId 调度任务ID
+     * @param completionTimeStr 任务的模拟完成时间字符串 (例如 "2019-12-31 10:30:00")
      */
-    @PutMapping("/{taskId}/complete")
-    public Result completeDispatch(@PathVariable Long taskId) {
+    @PutMapping("/complete/{taskId}") // 通常用 PUT 表示更新资源状态
+    public Result completeTask(
+            @PathVariable Long taskId,
+            @RequestParam String completionTimeStr) { // 【关键修改】接收时间字符串
+
+        LocalDateTime completionTime;
         try {
-            dispatchTasksService.completeDispatch(taskId);
-            return Result.success("调度任务完成成功", null);
-        } catch (IllegalArgumentException e) {
-            return Result.error(Result.CODE_PARAM_ERROR, e.getMessage());
-        } catch (IllegalStateException e) {
-            return Result.error(Result.CODE_BIZ_ERROR, e.getMessage()); // 业务逻辑错误
+            // 解析传入的时间字符串，确保格式与您在Java代码中格式化时一致
+            // 假设格式为 "yyyy-MM-dd HH:mm:ss"
+            completionTime = LocalDateTime.parse(completionTimeStr, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        } catch (DateTimeParseException e) {
+            return Result.error("400", "完成时间格式不正确，请使用 'yyyy-MM-dd HH:mm:ss' 格式。");
+        }
+
+        try {
+            dispatchTasksService.completeDispatch(taskId, completionTime); // 【关键修改】传入解析后的时间
+            return Result.success("调度任务完成成功！");
         } catch (Exception e) {
-            return Result.error(Result.CODE_SYS_ERROR, "完成调度任务失败: " + e.getMessage());
+            e.printStackTrace();
+            return Result.error("500", "完成调度任务失败: " + e.getMessage());
         }
     }
 

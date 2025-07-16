@@ -3,13 +3,17 @@ package com.example.springboot.controller;
 import com.example.springboot.common.Result;
 import com.example.springboot.dto.UpdatePasswordRequest;
 import com.example.springboot.entity.Manager;
+import com.example.springboot.entity.Staff;
 import com.example.springboot.exception.CustomException;
 import com.example.springboot.service.Interface.IManagerService;
+import com.example.springboot.service.Interface.IStaffService;
 import com.example.springboot.util.JwtTokenUtil; // 【新增】导入 JwtTokenUtil
 import jakarta.annotation.Resource;
 // 移除 jakarta.servlet.http.HttpServletRequest，因为它将不再直接用于获取ID
 
 import org.springframework.web.bind.annotation.*; // 导入所有必要的Spring Web注解
+
+import java.util.List;
 
 /**
  * @class ManagerController
@@ -24,6 +28,9 @@ public class ManagerController {
 
     @Resource // 【新增】注入 JwtTokenUtil
     private JwtTokenUtil jwtTokenUtil;
+
+    @Resource
+    private IStaffService staffService;
 
     /**
      * 获取当前登录管理员的个人信息。
@@ -107,6 +114,33 @@ public class ManagerController {
             throw new CustomException("认证失败：Token中的管理员ID格式不正确: " + e.getMessage(), "401");
         } catch (Exception e) {
             throw new CustomException("认证失败：Token解析异常或无效: " + e.getMessage(), "401");
+        }
+    }
+
+
+     /**
+     * 获取当前管理员管理的所有员工列表。
+     * @param token Authorization 请求头，用于解析管理员ID
+     * @return Result，data 为管理员管理的所有工作人员信息列表
+     */
+    @GetMapping("/managed-staff")
+    public Result getManagedStaff(@RequestHeader("Authorization") String token) {
+        try {
+            // 从 Token 中解析出管理员ID
+            Integer managerId = getManagerIdFromToken(token);
+            // 调用 StaffService 获取该管理员管理的所有工作人员
+            List<Staff> staffList = staffService.getStaffByManagerId(managerId);
+
+            // 脱敏密码信息，确保不会泄露密码哈希
+            if (staffList != null) {
+                staffList.forEach(staff -> staff.setPasswordHash(null));
+            }
+            return Result.success(staffList);
+        } catch (CustomException e) {
+            return Result.error(e.getCode(), e.getMsg());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("500", "获取管理员工列表失败: " + e.getMessage());
         }
     }
 }

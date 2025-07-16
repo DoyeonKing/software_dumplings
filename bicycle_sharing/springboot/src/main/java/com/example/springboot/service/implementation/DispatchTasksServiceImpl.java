@@ -44,7 +44,8 @@ public class DispatchTasksServiceImpl implements IDispatchTasksService { // 实�
     private BikesInTasksMapper bikesInTasksMapper; // 注入新的 BikesInTasksMapper
     @Autowired
     private EliteSitesMapper eliteSitesMapper; // 注入 EliteSitesMapper
-
+    @Autowired
+    private BikesServiceImpl bikesService; // 注入 BikesServiceImpl 实例
 
     @Override
     @Transactional // 确保操作的原子性
@@ -217,12 +218,11 @@ public class DispatchTasksServiceImpl implements IDispatchTasksService { // 实�
     }
 
     /**
-     * 【新增方法实现】
      * 完成一个调度任务，更新关联自行车的最终位置和状态。
      */
     @Override
     @Transactional
-    public void completeDispatch(Long taskId) {
+    public void completeDispatch(Long taskId, LocalDateTime completionTime) {
         // --- 1. 获取调度任务 ---
         DispatchTasks task = dispatchTasksMapper.findById(taskId);
         if (task == null) {
@@ -263,6 +263,16 @@ public class DispatchTasksServiceImpl implements IDispatchTasksService { // 实�
         task.setStatus("处理完成");
         task.setCompletedAt(LocalDateTime.now()); // 记录任务完成时间
         dispatchTasksMapper.updateDispatchTask(task); // 假设您有updateDispatchTask方法
+
+
+        // --- 6. 触发受影响区域的实时报告更新 ---
+        if (bikesService instanceof BikesServiceImpl) {
+            ((BikesServiceImpl) bikesService).recalculateAndSaveHourlyReport(task.getStartGeohash(), completionTime); // 使用传入的 completionTime
+            ((BikesServiceImpl) bikesService).recalculateAndSaveHourlyReport(task.getEndGeohash(), completionTime); // 使用传入的 completionTime
+            System.out.println("DEBUG: Triggered real-time report update for source: " + task.getStartGeohash() + " and target: " + task.getEndGeohash() + " at simulated time: " + completionTime);
+        } else {
+            System.err.println("ERROR: bikesService 不是 BikesServiceImpl 类型，无法触发实时报告更新。");
+        }
     }
 
 
