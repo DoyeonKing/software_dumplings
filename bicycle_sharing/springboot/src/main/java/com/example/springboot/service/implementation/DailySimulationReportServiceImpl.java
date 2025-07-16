@@ -6,6 +6,7 @@ import com.example.springboot.service.Interface.IDailySimulationReportService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -61,5 +62,11 @@ public class DailySimulationReportServiceImpl implements IDailySimulationReportS
             // 如果记录不存在，插入它
             System.out.println("记录不存在");
         }
+    }
+
+    // 【新增方法】实现查找某个geohash在数据库中最晚的prediction_target_time
+    @Override
+    public LocalDateTime findLatestPredictionTargetTimeByGeohash(String geohash) {
+        return dailySimulationReportMapper.findLatestPredictionTargetTimeByGeohash(geohash);
     }
 }

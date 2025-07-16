@@ -37,4 +37,7 @@ public interface DailySimulationReportMapper {
     // 更新单个报告
     void update(DailySimulationReport report);
 
+    // 查找某个geohash在数据库中最晚的prediction_target_time
+    LocalDateTime findLatestPredictionTargetTimeByGeohash(@Param("geohash") String geohash);
+
 }

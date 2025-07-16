@@ -2,6 +2,7 @@ package com.example.springboot.service.Interface;
 
 import com.example.springboot.entity.DailySimulationReport;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface IDailySimulationReportService {
@@ -10,4 +11,6 @@ public interface IDailySimulationReportService {
     void deleteReportsByDate(LocalDate reportDate);
 
     void upsertDailyReport(DailySimulationReport report);
+    LocalDateTime findLatestPredictionTargetTimeByGeohash(String geohash);
+
 }

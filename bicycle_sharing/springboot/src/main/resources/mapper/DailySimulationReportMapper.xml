@@ -75,4 +75,13 @@
             <!-- created_at 通常不更新 -->
         WHERE id = #{id}
     </update>
+
+
+
+    <select id="findLatestPredictionTargetTimeByGeohash" resultType="java.time.LocalDateTime">
+        SELECT MAX(prediction_target_time)
+        FROM daily_simulation_reports
+        WHERE geohash = #{geohash}
+    </select>
+
 </mapper>
