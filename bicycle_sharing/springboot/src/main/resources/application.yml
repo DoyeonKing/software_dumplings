@@ -69,8 +69,8 @@ model:
 
 # 调度任务阈值
 dispatch:
-  shortage-threshold: 0.75
-  surplus-threshold: 0.95
+  shortage-threshold: 0.65
+  surplus-threshold: 0.85
 
 # doyeonking/software_dumplings/software_dumplings-jintaoran/bicycle_sharing/springboot/src/main/resources/application.yml
 logging:

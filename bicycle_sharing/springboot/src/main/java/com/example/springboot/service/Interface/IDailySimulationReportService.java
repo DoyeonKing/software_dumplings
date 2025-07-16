@@ -13,4 +13,8 @@ public interface IDailySimulationReportService {
     void upsertDailyReport(DailySimulationReport report);
     LocalDateTime findLatestPredictionTargetTimeByGeohash(String geohash);
 
+    //根据日期和精确时间点查询报告
+    List<DailySimulationReport> getReportsByDateAndTime(LocalDate reportDate, LocalDateTime predictionTargetTime);
+
+
 }
