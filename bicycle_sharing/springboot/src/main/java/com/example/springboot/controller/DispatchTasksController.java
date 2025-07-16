@@ -31,30 +31,43 @@ public class DispatchTasksController { // 控制器类名与资源名复数形�
     @Autowired // 自动注入 DispatchTasksService
     private IDispatchTasksService dispatchTasksService;
 
-    /**
+        /**
      * 创建新的调度任务。
-     * POST /api/dispatchTasks/create
+     * POST /api/dispatch/tasks/create
      * 请求体示例:
      * {
-     *     "startGeohash": "wx4er",
-     *     "endGeohash": "wx4ez",
-     *     "assignedTo": 101,
-     *     "bikeCount": 5
+     * "startGeohash": "wx4er",
+     * "endGeohash": "wx4ez",
+     * "assignedTo": 101,
+     * "bikeCount": 5,
+     * "simulatedCreatedAt": "2019-12-31 00:00:00" // 新增字段
      * }
      * @param request 调度任务请求 DTO
      * @return 响应实体，包含成功信息或错误信息
      */
     @PostMapping("/create")
     public ResponseEntity<?> createDispatchTask(@RequestBody DispatchTaskRequest request) {
+        LocalDateTime createdAt;
+        if (request.getSimulatedCreatedAt() != null && !request.getSimulatedCreatedAt().isEmpty()) {
+            try {
+                // 【新增】解析传入的模拟时间字符串
+                createdAt = LocalDateTime.parse(request.getSimulatedCreatedAt(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            } catch (DateTimeParseException e) {
+                return ResponseEntity.badRequest().body("创建时间格式不正确，请使用 'yyyy-MM-dd HH:mm:ss' 格式。");
+            }
+        } else {
+            // 如果未提供模拟时间，则使用当前实时时间
+            createdAt = LocalDateTime.now();
+        }
+
         try {
-            DispatchTasks createdTask = dispatchTasksService.createDispatchTask(request);
-            // 返回的taskId是Long类型，确保前端能正确接收
+            // 【修改】将解析后的时间传递给服务层
+            DispatchTasks createdTask = dispatchTasksService.createDispatchTask(request, createdAt); // 传入时间
             return ResponseEntity.status(HttpStatus.CREATED).body("调度任务创建成功，任务ID：" + createdTask.getTaskId());
         } catch (IllegalArgumentException e) {
-            // 参数校验失败或调度数量不足的业务异常
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
-            // 其他未知异常
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("创建调度任务失败：" + e.getMessage());
         }
     }
