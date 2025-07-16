@@ -156,10 +156,56 @@
         
         <!-- 找车功能 -->
         <div v-if="currentTab === 'find'" class="find-bike-section">
-          <div class="feature-placeholder">
-            <p>🚴‍♂️ 找车功能</p>
-            <p>导航到最近停车点</p>
-            <p>（暂未实现）</p>
+          <div class="find-parking-section">
+            <h4>🚴‍♂️ 找车功能</h4>
+            <div class="action-group">
+              <el-button
+                type="primary"
+                :loading="isSearchingNearestParking"
+                @click="findNearestParkingArea"
+                class="find-parking-btn"
+              >
+                <span v-if="!isSearchingNearestParking">寻找最近停车点</span>
+                <span v-else>正在搜索...</span>
+              </el-button>
+            </div>
+            
+            <!-- 最近停车点信息显示 -->
+            <div v-if="nearestParkingArea" class="parking-info-card">
+              <div class="parking-info-header">
+                <h5>📍 最近停车点</h5>
+              </div>
+              <div class="parking-info-content">
+                <div class="info-row">
+                  <span class="info-label">区域编号:</span>
+                  <span class="info-value">{{ nearestParkingArea.geohash }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">总容量:</span>
+                  <span class="info-value">{{ nearestParkingArea.totalParkingCapacity }}个</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">当前单车:</span>
+                  <span class="info-value bike-count">{{ nearestParkingArea.currentBikeCount }}辆</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">可用车位:</span>
+                  <span class="info-value available-spots">{{ nearestParkingArea.availableSpots }}个</span>
+                </div>
+              </div>
+              
+              <!-- 导航到这里按钮 -->
+              <div v-if="showNavigateButton" class="navigate-action">
+                <el-button
+                  type="success"
+                  size="large"
+                  @click="navigateToNearestParking"
+                  class="navigate-btn"
+                >
+                  🧭 导航到这里
+                </el-button>
+              </div>
+            </div>
           </div>
         </div>
         
@@ -226,6 +272,60 @@
               <p><strong>骑行总距离:</strong> {{ formatDistance(ridingDistance) }}</p>
               <p><strong>预计费用:</strong> ¥{{ calculateFee() }}</p>
             </div>
+            
+            <!-- 寻找最近停车点功能 -->
+            <div class="find-parking-for-return">
+              <h5>🚲 寻找停车点</h5>
+              <div class="action-group">
+                <el-button
+                  type="warning"
+                  :loading="isSearchingNearestParking"
+                  @click="findNearestParkingArea"
+                  class="find-parking-btn"
+                >
+                  <span v-if="!isSearchingNearestParking">寻找最近停车点</span>
+                  <span v-else>正在搜索...</span>
+                </el-button>
+              </div>
+              
+              <!-- 最近停车点信息显示 -->
+              <div v-if="nearestParkingArea" class="parking-info-card">
+                <div class="parking-info-header">
+                  <h5>📍 最近停车点</h5>
+                </div>
+                <div class="parking-info-content">
+                  <div class="info-row">
+                    <span class="info-label">区域编号:</span>
+                    <span class="info-value">{{ nearestParkingArea.geohash }}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">总容量:</span>
+                    <span class="info-value">{{ nearestParkingArea.totalParkingCapacity }}个</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">当前单车:</span>
+                    <span class="info-value bike-count">{{ nearestParkingArea.currentBikeCount }}辆</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">可用车位:</span>
+                    <span class="info-value available-spots">{{ nearestParkingArea.availableSpots }}个</span>
+                  </div>
+                </div>
+                
+                <!-- 导航到这里按钮 -->
+                <div v-if="showNavigateButton" class="navigate-action">
+                  <el-button
+                    type="success"
+                    size="large"
+                    @click="navigateToNearestParking"
+                    class="navigate-btn"
+                  >
+                    🧭 导航到这里
+                  </el-button>
+                </div>
+              </div>
+            </div>
+            
             <div class="return-buttons">
               <el-button
                 type="primary"
@@ -238,6 +338,59 @@
           </div>
           <div v-else class="no-riding">
             <p>当前没有正在使用的单车</p>
+            
+            <!-- 即使没有骑行也可以寻找停车点 -->
+            <div class="find-parking-for-return">
+              <h5>🚲 寻找停车点</h5>
+              <div class="action-group">
+                <el-button
+                  type="warning"
+                  :loading="isSearchingNearestParking"
+                  @click="findNearestParkingArea"
+                  class="find-parking-btn"
+                >
+                  <span v-if="!isSearchingNearestParking">寻找最近停车点</span>
+                  <span v-else>正在搜索...</span>
+                </el-button>
+              </div>
+              
+              <!-- 最近停车点信息显示 -->
+              <div v-if="nearestParkingArea" class="parking-info-card">
+                <div class="parking-info-header">
+                  <h5>📍 最近停车点</h5>
+                </div>
+                <div class="parking-info-content">
+                  <div class="info-row">
+                    <span class="info-label">区域编号:</span>
+                    <span class="info-value">{{ nearestParkingArea.geohash }}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">总容量:</span>
+                    <span class="info-value">{{ nearestParkingArea.totalParkingCapacity }}个</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">当前单车:</span>
+                    <span class="info-value bike-count">{{ nearestParkingArea.currentBikeCount }}辆</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">可用车位:</span>
+                    <span class="info-value available-spots">{{ nearestParkingArea.availableSpots }}个</span>
+                  </div>
+                </div>
+                
+                <!-- 导航到这里按钮 -->
+                <div v-if="showNavigateButton" class="navigate-action">
+                  <el-button
+                    type="success"
+                    size="large"
+                    @click="navigateToNearestParking"
+                    class="navigate-btn"
+                  >
+                    🧭 导航到这里
+                  </el-button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -283,6 +436,8 @@ import { updateUserProfile } from '@/api/account/profile';
 import { rentBike, returnBike, rentBikeWithLocation } from '@/api/riding';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getRidingRoute } from '@/utils/amap';
+// 导入导航API
+import { getNearestParkingArea } from '@/api/navigation';
 
 // 状态文本映射
 const statusText = {
@@ -389,6 +544,11 @@ export default {
 
     // 骑行记录信息（与riding.js返回数据结构一致）
     const rideOrderInfo = ref(null);  // 当前骑行订单信息
+
+    // 最近停车点相关状态
+    const nearestParkingArea = ref(null);  // 最近停车点信息
+    const showNavigateButton = ref(false);  // 是否显示"导航到这里"按钮
+    const isSearchingNearestParking = ref(false);  // 是否正在搜索最近停车点
 
 
 
@@ -2153,6 +2313,212 @@ export default {
       }
     };
 
+    // 寻找最近停车点
+    const findNearestParkingArea = async () => {
+      if (!userPosition.value) {
+        ElMessage.warning('请先设置您的当前位置');
+        return;
+      }
+
+      if (isSearchingNearestParking.value) {
+        return;
+      }
+
+      try {
+        isSearchingNearestParking.value = true;
+        console.log('开始搜索最近停车点，用户位置:', userPosition.value);
+
+        // 调用API获取最近停车点
+        const response = await getNearestParkingArea(
+          userPosition.value[1], // 纬度
+          userPosition.value[0]  // 经度
+        );
+
+        console.log('最近停车点API响应:', response);
+
+        if (response.code === 200 || response.code === '200') {
+          nearestParkingArea.value = response.data;
+          showNavigateButton.value = true;
+
+          // 将地图中心移动到停车点位置
+          const parkingCenter = [
+            nearestParkingArea.value.centerLon,
+            nearestParkingArea.value.centerLat
+          ];
+          
+          if (map.value) {
+            map.value.setCenter(parkingCenter);
+            map.value.setZoom(17); // 设置合适的缩放级别
+          }
+
+          // 自动开启停车点显示功能
+          if (!props.showParkingAreas) {
+            emit('update:showParkingAreas', true);
+          }
+
+          // 等待停车点显示完成后，高亮显示找到的停车点
+          setTimeout(() => {
+            highlightNearestParkingArea();
+          }, 500);
+
+          ElMessage.success(`找到最近停车点：${nearestParkingArea.value.geohash}`);
+        } else {
+          ElMessage.error(response.message || response.msg || '获取最近停车点失败');
+        }
+      } catch (error) {
+        console.error('搜索最近停车点失败:', error);
+        ElMessage.error('搜索最近停车点失败，请检查网络连接');
+      } finally {
+        isSearchingNearestParking.value = false;
+      }
+    };
+
+    // 高亮显示最近停车点
+    const highlightNearestParkingArea = () => {
+      if (!map.value || !nearestParkingArea.value) return;
+
+      try {
+        // 创建一个特殊的标记来高亮显示最近停车点
+        const highlightMarker = new AMap.Marker({
+          position: [nearestParkingArea.value.centerLon, nearestParkingArea.value.centerLat],
+          map: map.value,
+          content: `
+            <div style="background: linear-gradient(45deg, #ff6b6b, #ff8e53); 
+                        border-radius: 50%; 
+                        width: 60px; 
+                        height: 60px; 
+                        display: flex; 
+                        align-items: center; 
+                        justify-content: center; 
+                        color: white; 
+                        font-weight: bold; 
+                        font-size: 12px;
+                        box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+                        animation: pulse-highlight 2s infinite;">
+              最近
+            </div>
+          `,
+          offset: new AMap.Pixel(-30, -30),
+          zIndex: 200
+        });
+
+        // 添加CSS动画样式
+        if (!document.getElementById('highlight-marker-style')) {
+          const style = document.createElement('style');
+          style.id = 'highlight-marker-style';
+          style.textContent = `
+            @keyframes pulse-highlight {
+              0% { transform: scale(1); opacity: 1; }
+              50% { transform: scale(1.1); opacity: 0.8; }
+              100% { transform: scale(1); opacity: 1; }
+            }
+          `;
+          document.head.appendChild(style);
+        }
+
+        // 5秒后移除高亮标记
+        setTimeout(() => {
+          if (highlightMarker) {
+            highlightMarker.setMap(null);
+          }
+        }, 5000);
+
+      } catch (error) {
+        console.error('高亮显示停车点失败:', error);
+      }
+    };
+
+    // 导航到最近停车点
+    const navigateToNearestParking = () => {
+      if (!nearestParkingArea.value || !userPosition.value) {
+        ElMessage.warning('停车点信息不完整');
+        return;
+      }
+
+      try {
+        console.log('开始导航到最近停车点:', nearestParkingArea.value);
+
+        // 1. 收起骑车面板（不关闭）
+        collapseRidePanel();
+
+        // 2. 自动开启导航功能
+        emit('update:showNavigation', true);
+
+        // 3. 设置起点为用户当前位置
+        startPoint.value = {
+          lng: userPosition.value[0],
+          lat: userPosition.value[1]
+        };
+
+        // 4. 设置终点为停车点位置
+        endPoint.value = {
+          lng: nearestParkingArea.value.centerLon,
+          lat: nearestParkingArea.value.centerLat
+        };
+
+        // 5. 添加起终点标记
+        setTimeout(async () => {
+          const AMap = await AMapLoader.load({
+            key: '7a9ebfd8db9264a7f90b65369bd2970a',
+            version: '2.0'
+          });
+
+          // 清除之前的标记
+          if (navigationMarkers.value.length) {
+            navigationMarkers.value.forEach(marker => {
+              if (marker) {
+                marker.setMap(null);
+              }
+            });
+            navigationMarkers.value = [];
+          }
+
+          // 添加起点标记
+          const startMarker = new AMap.Marker({
+            position: [startPoint.value.lng, startPoint.value.lat],
+            map: map.value,
+            offset: new AMap.Pixel(-13, -34),
+            icon: new AMap.Icon({
+              size: new AMap.Size(25, 34),
+              imageSize: new AMap.Size(25, 34),
+              image: 'https://webapi.amap.com/theme/v1.3/markers/n/start.png'
+            })
+          });
+
+          // 添加终点标记
+          const endMarker = new AMap.Marker({
+            position: [endPoint.value.lng, endPoint.value.lat],
+            map: map.value,
+            offset: new AMap.Pixel(-13, -34),
+            icon: new AMap.Icon({
+              size: new AMap.Size(25, 34),
+              imageSize: new AMap.Size(25, 34),
+              image: 'https://webapi.amap.com/theme/v1.3/markers/n/end.png'
+            })
+          });
+
+          navigationMarkers.value = [startMarker, endMarker];
+
+          // 6. 自动开始导航
+          setTimeout(() => {
+            calculateRoute();
+          }, 100);
+
+        }, 100);
+
+        // 重置最近停车点状态
+        nearestParkingArea.value = null;
+        showNavigateButton.value = false;
+
+        ElMessage.success('开始导航到最近停车点');
+        console.log('导航设置完成:', { startPoint: startPoint.value, endPoint: endPoint.value });
+
+      } catch (error) {
+        console.error('导航到最近停车点失败:', error);
+        ElMessage.error('导航设置失败');
+      }
+    };
+
 
 
 
@@ -2189,10 +2555,10 @@ export default {
         clearTimeout(navigationUpdateTimer.value);
         navigationUpdateTimer.value = null;
       }
-      // 清理用户位置标记样式
+      // 清理用户位置标记样式和高亮样式
       const markerStyles = document.querySelectorAll('style');
       markerStyles.forEach(style => {
-        if (style.textContent && style.textContent.includes('user-position-marker')) {
+        if (style.textContent && (style.textContent.includes('user-position-marker') || style.textContent.includes('pulse-highlight'))) {
           style.remove();
         }
       });
@@ -2257,7 +2623,13 @@ export default {
       toggleSimulation,
       stopSimulation,
       isNavigating,
-      updateNavigationRoute
+      updateNavigationRoute,
+      // 最近停车点相关方法和状态
+      nearestParkingArea,
+      showNavigateButton,
+      isSearchingNearestParking,
+      findNearestParkingArea,
+      navigateToNearestParking
     };
   }
 }
@@ -2557,17 +2929,130 @@ export default {
 
 /* 找车功能样式 */
 .find-bike-section {
+  padding: 15px 0;
+}
+
+.find-parking-section {
   text-align: center;
-  padding: 40px 20px;
 }
 
-.feature-placeholder {
-  color: #666;
+.find-parking-section h4 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.action-group {
+  margin-bottom: 20px;
+}
+
+.find-parking-btn {
+  width: 100%;
+  padding: 12px;
   font-size: 14px;
+  font-weight: 500;
 }
 
-.feature-placeholder p {
-  margin: 8px 0;
+/* 停车点信息卡片样式 */
+.parking-info-card {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border-radius: 12px;
+  padding: 15px;
+  margin-top: 15px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  text-align: left;
+  transition: all 0.3s ease;
+}
+
+.parking-info-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.parking-info-header {
+  text-align: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.parking-info-header h5 {
+  margin: 0;
+  color: #333;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.parking-info-content {
+  margin-bottom: 15px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 4px 0;
+}
+
+.info-label {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+.info-value {
+  font-size: 13px;
+  color: #333;
+  font-weight: 600;
+}
+
+.info-value.bike-count {
+  color: #1890ff;
+}
+
+.info-value.available-spots {
+  color: #52c41a;
+}
+
+.navigate-action {
+  text-align: center;
+  margin-top: 15px;
+}
+
+.navigate-btn {
+  width: 100%;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
+  border: none;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.navigate-btn:hover {
+  background: linear-gradient(135deg, #389e0d 0%, #52c41a 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(82, 196, 26, 0.3);
+}
+
+/* 还车功能中的停车点搜索样式 */
+.find-parking-for-return {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 15px;
+  margin: 15px 0;
+  border: 1px solid #dee2e6;
+}
+
+.find-parking-for-return h5 {
+  margin: 0 0 12px 0;
+  color: #333;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
 }
 
 /* 用车功能样式 */

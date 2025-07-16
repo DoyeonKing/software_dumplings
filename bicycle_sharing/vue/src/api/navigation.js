@@ -17,6 +17,8 @@ export function getParkingAreaCenter(geohash) {
   })
 }
 
+
+
 /**
  * 批量获取多个停车区域的中心经纬度
  * @param {string[]} geohashList - 停车区域编码数组
@@ -201,3 +203,36 @@ export function formatDuration(duration) {
     return `${minutes}分${seconds}秒`;
   }
 }
+
+/**
+ * 获取最近的停车点信息
+ * @param {number} latitude - 用户当前纬度
+ * @param {number} longitude - 用户当前经度
+ * @returns {Promise} 返回最近停车点信息的Promise对象
+ * 
+ * 后端返回数据格式:
+ * {
+ *   "code": "200",
+ *   "msg": "请求成功", 
+ *   "data": {
+ *     "geohash": "ws10jnr",              // 停车区域编码
+ *     "centerLat": 22.5355402189,        // 停车点中心纬度
+ *     "centerLon": 114.13660952,         // 停车点中心经度
+ *     "totalParkingCapacity": 150,       // 总停车容量
+ *     "currentBikeCount": 115,           // 当前单车数量
+ *     "availableSpots": 35               // 可用停车位数量
+ *   }
+ * }
+ */
+export function getNearestParkingArea(latitude, longitude) {
+  return request({
+    url: '/elitesites/nearest-parking-area',
+    method: 'get',
+    params: {
+      latitude: latitude,
+      longitude: longitude
+    }
+  })
+}
+
+
