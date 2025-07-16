@@ -1,5 +1,7 @@
 package com.example.springboot.entity;
 
+import java.math.BigDecimal;
+
 /**
  * Staff实体类
  * 对应数据库中的 'staff' 表
@@ -22,16 +24,22 @@ public class Staff {
 
     private Integer geohash;
 
+    private BigDecimal latitude;
+
+    private BigDecimal longitude;
+
     // --- 构造函数 ---
     public Staff() {
     }
 
-    public Staff(Integer staffId, String username, String passwordHash, String staffType, Integer managerId, Integer geohash) {
+    public Staff(Integer staffId, String username, String passwordHash, String staffType, Integer managerId, Integer geohash, BigDecimal latitude, BigDecimal longitude) {
         this.staffId = staffId;
         this.username = username;
         this.passwordHash = passwordHash;
         this.managerId = managerId;
         this.geohash = geohash;
+        this.latitude = latitude;
+        this.longitude = longitude;
     }
 
     // --- Getter 和 Setter 方法 ---
@@ -77,6 +85,14 @@ public class Staff {
 
     public void setGeohash(Integer geohash) {this.geohash = geohash; }
 
+    public BigDecimal getLatitude() {return latitude;}
+
+    public void setLatitude(BigDecimal latitude) {this.latitude = latitude;}
+
+    public BigDecimal getLongitude() {return longitude;}
+
+    public void setLongitude(BigDecimal longitude) {this.longitude = longitude;}
+
     @Override
     public String toString() {
         return "Staff{" +
@@ -84,6 +100,8 @@ public class Staff {
                ", username='" + username + '\'' +
                ", managerId='" + managerId + '\'' +
                 ", geohash=" + geohash + '\'' +
+                ", lat=" + latitude + '\'' +
+                ", lon=" + longitude + '\'' +
                '}';
     }
 }

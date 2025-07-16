@@ -95,8 +95,9 @@ private double surplusThreshold;
         return new UtilizationResponse(
                 utilizationRatePercentage,
                 totalVehicles,
-                inUseVehicles,
-                idleVehicles
+                idleVehicles,
+                inUseVehicles
+
         );
     }
 
