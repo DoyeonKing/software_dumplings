@@ -68,6 +68,7 @@
         </div>
         <div class="panel-content" v-show="suggestionPanelExpanded">
           <DispatchSuggestionPanel
+              :map="map"
               @suggestion-accepted="handleSuggestionAccepted"
               @suggestion-rejected="handleSuggestionRejected"
           />
@@ -510,6 +511,8 @@ export default {
 
     // 处理调度建议的接受和拒绝
     handleSuggestionAccepted(suggestion) {
+      console.log('接受调度建议:', suggestion);
+      
       // 自动填充起点和终点
       this.selectedStartArea = {
         geohash: suggestion.startArea,
@@ -534,11 +537,14 @@ export default {
 
       // 更新地图上的多边形样式
       this.updatePolygonStyles();
+      
+      // 显示成功消息
+      alert(`已接受调度建议！\n起点：${suggestion.startArea}\n终点：${suggestion.endArea}\n调度数量：${suggestion.amount}辆`);
     },
 
     handleSuggestionRejected(suggestion) {
-      // 可以添加一些视觉反馈或其他处理逻辑
-      console.log('建议已拒绝:', suggestion);
+      console.log('拒绝调度建议:', suggestion);
+      alert(`已拒绝调度建议 ID: ${suggestion.id}`);
     },
 
     // 更新区域颜色
@@ -622,6 +628,8 @@ export default {
   },
   mounted() {
     AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
+      console.log('开始初始化地图...');
+      
       // 初始化地图
       this.map = new window.AMap.Map("mapContainer", {
         center: [114.0580, 22.5390],
@@ -634,6 +642,8 @@ export default {
         touchZoom: true,
         mapStyle: 'amap://styles/normal'
       });
+
+      console.log('地图初始化完成，地图实例:', this.map);
 
       // 初始化信息窗口
       this.infoWindow = new window.AMap.InfoWindow({
@@ -654,6 +664,7 @@ export default {
           }
         });
         this.heatmapReady = true;
+        console.log('热力图插件加载完成');
       });
 
       // 【修改】将数据加载逻辑统一管理，并添加防抖
@@ -661,6 +672,7 @@ export default {
       const loadAllData = () => {
         clearTimeout(timeout);
         timeout = setTimeout(() => {
+          console.log('开始加载地图数据...');
           this.loadBicycles();
           this.loadParkingAreas();
         }, 500); // 500ms的防抖延迟
@@ -672,11 +684,21 @@ export default {
       // 监听地图移动和缩放事件，使用防抖函数
       this.map.on('moveend', loadAllData);
       this.map.on('zoomend', loadAllData);
+      
+      console.log('地图事件监听器设置完成');
 
-    }).catch(err => { alert('地图加载失败: ' + err.message); });
+    }).catch(err => { 
+      console.error('地图加载失败:', err);
+      alert('地图加载失败: ' + err.message); 
+    });
 
     // 加载工作人员数据
+    console.log('开始加载工作人员数据...');
     this.loadManagedStaff();
+    
+    // 确保调度建议面板默认展开
+    this.suggestionPanelExpanded = true;
+    console.log('locationView 组件初始化完成');
   },
 
   beforeUnmount() {

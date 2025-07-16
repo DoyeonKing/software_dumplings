@@ -1,5 +1,38 @@
 <template>
   <div class="suggestion-panel">
+    <!-- 新增：预测参数设置区域 -->
+    <div class="prediction-params">
+      <div class="param-row">
+        <label>预测时间:</label>
+        <input 
+          type="date" 
+          v-model="reportDate" 
+          class="date-input"
+          :max="getTodayString()"
+        />
+      </div>
+      <div class="param-row">
+        <label>具体时段:</label>
+        <input 
+          type="number" 
+          v-model.number="predictionHour" 
+          min="0" 
+          max="24" 
+          class="hour-input"
+          placeholder="0-24"
+        />
+        <span class="unit">时</span>
+      </div>
+      <button 
+        class="predict-btn yellow-btn" 
+        @click="predictSuggestions"
+        :disabled="!reportDate || predictionHour < 0 || predictionHour > 24 || isLoading"
+      >
+        {{ isLoading ? '预测中...' : '预测调度建议' }}
+      </button>
+    </div>
+
+    <!-- 搜索和过滤区域 -->
     <div class="search-section">
       <input 
         type="text" 
@@ -31,7 +64,11 @@
       </button>
     </div>
 
+    <!-- 建议列表 -->
     <div class="suggestions-list">
+      <div v-if="suggestions.length === 0 && !isLoading" class="no-suggestions">
+        <p>{{ hasSearched ? '当前屏幕范围内暂无调度建议' : '请设置预测参数并点击"预测调度建议"' }}</p>
+      </div>
       <div 
         v-for="suggestion in filteredSuggestions" 
         :key="suggestion.id"
@@ -81,15 +118,25 @@
 </template>
 
 <script>
-import { getAllSuggestions, updateSuggestionStatus } from '@/api/prediction/suggestionService';
+import { getMapAreaSuggestions, updateSuggestionStatus } from '@/api/prediction/suggestionService';
 
 export default {
   name: 'DispatchSuggestionPanel',
+  props: {
+    map: {
+      type: Object,
+      default: null
+    }
+  },
   data() {
     return {
       searchQuery: '',
       currentFilter: 'PENDING',
-      suggestions: []
+      suggestions: [],
+      reportDate: '',
+      predictionHour: 0,
+      isLoading: false,
+      hasSearched: false
     }
   },
   computed: {
@@ -107,6 +154,10 @@ export default {
         });
     }
   },
+  mounted() {
+    // 设置默认日期为今天
+    this.reportDate = this.getTodayString();
+  },
   methods: {
     setFilter(filter) {
       this.currentFilter = filter;
@@ -118,6 +169,144 @@ export default {
         'REJECTED': '已拒绝'
       };
       return statusMap[status] || status;
+    },
+    formatDateTime(dateTimeString) {
+      if (!dateTimeString) return '';
+      const date = new Date(dateTimeString);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    },
+    getTodayString() {
+      return '2019-12-31';
+    },
+    formatDateTimeForAPI(dateString) {
+      // 直接返回日期字符串，因为现在只选择日期
+      if (!dateString) return '';
+      return dateString; // 已经是YYYY-MM-DD格式
+    },
+    getMapBounds() {
+      if (!this.map) {
+        console.error('地图实例不可用');
+        return null;
+      }
+      
+      try {
+        const bounds = this.map.getBounds();
+        const southWest = bounds.getSouthWest();
+        const northEast = bounds.getNorthEast();
+        
+        return {
+          minLat: southWest.getLat(),
+          maxLat: northEast.getLat(),
+          minLon: southWest.getLng(),
+          maxLon: northEast.getLng()
+        };
+      } catch (error) {
+        console.error('获取地图边界失败:', error);
+        return null;
+      }
+    },
+    async predictSuggestions() {
+      if (!this.reportDate || this.predictionHour < 0 || this.predictionHour > 24) {
+        alert('请先选择预测日期和具体时段（0-24小时）');
+        return;
+      }
+
+      if (!this.map) {
+        alert('地图未加载完成，请稍后再试');
+        return;
+      }
+
+      this.isLoading = true;
+      this.hasSearched = true;
+      try {
+        const token = sessionStorage.getItem('authToken');
+        if (!token) {
+          alert('登录已过期，请重新登录');
+          this.isLoading = false;
+          return;
+        }
+
+        console.log('开始预测调度建议...');
+        console.log('当前token:', token ? '已设置' : '未设置');
+        console.log('预测参数:', { reportDate: this.reportDate, predictionHour: this.predictionHour });
+
+        // 获取当前地图边界
+        const mapBounds = this.getMapBounds();
+        if (!mapBounds) {
+          alert('获取地图边界失败，请重试');
+          this.isLoading = false;
+          return;
+        }
+
+        console.log('地图边界:', mapBounds);
+
+        // 直接使用日期字符串，已经是YYYY-MM-DD格式
+        const reportDateStr = this.reportDate;
+        console.log('日期格式:', reportDateStr);
+        console.log('预测时段:', this.predictionHour);
+
+        // 验证参数有效性
+        if (!reportDateStr || reportDateStr.length !== 10 || !/^\d{4}-\d{2}-\d{2}$/.test(reportDateStr)) {
+          alert('日期格式错误，请选择正确的日期（YYYY-MM-DD格式）');
+          this.isLoading = false;
+          return;
+        }
+
+        if (this.predictionHour < 0 || this.predictionHour > 24 || !Number.isInteger(this.predictionHour)) {
+          alert('时段必须是0-24之间的整数');
+          this.isLoading = false;
+          return;
+        }
+
+        console.log('参数验证通过，开始调用API...');
+
+        // 显示最终的API调用信息
+        const finalUrl = '/api/predict/map_area';
+        console.log('=== API调用详情 ===');
+        console.log('请求URL:', finalUrl);
+        console.log('请求方法: POST');
+        console.log('Query参数:', { reportDateStr, predictionTimeHour: this.predictionHour });
+        console.log('Request Body:', mapBounds);
+        console.log('==================');
+
+        // 调用API，传递所有参数给后端处理
+        const response = await getMapAreaSuggestions(
+          reportDateStr,
+          this.predictionHour,
+          mapBounds
+        );
+        console.log('预测调度建议API响应:', response);
+
+        if (response && (response.code === 200 || response.code === '200')) {
+          // 直接使用后端返回的数据，不做前端判断
+          this.suggestions = response.data || [];
+          console.log('成功获取调度建议数量:', this.suggestions.length);
+          
+          if (this.suggestions.length > 0) {
+            alert(`成功获取到 ${this.suggestions.length} 条调度建议`);
+          } else {
+            alert('当前暂无符合条件的调度建议');
+          }
+        } else {
+          console.warn('预测调度建议失败 - API响应:', response);
+          console.warn('响应code:', response?.code, '响应msg:', response?.msg);
+          this.suggestions = [];
+          alert(`预测调度建议失败: ${response?.msg || '未知错误'}`);
+        }
+      } catch (error) {
+        console.error('预测调度建议出错 - 完整错误:', error);
+        console.error('错误响应:', error.response);
+        if (error.response) {
+          console.error('HTTP状态码:', error.response.status);
+          console.error('错误数据:', error.response.data);
+          alert(`预测调度建议失败: HTTP ${error.response.status} - ${error.response.data?.msg || error.message}`);
+        } else {
+          alert(`预测调度建议失败: ${error.message}`);
+        }
+        this.suggestions = [];
+      } finally {
+        this.isLoading = false;
+      }
     },
     async acceptSuggestion(suggestion) {
       try {
@@ -215,47 +404,11 @@ export default {
           alert(`拒绝建议失败: ${error.message}`);
         }
       }
-    },
-    formatDateTime(dateTimeStr) {
-      if (!dateTimeStr) return '';
-      const date = new Date(dateTimeStr);
-      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-    },
-    async loadSuggestions() {
-      try {
-        const token = sessionStorage.getItem('authToken');
-        if (!token) {
-          console.warn('未找到登录token，无法加载调度建议');
-          this.suggestions = [];
-          return;
-        }
-        
-        console.log('开始加载调度建议...');
-        console.log('当前token:', token ? '已设置' : '未设置');
-        const response = await getAllSuggestions();
-        console.log('获取建议API响应:', response);
-        
-        if (response && (response.code === 200 || response.code === '200') && response.data) {
-          this.suggestions = response.data;
-          console.log('成功加载建议数量:', this.suggestions.length);
-        } else {
-          console.warn('获取调度建议失败 - API响应:', response);
-          console.warn('响应code:', response?.code, '响应msg:', response?.msg);
-          this.suggestions = [];
-        }
-      } catch (error) {
-        console.error('获取调度建议出错 - 完整错误:', error);
-        console.error('错误响应:', error.response);
-        if (error.response) {
-          console.error('HTTP状态码:', error.response.status);
-          console.error('错误数据:', error.response.data);
-        }
-        this.suggestions = [];
-      }
     }
   },
-  async mounted() {
-    await this.loadSuggestions();
+  mounted() {
+    // 设置默认日期为今天
+    this.reportDate = this.getTodayString();
   }
 }
 </script>
@@ -274,6 +427,88 @@ export default {
   height: 500px;
   box-sizing: border-box;
   overflow: hidden;
+}
+
+.prediction-params {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.param-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.param-row label {
+  font-size: 14px;
+  color: #495057;
+  font-weight: 600;
+  min-width: 80px;
+}
+
+.date-input, .hour-input {
+  padding: 8px 12px;
+  border: 1.5px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.3s;
+  box-sizing: border-box;
+  flex: 1;
+  background: white;
+}
+
+.date-input {
+  max-width: 150px;
+}
+
+.date-input:focus, .hour-input:focus {
+  border-color: #FFD600;
+  box-shadow: 0 0 0 2px rgba(255, 214, 0, 0.1);
+}
+
+.hour-input {
+  max-width: 100px;
+}
+
+.unit {
+  font-size: 14px;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.predict-btn {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: #FFD600;
+  color: #000;
+  margin-top: 8px;
+}
+
+.predict-btn:hover:not(:disabled) {
+  background: #e6c100;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(255, 214, 0, 0.3);
+}
+
+.predict-btn:disabled {
+  background: #e9ecef;
+  color: #6c757d;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .search-section {
@@ -325,6 +560,21 @@ export default {
   gap: 12px;
   padding-right: 4px;
   margin-right: -4px;
+}
+
+.no-suggestions {
+  text-align: center;
+  padding: 30px 20px;
+  color: #6c757d;
+  font-size: 14px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px dashed #dee2e6;
+}
+
+.no-suggestions p {
+  margin: 0;
+  line-height: 1.5;
 }
 
 /* 自定义滚动条样式 */

@@ -1,29 +1,173 @@
-# vue_02
+# 共享单车管理系统
 
-This template should help get you started developing with Vue 3 in Vite.
+这是一个基于Vue.js的共享单车管理系统前端项目，支持三种用户角色：用户、管理员和工作人员。
 
-## Recommended IDE Setup
+## 项目结构
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+```
+vue/
+├── src/
+│   ├── api/                    # API接口
+│   │   ├── account/           # 账户相关API
+│   │   ├── map/               # 地图相关API
+│   │   └── prediction/        # 预测相关API
+│   ├── components/            # 组件
+│   │   ├── admin/            # 管理员组件
+│   │   └── map/              # 地图组件
+│   ├── views/                # 页面
+│   │   ├── administrator/    # 管理员页面
+│   │   └── ...
+│   └── utils/                # 工具函数
+└── ...
+```
 
-## Customize configuration
+## 功能特性
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+### 用户角色
 
-## Project Setup
+1. **用户（User）**
+   - 用车、还车
+   - 查看停车区
+   - 地图导航
 
-```sh
+2. **管理员（Administrator）**
+   - 管理调度任务
+   - 查看调度建议
+   - 发布调度任务
+   - 管理工作人员
+
+3. **工作人员（Worker）**
+   - 实施调度任务
+   - 查看分配的任务
+
+### 核心功能
+
+#### 调度建议功能
+
+在管理员页面的`locationView`中，集成了智能调度建议功能：
+
+1. **预测参数设置**
+   - 预测时间：选择具体的日期
+   - 具体时段：选择0-24小时
+   - 地图边界：自动获取当前屏幕四个角的经纬度
+
+2. **API调用**
+   - 接口：`POST /api/predict/map_area`
+   - 参数：
+     - `reportDateStr`: 预测日期（YYYY-MM-DD格式）
+     - `predictionTimeHour`: 预测时段（0-24小时）
+     - 请求体：地图边界坐标
+       ```json
+       {
+         "minLat": 纬度最小值,
+         "maxLat": 纬度最大值,
+         "minLon": 经度最小值,
+         "maxLon": 经度最大值
+       }
+       ```
+
+3. **调度建议处理**
+   - 显示建议列表
+   - 接受/拒绝建议
+   - 自动填充调度任务表单
+
+#### 使用方法
+
+1. **访问调度建议页面**
+   - 登录管理员账户
+   - 进入"位置管理"页面
+   - 左侧面板中的"调度建议"标签页
+
+2. **设置预测参数**
+   - 选择预测日期
+   - 设置预测时段（0-24小时）
+   - 点击"预测调度建议"按钮
+
+3. **查看和处理建议**
+   - 系统会显示当前屏幕范围内的调度建议
+   - 可以接受或拒绝建议
+   - 接受建议后会自动填充调度任务表单
+
+#### API测试
+
+项目提供了API测试页面，可以测试调度建议接口：
+
+1. 访问：`/api-test-manager-staff`
+2. 选择"调度建议API"标签
+3. 填写测试参数
+4. 点击"测试调度建议API"按钮
+
+## 技术栈
+
+- **前端框架**: Vue 3
+- **构建工具**: Vite
+- **地图服务**: 高德地图API
+- **UI组件**: Element Plus
+- **HTTP客户端**: Axios
+
+## 开发环境
+
+### 安装依赖
+```bash
 npm install
 ```
 
-### Compile and Hot-Reload for Development
-
-```sh
+### 启动开发服务器
+```bash
 npm run dev
 ```
 
-### Compile and Minify for Production
-
-```sh
+### 构建生产版本
+```bash
 npm run build
 ```
+
+## 配置说明
+
+### 地图配置
+- 高德地图API密钥配置在`src/views/administrator/locationView.vue`中
+- 地图中心点设置为深圳地区
+
+### API代理配置
+- 开发环境API代理配置在`vite.config.js`中
+- 默认代理到`http://localhost:8080`
+
+## 注意事项
+
+1. **API接口要求**
+   - 后端需要实现`/api/predict/map_area`接口
+   - 接口需要支持POST方法
+   - 需要处理地图边界参数
+
+2. **地图边界获取**
+   - 系统会自动获取当前地图视图的边界坐标
+   - 确保地图已正确加载
+
+3. **权限验证**
+   - 所有API调用都需要有效的管理员token
+   - token存储在sessionStorage中
+
+## 故障排除
+
+### 常见问题
+
+1. **调度建议无法获取**
+   - 检查网络连接
+   - 确认后端服务正常运行
+   - 验证token是否有效
+
+2. **地图边界获取失败**
+   - 确保地图已完全加载
+   - 检查高德地图API密钥是否有效
+
+3. **API调用失败**
+   - 检查vite代理配置
+   - 确认后端接口路径正确
+   - 查看浏览器控制台错误信息
+
+### 调试方法
+
+1. 打开浏览器开发者工具
+2. 查看Console标签页的日志信息
+3. 使用API测试页面验证接口
+4. 检查Network标签页的请求详情

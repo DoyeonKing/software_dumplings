@@ -1,7 +1,7 @@
 <template>
   <div class="api-test-container">
     <div class="test-panel">
-      <h2>管理员工作人员API测试</h2>
+      <h2>API测试面板</h2>
       
       <div class="input-section">
         <label for="token-input">管理员Token:</label>
@@ -14,19 +14,109 @@
         ></textarea>
       </div>
 
-      <div class="button-section">
-        <button @click="testAPI" :disabled="isLoading" class="test-btn">
-          {{ isLoading ? '测试中...' : '测试API' }}
+      <div class="test-tabs">
+        <button 
+          :class="['tab-btn', { active: activeTab === 'staff' }]"
+          @click="activeTab = 'staff'"
+        >
+          工作人员API
         </button>
-        <button @click="clearResults" class="clear-btn">清空结果</button>
-        <button @click="goBack" class="back-btn">返回</button>
+        <button 
+          :class="['tab-btn', { active: activeTab === 'suggestion' }]"
+          @click="activeTab = 'suggestion'"
+        >
+          调度建议API
+        </button>
       </div>
 
-      <div class="info-section">
-        <h3>接口信息:</h3>
-        <p><strong>URL:</strong> /managers/managed-staff</p>
-        <p><strong>方法:</strong> GET</p>
-        <p><strong>描述:</strong> 获取管理员手下的工作人员数据</p>
+      <!-- 工作人员API测试 -->
+      <div v-if="activeTab === 'staff'" class="tab-content">
+        <div class="button-section">
+          <button @click="testStaffAPI" :disabled="isLoading" class="test-btn">
+            {{ isLoading ? '测试中...' : '测试工作人员API' }}
+          </button>
+        </div>
+
+        <div class="info-section">
+          <h3>工作人员接口信息:</h3>
+          <p><strong>URL:</strong> /managers/managed-staff</p>
+          <p><strong>方法:</strong> GET</p>
+          <p><strong>描述:</strong> 获取管理员手下的工作人员数据</p>
+        </div>
+      </div>
+
+      <!-- 调度建议API测试 -->
+      <div v-if="activeTab === 'suggestion'" class="tab-content">
+        <div class="suggestion-test-form">
+          <div class="form-row">
+            <label>预测日期:</label>
+            <input 
+              type="date" 
+              v-model="suggestionParams.reportDateStr" 
+              class="date-input"
+            />
+          </div>
+          <div class="form-row">
+            <label>预测时段:</label>
+            <input 
+              type="number" 
+              v-model.number="suggestionParams.predictionTimeHour" 
+              min="0" 
+              max="24" 
+              class="hour-input"
+              placeholder="0-24"
+            />
+            <span class="unit">时</span>
+          </div>
+          <div class="form-row">
+            <label>地图边界:</label>
+            <div class="bounds-inputs">
+              <input 
+                type="number" 
+                v-model.number="suggestionParams.minLat" 
+                placeholder="最小纬度"
+                step="0.000001"
+                class="bound-input"
+              />
+              <input 
+                type="number" 
+                v-model.number="suggestionParams.maxLat" 
+                placeholder="最大纬度"
+                step="0.000001"
+                class="bound-input"
+              />
+              <input 
+                type="number" 
+                v-model.number="suggestionParams.minLon" 
+                placeholder="最小经度"
+                step="0.000001"
+                class="bound-input"
+              />
+              <input 
+                type="number" 
+                v-model.number="suggestionParams.maxLon" 
+                placeholder="最大经度"
+                step="0.000001"
+                class="bound-input"
+              />
+            </div>
+          </div>
+          <button @click="testSuggestionAPI" :disabled="isLoading" class="test-btn">
+            {{ isLoading ? '测试中...' : '测试调度建议API' }}
+          </button>
+        </div>
+
+        <div class="info-section">
+          <h3>调度建议接口信息:</h3>
+          <p><strong>URL:</strong> /api/predict/map_area</p>
+          <p><strong>方法:</strong> POST</p>
+          <p><strong>描述:</strong> 根据地图区域获取调度建议</p>
+        </div>
+      </div>
+
+      <div class="button-section">
+        <button @click="clearResults" class="clear-btn">清空结果</button>
+        <button @click="goBack" class="back-btn">返回</button>
       </div>
 
       <div class="result-section">
@@ -48,12 +138,13 @@
             </div>
             <div v-if="apiResult.data && Array.isArray(apiResult.data)" class="data-summary">
               <h4>数据摘要:</h4>
-              <p>共获取到 <strong>{{ apiResult.data.length }}</strong> 个工作人员</p>
-              <div v-if="apiResult.data.length > 0" class="staff-list">
-                <div v-for="(staff, index) in apiResult.data" :key="index" class="staff-item">
-                  <span class="staff-id">ID: {{ staff.id || staff.managerId || 'N/A' }}</span>
-                  <span class="staff-name" v-if="staff.name">姓名: {{ staff.name }}</span>
-                </div>
+              <p>共获取到 <strong>{{ apiResult.data.length }}</strong> 条记录</p>
+            </div>
+            <div v-else-if="apiResult.data && apiResult.data.dispatchSuggestions" class="data-summary">
+              <h4>调度建议数据摘要:</h4>
+              <p>共获取到 <strong>{{ apiResult.data.dispatchSuggestions.length }}</strong> 条调度建议</p>
+              <div v-if="apiResult.data.areaStatuses" class="area-summary">
+                <p>区域状态数据: <strong>{{ apiResult.data.areaStatuses.length }}</strong> 个区域</p>
               </div>
             </div>
           </div>
@@ -80,11 +171,20 @@ export default {
       token: '',
       apiResult: null,
       errorMessage: '',
-      isLoading: false
+      isLoading: false,
+      activeTab: 'staff', // 新增：控制当前激活的API测试标签
+      suggestionParams: { // 新增：调度建议API的参数
+        reportDateStr: '2019-12-31', // 默认日期
+        predictionTimeHour: 12, // 默认12时
+        minLat: 22.5, // 默认深圳区域
+        maxLat: 22.6,
+        minLon: 114.0,
+        maxLon: 114.1
+      }
     }
   },
   methods: {
-    async testAPI() {
+    async testStaffAPI() {
       if (!this.token.trim()) {
         this.errorMessage = '请输入管理员Token';
         this.apiResult = null;
@@ -101,6 +201,67 @@ export default {
         const response = await request({
           url: '/managers/managed-staff',
           method: 'get',
+          headers: {
+            'Authorization': this.token.startsWith('Bearer ') ? this.token : 'Bearer ' + this.token
+          }
+        });
+
+        console.log('API响应:', response);
+        this.apiResult = response;
+        
+      } catch (error) {
+        console.error('API测试失败:', error);
+        this.errorMessage = `请求失败: ${error.message}`;
+        
+        if (error.response) {
+          this.apiResult = error.response.data;
+        }
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
+    async testSuggestionAPI() {
+      if (!this.token.trim()) {
+        this.errorMessage = '请输入管理员Token';
+        this.apiResult = null;
+        return;
+      }
+
+      // 验证参数
+      if (!this.suggestionParams.reportDateStr) {
+        this.errorMessage = '请选择预测日期';
+        this.apiResult = null;
+        return;
+      }
+
+      if (this.suggestionParams.predictionTimeHour < 0 || this.suggestionParams.predictionTimeHour > 24) {
+        this.errorMessage = '预测时段必须在0-24之间';
+        this.apiResult = null;
+        return;
+      }
+
+      this.isLoading = true;
+      this.errorMessage = '';
+      this.apiResult = null;
+
+      try {
+        console.log('开始测试调度建议API，使用token:', this.token);
+        console.log('请求参数:', this.suggestionParams);
+        
+        const response = await request({
+          url: '/predict/map_area', // 注意这里不需要/api前缀，因为request.js已经设置了baseURL
+          method: 'post',
+          params: {
+            reportDateStr: this.suggestionParams.reportDateStr,
+            predictionTimeHour: this.suggestionParams.predictionTimeHour
+          },
+          data: {
+            minLat: this.suggestionParams.minLat,
+            maxLat: this.suggestionParams.maxLat,
+            minLon: this.suggestionParams.minLon,
+            maxLon: this.suggestionParams.maxLon
+          },
           headers: {
             'Authorization': this.token.startsWith('Bearer ') ? this.token : 'Bearer ' + this.token
           }
@@ -220,6 +381,87 @@ label {
 .token-input:focus {
   outline: none;
   border-color: #FFD600;
+}
+
+.test-tabs {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 25px;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 10px;
+}
+
+.tab-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px 8px 0 0;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #f0f0f0;
+  color: #555;
+  transition: all 0.3s;
+}
+
+.tab-btn.active {
+  background: #FFD600;
+  color: #333;
+  border-bottom: 2px solid #FFD600;
+}
+
+.tab-btn:hover:not(.active) {
+  background: #e0e0e0;
+}
+
+.tab-content {
+  margin-top: 30px;
+}
+
+.suggestion-test-form {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  margin-bottom: 25px;
+}
+
+.form-row {
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.form-row label {
+  min-width: 100px;
+  text-align: right;
+  font-weight: 500;
+}
+
+.date-input, .hour-input, .bound-input {
+  flex: 1;
+  padding: 10px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  transition: border-color 0.3s;
+}
+
+.date-input:focus, .hour-input:focus, .bound-input:focus {
+  outline: none;
+  border-color: #FFD600;
+}
+
+.unit {
+  font-size: 0.9rem;
+  color: #555;
+  margin-left: 5px;
+}
+
+.bounds-inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 10px;
 }
 
 .button-section {
@@ -424,6 +666,21 @@ label {
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
+  }
+
+  .form-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .form-row label {
+    text-align: left;
+    width: 100%;
+  }
+
+  .bounds-inputs {
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   }
 }
 </style> 
