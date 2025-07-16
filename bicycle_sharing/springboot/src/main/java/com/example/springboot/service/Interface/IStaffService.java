@@ -4,10 +4,15 @@ import com.example.springboot.common.request.LoginRequest;
 import com.example.springboot.common.request.RegisterRequest;
 import com.example.springboot.entity.Staff;
 import com.example.springboot.exception.CustomException;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 public interface IStaffService {
+    @Transactional
+    int batchResetPasswords(int startId, int endId);
+
+
     /**
      * 处理工作人员登录逻辑
      * @param loginRequest 登录请求 DTO

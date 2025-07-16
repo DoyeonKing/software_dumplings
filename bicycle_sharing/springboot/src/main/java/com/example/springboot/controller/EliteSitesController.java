@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.List;
 
+import static com.example.springboot.util.LocationUtil.isWithinParkingArea;
+
 /**
  * GeohashInfoController类
  * 负责接收和处理与Geohash区域信息相关的HTTP请求
@@ -19,6 +21,25 @@ import java.util.List;
 public class EliteSitesController {
     @Resource
     private IEliteSitesService eliteSitesService;
+
+    private static final String NOT_IN_ANY_PARKING_POINT = "xxxxxxx";
+
+    /**
+     * 判断当前位置所处的停车点编号
+     * @param lat 纬度
+     * @param lon 经度
+     * @return 当前位置所处的停车点编号，若不处于任何一个停车点，返回固定编号 "xxxxxxx"
+     */
+    @GetMapping("/checkParkingPoint")
+    public String checkParkingPoint(@RequestParam BigDecimal lat, @RequestParam BigDecimal lon) {
+        List<EliteSites> allEliteSites = eliteSitesService.getAllEliteSites();
+        for (EliteSites site : allEliteSites) {
+            if (isWithinParkingArea(lat, lon, site)) {
+                return site.getGeohash();
+            }
+        }
+        return NOT_IN_ANY_PARKING_POINT;
+    }
 
     /**
      * 根据停车区域编号获取停车区域中心点的纬度和经度

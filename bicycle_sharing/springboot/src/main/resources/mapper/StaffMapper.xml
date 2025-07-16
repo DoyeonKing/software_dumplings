@@ -30,4 +30,16 @@
         WHERE staff_id = #{staffId}
     </update>
 
+    <update id="batchUpdatePassword">
+        UPDATE staff
+        SET password_hash = CASE staff_id
+        <foreach collection="resetPairs" item="pair" separator=" ">
+            WHEN #{pair.staffId} THEN #{pair.passwordHash}
+        </foreach>
+        END
+        WHERE staff_id IN
+        <foreach collection="resetPairs" item="pair" open="(" separator="," close=")">
+            #{pair.staffId}
+        </foreach>
+    </update>
 </mapper>
