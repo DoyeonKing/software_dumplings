@@ -7,6 +7,15 @@ public class DispatchTaskRequest {
     private String endGeohash;   // 对应 DispatchTasks.endGeohash
     private Integer assignedTo;  // 对应 DispatchTasks.assignedTo (Integer 类型)
     private Integer bikeCount;   // 对应 DispatchTasks.bikeCount
+    private String simulatedCreatedAt; // 【新增字段】用于接收模拟的创建时间字符串 (例如 "2019-12-31 00:00:00")
+
+    public String getSimulatedCreatedAt() {
+        return simulatedCreatedAt;
+    }
+
+    public void setSimulatedCreatedAt(String simulatedCreatedAt) {
+        this.simulatedCreatedAt = simulatedCreatedAt;
+    }
 
     // Getters and Setters
     public String getStartGeohash() {

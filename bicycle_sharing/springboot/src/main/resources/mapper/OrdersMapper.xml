@@ -23,6 +23,14 @@
         <result column="duration_minutes" property="durationMinutes"/>
     </resultMap>
 
+    <select id="findActiveOrderByUserId" resultMap="OrdersResultMap">
+        SELECT
+            orderid, bikeid, userid, start_time, end_time, start_lat, start_lon, end_lat, end_lon,
+            distance_m, cost, start_geohash, end_geohash, start_weekday, start_hour, is_weekend, duration_minutes
+        FROM orders
+        WHERE userid = #{userId} AND end_time IS NULL
+    </select>
+
     <insert id="insert">
         INSERT INTO orders (
             orderid,  bikeid, userid, start_time, start_lat, start_lon, start_geohash, start_weekday, start_hour, is_weekend

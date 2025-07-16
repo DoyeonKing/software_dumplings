@@ -14,6 +14,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*; // 导入Spring Web注解
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List; // 导入List
 import java.util.Map; // 导入Map
 
@@ -28,30 +31,43 @@ public class DispatchTasksController { // 控制器类名与资源名复数形�
     @Autowired // 自动注入 DispatchTasksService
     private IDispatchTasksService dispatchTasksService;
 
-    /**
+        /**
      * 创建新的调度任务。
-     * POST /api/dispatchTasks/create
+     * POST /api/dispatch/tasks/create
      * 请求体示例:
      * {
-     *     "startGeohash": "wx4er",
-     *     "endGeohash": "wx4ez",
-     *     "assignedTo": 101,
-     *     "bikeCount": 5
+     * "startGeohash": "wx4er",
+     * "endGeohash": "wx4ez",
+     * "assignedTo": 101,
+     * "bikeCount": 5,
+     * "simulatedCreatedAt": "2019-12-31 00:00:00" // 新增字段
      * }
      * @param request 调度任务请求 DTO
      * @return 响应实体，包含成功信息或错误信息
      */
     @PostMapping("/create")
     public ResponseEntity<?> createDispatchTask(@RequestBody DispatchTaskRequest request) {
+        LocalDateTime createdAt;
+        if (request.getSimulatedCreatedAt() != null && !request.getSimulatedCreatedAt().isEmpty()) {
+            try {
+                // 【新增】解析传入的模拟时间字符串
+                createdAt = LocalDateTime.parse(request.getSimulatedCreatedAt(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            } catch (DateTimeParseException e) {
+                return ResponseEntity.badRequest().body("创建时间格式不正确，请使用 'yyyy-MM-dd HH:mm:ss' 格式。");
+            }
+        } else {
+            // 如果未提供模拟时间，则使用当前实时时间
+            createdAt = LocalDateTime.now();
+        }
+
         try {
-            DispatchTasks createdTask = dispatchTasksService.createDispatchTask(request);
-            // 返回的taskId是Long类型，确保前端能正确接收
+            // 【修改】将解析后的时间传递给服务层
+            DispatchTasks createdTask = dispatchTasksService.createDispatchTask(request, createdAt); // 传入时间
             return ResponseEntity.status(HttpStatus.CREATED).body("调度任务创建成功，任务ID：" + createdTask.getTaskId());
         } catch (IllegalArgumentException e) {
-            // 参数校验失败或调度数量不足的业务异常
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
-            // 其他未知异常
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("创建调度任务失败：" + e.getMessage());
         }
     }
@@ -150,23 +166,31 @@ public class DispatchTasksController { // 控制器类名与资源名复数形�
         }
     }
 
-    /**
-     * API: PUT /dispatchTasks/{taskId}/complete
-     * 作用：完成调度任务，更新关联自行车的最终位置和状态。
-     * @param taskId 调度任务的ID
-     * @return 成功信息
+       /**
+     * 完成调度任务。
+     * @param taskId 调度任务ID
+     * @param completionTimeStr 任务的模拟完成时间字符串 (例如 "2019-12-31 10:30:00")
      */
-    @PutMapping("/{taskId}/complete")
-    public Result completeDispatch(@PathVariable Long taskId) {
+    @PutMapping("/complete/{taskId}") // 通常用 PUT 表示更新资源状态
+    public Result completeTask(
+            @PathVariable Long taskId,
+            @RequestParam String completionTimeStr) { // 【关键修改】接收时间字符串
+
+        LocalDateTime completionTime;
         try {
-            dispatchTasksService.completeDispatch(taskId);
-            return Result.success("调度任务完成成功", null);
-        } catch (IllegalArgumentException e) {
-            return Result.error(Result.CODE_PARAM_ERROR, e.getMessage());
-        } catch (IllegalStateException e) {
-            return Result.error(Result.CODE_BIZ_ERROR, e.getMessage()); // 业务逻辑错误
+            // 解析传入的时间字符串，确保格式与您在Java代码中格式化时一致
+            // 假设格式为 "yyyy-MM-dd HH:mm:ss"
+            completionTime = LocalDateTime.parse(completionTimeStr, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        } catch (DateTimeParseException e) {
+            return Result.error("400", "完成时间格式不正确，请使用 'yyyy-MM-dd HH:mm:ss' 格式。");
+        }
+
+        try {
+            dispatchTasksService.completeDispatch(taskId, completionTime); // 【关键修改】传入解析后的时间
+            return Result.success("调度任务完成成功！");
         } catch (Exception e) {
-            return Result.error(Result.CODE_SYS_ERROR, "完成调度任务失败: " + e.getMessage());
+            e.printStackTrace();
+            return Result.error("500", "完成调度任务失败: " + e.getMessage());
         }
     }
 

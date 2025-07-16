@@ -16,6 +16,20 @@
         <result column="password_hash" property="passwordHash"/>
     </resultMap>
 
+    <update id="batchUpdatePassword">
+        UPDATE manager
+        SET password_hash = CASE manager_id
+        <foreach collection="resetPairs" item="pair" separator=" ">
+            WHEN #{pair.staffId} THEN #{pair.passwordHash}
+        </foreach>
+        END
+        WHERE manager_id IN
+        <foreach collection="resetPairs" item="pair" open="(" separator="," close=")">
+            #{pair.staffId}
+        </foreach>
+    </update>
+
+
     <!--
       3. 根据用户名查询管理员。
          id属性必须与Mapper接口中的方法名一致。

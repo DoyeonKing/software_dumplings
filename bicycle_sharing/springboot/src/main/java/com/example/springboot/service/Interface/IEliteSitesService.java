@@ -32,4 +32,6 @@ public interface IEliteSitesService {
     List<EliteSites> getEliteSitesInBounds(double minLat, double maxLat, double minLon, double maxLon);
 
     EliteSites getNearestEliteSite(BigDecimal currentLat, BigDecimal currentLon);
+    EliteSites getEliteSiteByGeohash(String geohash);
+
 }

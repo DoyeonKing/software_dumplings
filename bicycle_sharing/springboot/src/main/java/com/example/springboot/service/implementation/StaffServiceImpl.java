@@ -1,6 +1,7 @@
 package com.example.springboot.service.implementation;
 
 import cn.hutool.crypto.SecureUtil;
+import com.example.springboot.common.PasswordResetPair;
 import com.example.springboot.common.request.LoginRequest;
 import com.example.springboot.common.request.RegisterRequest;
 import com.example.springboot.common.response.LoginResponse;
@@ -13,6 +14,7 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -23,6 +25,29 @@ public class StaffServiceImpl implements IStaffService {
 
     @Resource
     private JwtTokenUtil jwtTokenUtil;
+
+    /**
+     * 批量重置指定范围内用户的密码为默认密码
+     * @param startId 起始ID（包含）
+     * @param endId 结束ID（包含）
+     * @return 更新成功的用户数量
+     */
+    @Transactional
+    @Override
+    public int batchResetPasswords(int startId, int endId) {
+        List<PasswordResetPair> resetPairs = new ArrayList<>();
+
+        // 生成ID和对应默认密码的哈希
+        for (int id = startId; id <= endId; id++) {
+            String defaultPassword = "default_password_" + id;
+            String hashedPassword = SecureUtil.sha256(defaultPassword);
+            resetPairs.add(new PasswordResetPair(id, hashedPassword));
+        }
+
+        // 执行批量更新
+        return staffMapper.batchUpdatePassword(resetPairs);
+    }
+
 
     /**
      * 处理工作人员登录逻辑

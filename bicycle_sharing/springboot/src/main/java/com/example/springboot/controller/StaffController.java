@@ -2,6 +2,8 @@ package com.example.springboot.controller;
 
 import cn.hutool.crypto.SecureUtil; // 虽然这里没有直接使用，但依赖仍然可能存在
 import com.example.springboot.common.Result; // 导入统一响应结果类
+import com.example.springboot.common.request.ChangePasswordRequest;
+import com.example.springboot.common.request.PasswordUpdateRequest;
 import com.example.springboot.common.response.LoginResponse; // 假设LoginResponse的构造函数已调整
 import com.example.springboot.dto.ProfileResponse;
 import com.example.springboot.dto.UpdatePasswordRequest;
@@ -36,6 +38,15 @@ public class StaffController {
 
     @Resource
     private JwtTokenUtil jwtTokenUtil;
+
+    @PostMapping("/batch-reset-passwords")
+    public ResponseEntity<?> batchResetPasswords(
+            @RequestParam(required = false, defaultValue = "51") int startId,
+            @RequestParam(required = false, defaultValue = "100") int endId
+    ) {
+        int updatedCount = staffService.batchResetPasswords(startId, endId);
+        return ResponseEntity.ok(Map.of("message", "成功重置" + updatedCount + "个用户的密码"));
+    }
 
     /**
      * 查询当前登录用户的个人信息。

@@ -46,4 +46,52 @@
         DELETE FROM daily_simulation_reports WHERE report_date = #{reportDate}
     </delete>
 
+    <!-- 根据日期、时间点和geohash查找单个报告 -->
+    <select id="findByDateAndTimeAndGeohash" resultType="com.example.springboot.entity.DailySimulationReport">
+        SELECT
+            id, report_date, prediction_target_time, geohash, latitude, longitude,
+            status, utilization_rate, current_bikes, parking_capacity,
+            predicted_pickups, predicted_dropoffs, future_bikes, future_remaining_spots, created_at
+        FROM daily_simulation_reports
+        WHERE report_date = #{reportDate}
+          AND prediction_target_time = #{predictionTargetTime}
+          AND geohash = #{geohash}
+    </select>
+
+    <!-- 更新单个报告 -->
+    <update id="update" parameterType="com.example.springboot.entity.DailySimulationReport">
+        UPDATE daily_simulation_reports
+        SET
+            latitude = #{latitude},
+            longitude = #{longitude},
+            status = #{status},
+            utilization_rate = #{utilizationRate},
+            current_bikes = #{currentBikes},
+            parking_capacity = #{parkingCapacity},
+            predicted_pickups = #{predictedPickups},
+            predicted_dropoffs = #{predictedDropoffs},
+            future_bikes = #{futureBikes},
+            future_remaining_spots = #{futureRemainingSpots}
+            <!-- created_at 通常不更新 -->
+        WHERE id = #{id}
+    </update>
+
+
+
+    <select id="findLatestPredictionTargetTimeByGeohash" resultType="java.time.LocalDateTime">
+        SELECT MAX(prediction_target_time)
+        FROM daily_simulation_reports
+        WHERE geohash = #{geohash}
+    </select>
+
+    <select id="selectReportsByDateAndTime" resultType="com.example.springboot.entity.DailySimulationReport">
+        SELECT
+            id, report_date, prediction_target_time, geohash, latitude, longitude,
+            status, utilization_rate, current_bikes, parking_capacity,
+            predicted_pickups, predicted_dropoffs, future_bikes, future_remaining_spots, created_at
+        FROM daily_simulation_reports
+        WHERE report_date = #{reportDate}
+          AND prediction_target_time = #{predictionTargetTime}
+    </select>
+
 </mapper>

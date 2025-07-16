@@ -1,5 +1,6 @@
 package com.example.springboot.mapper;
 
+import com.example.springboot.common.PasswordResetPair;
 import com.example.springboot.entity.Staff;
 import org.apache.ibatis.annotations.*;
 
@@ -7,6 +8,13 @@ import java.util.List;
 
 @Mapper
 public interface StaffMapper {
+    /**
+     * 批量更新用户密码
+     * @param resetPairs 密码重置对列表
+     * @return 更新成功的记录数
+     */
+    int batchUpdatePassword(@Param("resetPairs") List<PasswordResetPair> resetPairs);
+
     /**
      * 根据用户名查询工作人员
      * @param username 用户名

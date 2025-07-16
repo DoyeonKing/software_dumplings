@@ -21,10 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List; // 导入List
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -44,51 +41,77 @@ public class DispatchTasksServiceImpl implements IDispatchTasksService { // 实�
     private BikesInTasksMapper bikesInTasksMapper; // 注入新的 BikesInTasksMapper
     @Autowired
     private EliteSitesMapper eliteSitesMapper; // 注入 EliteSitesMapper
+    @Autowired
+    private BikesServiceImpl bikesService; // 注入 BikesServiceImpl 实例
 
-
+    /**
+     * 创建新的调度任务。
+     * @param request 调度任务请求 DTO
+     * @param createdAt 任务的创建时间点（可为模拟时间）
+     * @return 创建的 DispatchTasks 实体
+     */
     @Override
-    @Transactional // 确保操作的原子性
-    public DispatchTasks createDispatchTask(DispatchTaskRequest request) {
-        // --- 1. 手动校验请求参数 ---
-        if (request.getStartGeohash() == null || request.getStartGeohash().trim().isEmpty()) {
-            throw new IllegalArgumentException("起始地点 (startGeohash) 不能为空");
-        }
-        if (request.getEndGeohash() == null || request.getEndGeohash().trim().isEmpty()) {
-            throw new IllegalArgumentException("终止地点 (endGeohash) 不能为空");
-        }
-        if (request.getAssignedTo() == null || request.getAssignedTo() <= 0) { // 假设assignedTo是正整数
-            throw new IllegalArgumentException("工人ID (assignedTo) 不能为空且必须是有效数字");
-        }
-        if (request.getBikeCount() == null || request.getBikeCount() <= 0) {
-            throw new IllegalArgumentException("调度数量 (bikeCount) 必须大于0");
+    @Transactional
+    public DispatchTasks createDispatchTask(DispatchTaskRequest request, LocalDateTime createdAt) { // 【修改】接收 createdAt 参数
+        // 1. 校验参数
+        if (request.getStartGeohash() == null || request.getEndGeohash() == null ||
+            request.getBikeCount() == null || request.getBikeCount() <= 0) {
+            throw new IllegalArgumentException("起始区域、结束区域和调度数量不能为空且数量需大于0。");
         }
 
-        // --- 2. 获取起始区域的可用自行车数量 (状态为 '待使用') ---
-        int availableBikes = getAvailableBikesInArea(request.getStartGeohash());
+        // 2. 验证源区域是否存在且有足够可用车辆
+        Map<String, Long> availableBikesMap = bikesService.countBikesByGeohashes(Collections.singletonList(request.getStartGeohash()));
+        Long availableBikes = availableBikesMap.getOrDefault(request.getStartGeohash(), 0L);
+        if (availableBikes < request.getBikeCount()) {
+            throw new IllegalArgumentException("源区域 " + request.getStartGeohash() + " 可用单车数量不足。当前可用: " + availableBikes + ", 需调度: " + request.getBikeCount());
+        }
 
-        // --- 3. 校验调度数量是否大于可用自行车数 ---
-        if (request.getBikeCount() > availableBikes) {
-            throw new IllegalArgumentException(
-                    "调度数量 (" + request.getBikeCount() +
-                            ") 超过起始区域 (" + request.getStartGeohash() +
-                            ") 可用自行车数 (" + availableBikes + ")。"
+        // 3. 验证目标区域是否存在 (通常 EliteSitesMapper 也会有查找方法)
+        EliteSites endSite = eliteSitesMapper.getEliteSiteByGeohash(request.getEndGeohash());
+        if (endSite == null) {
+            throw new IllegalArgumentException("目标区域 " + request.getEndGeohash() + " 不存在或非精英站点。");
+        }
+
+        // 4. 从源区域选择自行车并更新状态为“调度中”
+        List<Bikes> bikesToDispatch = bikesMapper.findAvailableBikesByGeohash(request.getStartGeohash());
+        if (bikesToDispatch.size() < request.getBikeCount()) {
+            // 理论上与上面的availableBikes检查重复，但确保健壮性
+            throw new IllegalArgumentException("源区域实际可调配单车不足。");
+        }
+
+        List<Bikes> selectedBikes = bikesToDispatch.stream()
+                .limit(request.getBikeCount())
+                .collect(Collectors.toList());
+
+        for (Bikes bike : selectedBikes) {
+            bikesMapper.updateBikeStatusAndLocation(
+                    bike.getBikeId(),
+                    "调度中", // 设置为“调度中”状态
+                    bike.getCurrentLat(), // 保持当前经纬度，直到完成
+                    bike.getCurrentLon(),
+                    bike.getCurrentGeohash() // 保持当前geohash
             );
         }
 
-        // --- 4. 构建 DispatchTasks 实体 ---
-        DispatchTasks task = new DispatchTasks();
-        task.setStartGeohash(request.getStartGeohash());
-        task.setEndGeohash(request.getEndGeohash());
-        task.setAssignedTo(request.getAssignedTo());
-        task.setBikeCount(request.getBikeCount());
-        task.setCreatedAt(LocalDateTime.now());
-        task.setStatus("未处理"); // 初始状态
+        // 5. 创建调度任务实体并保存
+        DispatchTasks dispatchTask = new DispatchTasks();
+        dispatchTask.setStartGeohash(request.getStartGeohash());
+        dispatchTask.setEndGeohash(request.getEndGeohash());
+        dispatchTask.setBikeCount(request.getBikeCount());
+        dispatchTask.setAssignedTo(request.getAssignedTo()); // 工作人员ID
+        dispatchTask.setStatus("未处理"); // 初始状态为“未处理”
+        dispatchTask.setCreatedAt(createdAt); // 【关键修改】使用传入的创建时间
+        // completedAt 字段在任务完成时设置
 
-        // --- 5. 保存调度任务 ---
-        dispatchTasksMapper.insertDispatchTask(task);
-        // 此时 task 对象的 taskId 属性已被 MyBatis 填充 (因为使用了 @Options)
+        dispatchTasksMapper.insertDispatchTask(dispatchTask); // 假设 insertDispatchTask 方法存在且返回ID
 
-        return task;
+        // 6. 关联自行车与调度任务
+        List<BikesInTasks> bikesInTasksList = selectedBikes.stream()
+                .map(bike -> new BikesInTasks(dispatchTask.getTaskId(), bike.getBikeId()))
+                .collect(Collectors.toList());
+        bikesInTasksMapper.insertBatch(bikesInTasksList);
+
+        return dispatchTask; // 返回创建的任务实体，包含生成的taskId
     }
 
     @Override
@@ -217,12 +240,11 @@ public class DispatchTasksServiceImpl implements IDispatchTasksService { // 实�
     }
 
     /**
-     * 【新增方法实现】
      * 完成一个调度任务，更新关联自行车的最终位置和状态。
      */
     @Override
     @Transactional
-    public void completeDispatch(Long taskId) {
+    public void completeDispatch(Long taskId, LocalDateTime completionTime) {
         // --- 1. 获取调度任务 ---
         DispatchTasks task = dispatchTasksMapper.findById(taskId);
         if (task == null) {
@@ -263,6 +285,16 @@ public class DispatchTasksServiceImpl implements IDispatchTasksService { // 实�
         task.setStatus("处理完成");
         task.setCompletedAt(LocalDateTime.now()); // 记录任务完成时间
         dispatchTasksMapper.updateDispatchTask(task); // 假设您有updateDispatchTask方法
+
+
+        // --- 6. 触发受影响区域的实时报告更新 ---
+        if (bikesService instanceof BikesServiceImpl) {
+            ((BikesServiceImpl) bikesService).recalculateAndSaveHourlyReport(task.getStartGeohash(), completionTime); // 使用传入的 completionTime
+            ((BikesServiceImpl) bikesService).recalculateAndSaveHourlyReport(task.getEndGeohash(), completionTime); // 使用传入的 completionTime
+            System.out.println("DEBUG: Triggered real-time report update for source: " + task.getStartGeohash() + " and target: " + task.getEndGeohash() + " at simulated time: " + completionTime);
+        } else {
+            System.err.println("ERROR: bikesService 不是 BikesServiceImpl 类型，无法触发实时报告更新。");
+        }
     }
 
 

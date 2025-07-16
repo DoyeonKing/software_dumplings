@@ -69,5 +69,15 @@ model:
 
 # 调度任务阈值
 dispatch:
-  shortage-threshold: 0.15
+  shortage-threshold: 0.65
   surplus-threshold: 0.85
+
+# doyeonking/software_dumplings/software_dumplings-jintaoran/bicycle_sharing/springboot/src/main/resources/application.yml
+logging:
+  level:
+    root: INFO # 保持 INFO 级别，以避免日志过多
+    # *** 关键：将这些级别设置为 DEBUG ***
+    com.example.springboot.mapper: DEBUG # 这会显示所有 MyBatis Mapper 的SQL语句和参数
+    com.example.springboot.service.implementation: DEBUG # 这会显示 Service 实现类的更多日志
+    org.springframework.transaction: DEBUG # 详细的事务日志
+    org.springframework.jdbc.datasource.DataSourceTransactionManager: DEBUG # 事务管理器日志

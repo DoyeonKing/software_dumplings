@@ -8,14 +8,19 @@ import com.example.springboot.entity.EliteSites;
 import com.example.springboot.service.Interface.IDailyDispatchSuggestionService;
 import com.example.springboot.service.Interface.IDailySimulationReportService;
 import com.example.springboot.service.Interface.IEliteSitesService;
+import com.github.pagehelper.PageInfo; // 确保导入 PageInfo
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal; // 确保导入
+import java.math.RoundingMode; // 确保导入
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.HashMap; // 确保导入 HashMap
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -26,15 +31,16 @@ public class PredictionController {
 
     private final IDailySimulationReportService dailySimulationReportService;
     private final IEliteSitesService eliteSitesService;
-    private final IDailyDispatchSuggestionService dailyDispatchSuggestionService; // 【新增注入】
+    private final IDailyDispatchSuggestionService dailyDispatchSuggestionService; // 仍然需要注入，但不再在这里直接调用保存
 
     public PredictionController(IDailySimulationReportService dailySimulationReportService,
                                 IEliteSitesService eliteSitesService,
-                                IDailyDispatchSuggestionService dailyDispatchSuggestionService) { // 【修改构造函数】
+                                IDailyDispatchSuggestionService dailyDispatchSuggestionService) {
         this.dailySimulationReportService = dailySimulationReportService;
         this.eliteSitesService = eliteSitesService;
-        this.dailyDispatchSuggestionService = dailyDispatchSuggestionService; // 【新增赋值】
+        this.dailyDispatchSuggestionService = dailyDispatchSuggestionService;
     }
+
     @PostMapping("/map_area")
     public Result getPredictionsByMapArea(
             @RequestBody MapBoundsRequest request,
@@ -48,19 +54,16 @@ public class PredictionController {
             return Result.error("400", "报告日期格式不正确，请使用 yyyy-MM-dd 格式。");
         }
 
-        // 1. 查询指定日期和范围的区域状态数据
         List<DailySimulationReport> storedAreaReports = dailySimulationReportService.getReportsByDateAndBounds(
                 reportDate,
                 request.getMinLat(), request.getMaxLat(),
                 request.getMinLon(), request.getMaxLon()
         );
 
-        // 2. 严格过滤同一时段（精确到小时）的区域状态
         final LocalDateTime targetTime;
         List<DailySimulationReport> sameHourReports = new ArrayList<>();
 
         if (predictionTimeHour != null) {
-            // 显式指定小时
             targetTime = LocalDateTime.of(reportDate, LocalTime.of(predictionTimeHour, 0));
             sameHourReports = storedAreaReports.stream()
                     .filter(report -> report.getPredictionTargetTime() != null
@@ -68,9 +71,7 @@ public class PredictionController {
                             .equals(targetTime))
                     .collect(Collectors.toList());
         } else {
-            // 未指定小时时的处理逻辑
             if (!storedAreaReports.isEmpty()) {
-                // 取第一个报告的小时作为目标时段
                 targetTime = storedAreaReports.get(0).getPredictionTargetTime().truncatedTo(ChronoUnit.HOURS);
                 sameHourReports = storedAreaReports.stream()
                         .filter(report -> report.getPredictionTargetTime() != null
@@ -78,12 +79,10 @@ public class PredictionController {
                                 .equals(targetTime))
                         .collect(Collectors.toList());
             } else {
-                // 当没有数据时，targetTime设为null
                 targetTime = null;
             }
         }
 
-        // 3. 转换区域状态为DTO
         List<AreaStatusDTO> filteredAreaStatuses = sameHourReports.stream()
                 .map(report -> {
                     AreaStatusDTO dto = new AreaStatusDTO();
@@ -103,17 +102,41 @@ public class PredictionController {
                 })
                 .collect(Collectors.toList());
 
-        // 4. 实时生成同一时段的调度建议
-        List<DispatchSuggestionDTO> dispatchSuggestions = generateDispatchSuggestions(
+        List<DispatchSuggestionDTO> dispatchSuggestionsDTO = generateDispatchSuggestions(
                 targetTime,
                 filteredAreaStatuses,
                 eliteSitesService.getAllEliteSites()
         );
 
-        // 5. 封装响应
+        // 【关键修改：删除将调度建议保存到数据库的代码块】
+        // List<DailyDispatchSuggestion> dispatchSuggestionsEntities = dispatchSuggestionsDTO.stream()
+        //         .map(dto -> {
+        //             DailyDispatchSuggestion entity = new DailyDispatchSuggestion();
+        //             entity.setReportDate(reportDate);
+        //             entity.setPredictionTargetTime(dto.getPredictionTargetTime());
+        //             entity.setSourceGeohash(dto.getSourceGeohash());
+        //             entity.setSourceLatitude(new BigDecimal(dto.getSourceLatitude()).setScale(8, RoundingMode.HALF_UP));
+        //             entity.setSourceLongitude(new BigDecimal(dto.getSourceLongitude()).setScale(8, RoundingMode.HALF_UP));
+        //             entity.setTargetGeohash(dto.getTargetGeohash());
+        //             entity.setTargetLatitude(new BigDecimal(dto.getTargetLatitude()).setScale(8, RoundingMode.HALF_UP));
+        //             entity.setTargetLongitude(new BigDecimal(dto.getTargetLongitude()).setScale(8, RoundingMode.HALF_UP));
+        //             entity.setSuggestedBikeCount(dto.getSuggestedBikeCount());
+        //             entity.setSuggestionTime(dto.getSuggestionTime());
+        //             entity.setCreatedAt(LocalDateTime.now());
+        //             entity.setSuggestionStatus("PENDING");
+        //             return entity;
+        //         })
+        //         .collect(Collectors.toList());
+
+        // if (!dispatchSuggestionsEntities.isEmpty()) {
+        //     dailyDispatchSuggestionService.saveDailySuggestions(dispatchSuggestionsEntities);
+        //     System.out.println("DEBUG: 已保存 " + dispatchSuggestionsEntities.size() + " 条调度建议数据到数据库。");
+        // }
+        // 【删除结束】
+
         MapPredictionResponseDTO responseDTO = new MapPredictionResponseDTO();
         responseDTO.setAreaStatuses(filteredAreaStatuses);
-        responseDTO.setDispatchSuggestions(dispatchSuggestions);
+        responseDTO.setDispatchSuggestions(dispatchSuggestionsDTO); // 依然返回给前端 DTO 列表
 
         return Result.success(responseDTO);
     }
@@ -129,7 +152,6 @@ public class PredictionController {
             return suggestions;
         }
 
-        // 筛选同一时段的稀缺区和富余区
         List<String> scarceAreas = areaStatusList.stream()
                 .filter(dto -> "稀缺区".equals(dto.getStatus()))
                 .map(AreaStatusDTO::getGeohash)
@@ -144,16 +166,13 @@ public class PredictionController {
             return suggestions;
         }
 
-        // 构建精英站点映射（geohash -> 站点信息）
         Map<String, EliteSites> eliteSitesMap = allEliteSites.stream()
                 .collect(Collectors.toMap(EliteSites::getGeohash, site -> site));
 
-        // 为每个稀缺区匹配最近的富余区
         for (String scarceGeohash : scarceAreas) {
             EliteSites scarceSite = eliteSitesMap.get(scarceGeohash);
             if (scarceSite == null) continue;
 
-            // 查找最近的富余区
             String nearestSurplusGeohash = findNearestSurplusGeohash(scarceSite, surplusAreas, eliteSitesMap);
             if (nearestSurplusGeohash == null) continue;
 
@@ -167,9 +186,10 @@ public class PredictionController {
             if (scarceStatus == null || surplusStatus == null) continue;
 
             // 计算可调度数量（修正为整数计算）
-            long needed = Math.max(0, (long) Math.ceil(scarceStatus.getParkingCapacity() * 0.3 - scarceStatus.getFutureBikes()));
-            long available = Math.max(0, surplusStatus.getFutureBikes() - (long) Math.floor(surplusStatus.getParkingCapacity() * 0.7));
-            int dispatchCount = (int) Math.min(needed, available);  // 转换为int类型
+            // 这里使用 0.65 和 0.85，请根据您实际需要调整，或从配置文件读取
+            long needed = Math.max(0, (long) Math.ceil(scarceStatus.getParkingCapacity() * 0.65 - scarceStatus.getFutureBikes()));
+            long available = Math.max(0, surplusStatus.getFutureBikes() - (long) Math.floor(surplusStatus.getParkingCapacity() * 0.85));
+            int dispatchCount = (int) Math.min(needed, available);
 
             if (dispatchCount > 0) {
                 DispatchSuggestionDTO suggestion = new DispatchSuggestionDTO();
@@ -178,8 +198,8 @@ public class PredictionController {
                 suggestion.setSourceLongitude(surplusSite.getCenterLon().doubleValue());
                 suggestion.setTargetGeohash(scarceGeohash);
                 suggestion.setTargetLatitude(scarceSite.getCenterLat().doubleValue());
-                suggestion.setTargetLongitude(scarceSite.getCenterLon().doubleValue());
-                suggestion.setSuggestedBikeCount(dispatchCount);  // 现在参数类型匹配
+                suggestion.setTargetLongitude(scarceSite.getCenterLon().doubleValue()); // 【修正】确保这里是 getCenterLon()
+                suggestion.setSuggestedBikeCount(dispatchCount);
                 suggestion.setSuggestionTime(LocalDateTime.now());
                 suggestion.setPredictionTargetTime(predictionTargetTime);
                 suggestions.add(suggestion);
@@ -204,7 +224,6 @@ public class PredictionController {
             double surplusLat = surplusSite.getCenterLat().doubleValue();
             double surplusLon = surplusSite.getCenterLon().doubleValue();
 
-            // 计算直线距离（使用更精确的距离计算方式）
             double distance = haversineDistance(scarceLat, scarceLon, surplusLat, surplusLon);
 
             if (distance < minDistance) {
@@ -215,9 +234,8 @@ public class PredictionController {
         return nearestGeohash;
     }
 
-    // 新增：更精确的哈夫曼距离计算（地球表面两点距离，单位：米）
     private double haversineDistance(double lat1, double lon1, double lat2, double lon2) {
-        final int R = 6371000; // 地球半径（米）
+        final int R = 6371000;
         double latDistance = Math.toRadians(lat2 - lat1);
         double lonDistance = Math.toRadians(lon2 - lon1);
         double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
@@ -229,15 +247,18 @@ public class PredictionController {
 
 
     /**
-     * 获取所有调度建议信息
+     * 获取所有调度建议信息，支持分页。
      * 返回全部调度建议的详细信息
      */
     @GetMapping("/suggestions/all")
-    public Result getAllSuggestions() {
+    public Result getAllSuggestions(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
         try {
-            List<DailyDispatchSuggestion> suggestions = dailyDispatchSuggestionService.getAllSuggestions();
-            // 可以在这里对返回的数据进行进一步处理或脱敏，例如只返回部分字段
-            return Result.success(suggestions);
+            // 【注意】这里仍会查询并返回 DailyDispatchSuggestion，如果您完全不希望持久化，
+            // 那么这个接口可能需要修改或移除。
+        List<DailyDispatchSuggestion> suggestions = dailyDispatchSuggestionService.getAllSuggestions();
+        return Result.success();
         } catch (Exception e) {
             e.printStackTrace();
             return Result.error("500", "获取调度建议失败: " + e.getMessage());
@@ -260,5 +281,50 @@ public class PredictionController {
             e.printStackTrace();
             return Result.error("500", "更新调度建议状态失败: " + e.getMessage());
         }
+    }
+
+    /**
+     * 预测未来某个时间的各个停车点的数据，用于热力图展示。
+     * 返回这个时间段各个停车区域的车辆数量（作为权重）。
+     *
+     * @param reportDateStr      日期字符串，格式 yyyy-MM-dd
+     * @param predictionTimeHour 精确到小时的时间，例如 10 表示 10:00
+     * @return Result.data 为 (停车点geohash、纬度、经度、权重) 的数组，权重为预测车辆数量。
+     */
+    @GetMapping("/heatmap_data")
+    public Result getHeatmapData(
+            @RequestParam String reportDateStr,
+            @RequestParam Integer predictionTimeHour) {
+
+        LocalDate reportDate;
+        try {
+            reportDate = LocalDate.parse(reportDateStr, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        } catch (DateTimeParseException e) {
+            return Result.error("400", "日期格式不正确，请使用 yyyy-MM-dd 格式。");
+        }
+
+        LocalDateTime predictionTargetTime;
+        try {
+            predictionTargetTime = LocalDateTime.of(reportDate, LocalTime.of(predictionTimeHour, 0));
+        } catch (Exception e) {
+            return Result.error("400", "预测小时不正确，请提供 0-23 之间的整数。");
+        }
+
+        List<DailySimulationReport> reports = dailySimulationReportService.getReportsByDateAndTime(reportDate, predictionTargetTime);
+
+        if (reports.isEmpty()) {
+            return Result.success("未找到指定时间点的预测数据。", new ArrayList<>());
+        }
+
+        List<HeatmapDataDTO> heatmapData = reports.stream()
+                .map(report -> new HeatmapDataDTO(
+                        report.getGeohash(),
+                        report.getLatitude().doubleValue(),
+                        report.getLongitude().doubleValue(),
+                        report.getFutureBikes()
+                ))
+                .collect(Collectors.toList());
+
+        return Result.success(heatmapData);
     }
 }

@@ -6,6 +6,7 @@ import com.example.springboot.exception.CustomException; // 导入自定义异�
 import com.github.pagehelper.PageInfo; // 导入分页类
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List; // 导入List
 
 /**
@@ -21,7 +22,7 @@ public interface IDispatchTasksService { // 接口名与实体类名保持一致
      * @return 创建成功的调度任务实体
      * @throws IllegalArgumentException 如果参数校验失败或调度数量超过可用自行车数
      */
-    DispatchTasks createDispatchTask(DispatchTaskRequest request);
+    DispatchTasks createDispatchTask(DispatchTaskRequest request, LocalDateTime createdAt); // 允许传入创建时间
 
     /**
      * 获取指定 geohash 区域内“待使用”状态的自行车数量。
@@ -84,7 +85,7 @@ public interface IDispatchTasksService { // 接口名与实体类名保持一致
      * @param taskId 调度任务的ID。
      * @throws IllegalArgumentException 如果任务不存在、状态不正确或更新失败。
      */
-    void completeDispatch(Long taskId);
+    void completeDispatch(Long taskId, LocalDateTime completionTime);
 
     /**
      * 获取特定调度任务关联的所有自行车ID。

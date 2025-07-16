@@ -33,6 +33,26 @@ public class ManagerController {
     private IStaffService staffService;
 
     /**
+     * 批量重置指定范围内管理员的密码为默认密码
+     * @param startId 起始ID（包含）
+     * @param endId 结束ID（包含）
+     * @return 更新成功的用户数量
+     */
+    @PutMapping("/batchResetPasswords")
+    public Result batchResetPasswords(int startId, int endId) {
+        try {
+            int updatedCount = managerService.batchResetPasswords(startId, endId);
+            return Result.success("批量重置密码成功，更新数量: " + updatedCount);
+        } catch (CustomException e) {
+            return Result.error(e.getCode(), e.getMsg());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Result.error("500", "批量重置密码失败: " + e.getMessage());
+        }
+    }
+
+
+    /**
      * 获取当前登录管理员的个人信息。
      * 【修改】参数改为 @RequestHeader("Authorization") String token
      */
