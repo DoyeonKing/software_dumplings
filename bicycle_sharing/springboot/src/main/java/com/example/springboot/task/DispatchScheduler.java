@@ -250,9 +250,9 @@ public class DispatchScheduler {
         List<HourlySimulationReportDTO> dailyReports = new ArrayList<>();
         LocalDate reportDate = LocalDate.of(year, month, day);
 
-        // 【关键修改】：在开始处理一天的预测前，先删除该日期已有的报告
-        dailySimulationReportService.deleteReportsByDate(reportDate);
-        dailyDispatchSuggestionService.deleteSuggestionsByDate(reportDate);
+         //【关键修改】：移除了这里对一整天数据进行删除的逻辑。
+         dailySimulationReportService.deleteReportsByDate(reportDate); // Removed
+         dailyDispatchSuggestionService.deleteSuggestionsByDate(reportDate); // Removed
 
         LocalDateTime startOfDay = LocalDateTime.of(year, month, day, 0, 0, 0);
 
@@ -300,7 +300,7 @@ public class DispatchScheduler {
                 entitiesToSaveThisHour.add(entity);
             }
             if (!entitiesToSaveThisHour.isEmpty()) {
-                dailySimulationReportService.saveDailyReports(entitiesToSaveThisHour); // 每次只插入当前小时的区域状态数据
+                dailySimulationReportService.saveDailyReports(entitiesToSaveThisHour); //每次只插入当前小时的区域状态数据
                 System.out.println("   已保存 " + entitiesToSaveThisHour.size() + " 条 " + predictionTargetTime.format(DateTimeFormatter.ofPattern("HH:mm")) + " 时刻的区域状态数据。");
             }
 
@@ -343,7 +343,7 @@ public class DispatchScheduler {
                 suggestionsToSaveThisHour.add(entity);
             }
             if (!suggestionsToSaveThisHour.isEmpty()) {
-                dailyDispatchSuggestionService.saveDailySuggestions(suggestionsToSaveThisHour); // 每次只插入当前小时的调度建议数据
+                dailyDispatchSuggestionService.saveDailySuggestions(suggestionsToSaveThisHour); //每次只插入当前小时的调度建议数据
                 System.out.println("   已保存 " + suggestionsToSaveThisHour.size() + " 条 " + predictionTargetTime.format(DateTimeFormatter.ofPattern("HH:mm")) + " 时刻的调度建议数据。");
             }
 

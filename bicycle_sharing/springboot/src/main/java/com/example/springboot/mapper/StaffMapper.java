@@ -78,4 +78,13 @@ public interface StaffMapper {
     // 移除 staff_type 字段的查询
     @Select("SELECT staff_id, username, password_hash, managerId, geohash FROM staff WHERE staff_id = #{staffId}")
     Staff selectById(@Param("staffId") Integer staffId);
+
+
+    /**
+     * 根据管理员ID查询其管理的工作人员列表
+     * @param managerId 管理员ID
+     * @return 对应的 Staff 对象列表，如果不存在则返回空列表
+     */
+    @Select("SELECT staff_id, username, password_hash, managerId, geohash FROM staff WHERE managerId = #{managerId}")
+    List<Staff> selectStaffByManagerId(@Param("managerId") Integer managerId);
 }

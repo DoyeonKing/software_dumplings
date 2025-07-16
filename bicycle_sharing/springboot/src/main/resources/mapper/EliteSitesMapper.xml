@@ -46,5 +46,12 @@
           AND center_lon BETWEEN #{minLon} AND #{maxLon}
     </select>
 
+    <select id="getEliteSiteByGeohash" resultType="com.example.springboot.entity.EliteSites">
+        SELECT geohash, center_lat, center_lon, parking_capacity
+        FROM elite_sites
+        WHERE geohash = #{geohash}
+        LIMIT 1
+    </select>
+
 
 </mapper>

@@ -15,6 +15,7 @@ import io.netty.handler.timeout.WriteTimeoutHandler;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import reactor.netty.http.client.HttpClient;
 import java.time.Duration;
+import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
 @SpringBootApplication
@@ -23,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 public class SpringbootApplication {
 
     public static void main(String[] args) {
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
         SpringApplication.run(SpringbootApplication.class, args);
     }
 
@@ -47,6 +49,7 @@ public class SpringbootApplication {
     @Bean
     public ObjectMapper objectMapper() {
         ObjectMapper objectMapper = new ObjectMapper();
+
         // 注册Java 8时间模块，支持LocalDateTime等类型序列化
         objectMapper.registerModule(new JavaTimeModule());
         // 禁用日期序列化为时间戳（可选，根据需要选择）

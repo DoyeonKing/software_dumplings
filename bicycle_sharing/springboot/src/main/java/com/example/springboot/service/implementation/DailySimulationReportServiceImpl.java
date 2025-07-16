@@ -4,8 +4,9 @@ import com.example.springboot.entity.DailySimulationReport;
 import com.example.springboot.mapper.DailySimulationReportMapper;
 import com.example.springboot.service.Interface.IDailySimulationReportService;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional; // 导入 @Transactional
+import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -24,10 +25,9 @@ public class DailySimulationReportServiceImpl implements IDailySimulationReportS
     @Transactional // 确保批量插入在事务中，保证数据一致性
     public void saveDailyReports(List<DailySimulationReport> reports) {
         if (reports != null && !reports.isEmpty()) {
-            // 在插入前，先删除该日期已有的报告，确保数据唯一性并避免重复插入
-            // 假设所有报告都属于同一个日期
-            LocalDate reportDate = reports.get(0).getReportDate();
-            dailySimulationReportMapper.deleteByDate(reportDate);
+            // 【关键修改】：移除了这里对该日期所有报告进行删除的逻辑。
+            // LocalDate reportDate = reports.get(0).getReportDate();
+            // dailySimulationReportMapper.deleteByDate(reportDate); // Removed this line
             dailySimulationReportMapper.insertBatch(reports);
         }
     }
@@ -41,5 +41,32 @@ public class DailySimulationReportServiceImpl implements IDailySimulationReportS
     @Transactional
     public void deleteReportsByDate(LocalDate reportDate) {
         dailySimulationReportMapper.deleteByDate(reportDate);
+    }
+
+     @Override
+    @Transactional
+    public void upsertDailyReport(DailySimulationReport report) {
+        // 尝试查找现有记录
+        DailySimulationReport existingReport = dailySimulationReportMapper.findByDateAndTimeAndGeohash(
+                report.getReportDate(),
+                report.getPredictionTargetTime(),
+                report.getGeohash()
+        );
+
+        if (existingReport != null) {
+            // 如果记录存在，更新它
+            report.setId(existingReport.getId()); // 确保更新时使用正确的ID
+            dailySimulationReportMapper.update(report);
+            System.out.println("DEBUG: Updated DailySimulationReport for geohash: " + report.getGeohash() + " at " + report.getPredictionTargetTime());
+        } else {
+            // 如果记录不存在，插入它
+            System.out.println("记录不存在");
+        }
+    }
+
+    // 【新增方法】实现查找某个geohash在数据库中最晚的prediction_target_time
+    @Override
+    public LocalDateTime findLatestPredictionTargetTimeByGeohash(String geohash) {
+        return dailySimulationReportMapper.findLatestPredictionTargetTimeByGeohash(geohash);
     }
 }

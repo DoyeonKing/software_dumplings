@@ -65,4 +65,6 @@ public interface IStaffService {
      * @return 员工对象或 null
      */
     Staff findByStaffId(Integer staffId);
+
+    List<Staff> getStaffByManagerId(Integer managerId);
 }

@@ -94,7 +94,6 @@ public interface DispatchTasksMapper { // 接口名与实体类名保持一致�
 
 
     /**
-     * 【新增方法】
      * 根据任务ID查询单个调度任务。
      * @param taskId 调度任务的ID。
      * @return 对应的 DispatchTasks 实体，如果不存在则返回 null。
@@ -102,7 +101,6 @@ public interface DispatchTasksMapper { // 接口名与实体类名保持一致�
     DispatchTasks findById(@Param("taskId") Long taskId); // 方法签名，SQL 在 XML 中定义
 
     /**
-     * 【新增方法】
      * 更新调度任务的信息。
      * 主要用于更新任务的状态 (status) 和完成时间 (completed_at)。
      * @param task 包含要更新信息的 DispatchTasks 实体。

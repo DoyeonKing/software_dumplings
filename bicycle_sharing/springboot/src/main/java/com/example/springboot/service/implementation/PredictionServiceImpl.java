@@ -72,8 +72,7 @@ public class PredictionServiceImpl implements IPredictionService {
     public Mono<Integer> getPredictedPickupCount(String geohash, LocalDateTime predictionTime) {
         Map<String, String> requestBody = new HashMap<>();
         requestBody.put("geohash", geohash);
-        requestBody.put("time", predictionTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
-
+        requestBody.put("time", predictionTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
         return bikePredictionWebClient.post()
                 .uri("/predict_pickup_count/")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -99,16 +98,15 @@ public class PredictionServiceImpl implements IPredictionService {
     public Mono<Integer> getPredictedParkingCount(String geohash, LocalDateTime predictionTime) {
         Map<String, String> requestBody = new HashMap<>();
         requestBody.put("geohash", geohash);
-        requestBody.put("time", predictionTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
-
+        requestBody.put("time", predictionTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
         return bikePredictionWebClient.post()
-                .uri("/predict_parking_count/")
+                .uri("/predict_dropoff_count/")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(Map.class)
                 .map(responseMap -> {
-                    Object count = responseMap.get("predicted_parking_count");
+                    Object count = responseMap.get("predicted_dropoff_count");
                     if (count instanceof Integer) {
                         return (Integer) count;
                     } else if (count instanceof Number) {
