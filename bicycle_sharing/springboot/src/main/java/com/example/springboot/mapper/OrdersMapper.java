@@ -4,12 +4,22 @@ import com.example.springboot.entity.Orders;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
+
 /**
  * OrdersMapper接口
  * 用于定义对数据库 'orders' 表的操作方法
  */
 @Mapper // 标记这是一个MyBatis Mapper接口
 public interface OrdersMapper {
+
+    /**
+     * 根据用户ID查找未完成的订单
+     * @param userId 用户ID
+     * @return 未完成的订单信息，如果没有则返回 null
+     */
+    List<Orders> findActiveOrderByUserId(@Param("userId") String userId);
+
     /**
      * 插入新的订单记录
      * @param order 订单实体

@@ -3,12 +3,20 @@ package com.example.springboot.service.Interface;
 import com.example.springboot.entity.Orders;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * ITripsService接口空壳
  * 定义用户行程记录相关的业务操作契约框架
  */
 public interface IOrdersService { // 接口名与实体类名保持一致，命名为 ITripsService
+
+    /**
+     * 获取用户当前的骑车记录
+     * @param userId 用户ID
+     * @return 未完成的订单信息，如果没有则返回 null
+     */
+    List<Orders> getCurrentRideRecord(String userId);
 
     /**
      * 用户租借单车。

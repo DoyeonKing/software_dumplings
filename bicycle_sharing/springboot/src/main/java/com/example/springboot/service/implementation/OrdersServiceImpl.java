@@ -38,6 +38,11 @@ public class OrdersServiceImpl implements IOrdersService { // 实现接口命名
     @Resource
     private EliteSitesMapper eliteSitesMapper;
 
+    @Override
+    public List<Orders> getCurrentRideRecord(String userId) {
+        return ordersMapper.findActiveOrderByUserId(userId);
+    }
+
     /**
      * 用车接口：根据用户ID和单车ID生成订单信息。
      *
