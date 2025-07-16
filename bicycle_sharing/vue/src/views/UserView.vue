@@ -14,7 +14,7 @@
       <div class="feature-item" @click="handleFeature('bikes')">单车位置</div>
       <div class="feature-item" @click="handleFeature('stations')">停车点位置</div>
       <div class="feature-item" @click="handleFeature('navigation')">导航</div>
-      <div class="feature-item" @click="handleFeature('return')">还车</div>
+      <div class="feature-item" @click="handleFeature('ride')">骑车</div>
       <div class="feature-item" @click="handleFeature('heatmap')">热力图</div>
       <div class="feature-item" @click="toggleMapSettings">地图设置</div>
     </div>
@@ -179,8 +179,13 @@
       :showBicycles="showBicycles"
       :showParkingAreas="showParkingAreas"
       :showNavigation="showNavigation"
+      :showRide="showRide"
       :showHeatmap="showHeatmap"
+      :userInfo="userInfo"
+      :authToken="authToken"
       @update:showNavigation="showNavigation = $event"
+      @update:showRide="showRide = $event"
+      @user-data-updated="handleUserDataUpdated"
       ref="mapComponentRef"
     />
   </div>
@@ -193,6 +198,20 @@ import UserMapComponent from '@/components/map/UserMapComponent.vue';
 import { getUserProfile } from '@/api/account/profile.js';
 
 const router = useRouter()
+
+// 用户登录/注册成功后的完整响应数据
+const userLoginData = ref(null)
+
+// 设置用户登录数据的函数
+const setUserLoginData = (responseData) => {
+  userLoginData.value = responseData
+  // 同时更新现有的用户信息变量
+  if (responseData && responseData.data) {
+    authToken.value = responseData.data.token
+    userInfo.value = responseData.data.userInfo
+    userRole.value = responseData.data.role || 'user'
+  }
+}
 
 // 用户认证信息
 const authToken = ref('')
@@ -207,35 +226,70 @@ const profileError = ref('')
 
 // 获取存储的认证信息
 onMounted(() => {
-  authToken.value = sessionStorage.getItem('authToken') || ''
-  const storedUserInfo = sessionStorage.getItem('userInfo')
+  console.log('UserView.vue - 开始加载用户信息')
   
-  // 修复JSON解析错误 - 检查是否为有效的JSON字符串
-  if (storedUserInfo && storedUserInfo !== 'undefined' && storedUserInfo !== 'null') {
+  // 优先从sessionStorage读取完整的用户登录数据
+  const storedUserLoginData = sessionStorage.getItem('userLoginData')
+  
+  if (storedUserLoginData && storedUserLoginData !== 'undefined' && storedUserLoginData !== 'null') {
     try {
-      userInfo.value = JSON.parse(storedUserInfo)
+      const loginData = JSON.parse(storedUserLoginData)
+      console.log('从userLoginData读取到数据:', loginData)
+      setUserLoginData(loginData)
     } catch (e) {
-      console.error('解析用户信息失败:', e)
-      userInfo.value = null
+      console.error('解析完整用户登录数据失败:', e)
       // 清除无效的sessionStorage数据
-      sessionStorage.removeItem('userInfo')
+      sessionStorage.removeItem('userLoginData')
     }
   }
   
-  userRole.value = sessionStorage.getItem('userRole') || ''
+  // 如果没有完整数据，则从分散的存储中读取（向后兼容）
+  if (!userLoginData.value) {
+    console.log('没有完整登录数据，尝试读取分散存储的数据')
+    authToken.value = sessionStorage.getItem('authToken') || ''
+    const storedUserInfo = sessionStorage.getItem('userInfo')
+    
+    console.log('从sessionStorage读取:')
+    console.log('- authToken:', authToken.value)
+    console.log('- userInfo (raw):', storedUserInfo)
+    
+    // 修复JSON解析错误 - 检查是否为有效的JSON字符串
+    if (storedUserInfo && storedUserInfo !== 'undefined' && storedUserInfo !== 'null') {
+      try {
+        userInfo.value = JSON.parse(storedUserInfo)
+        console.log('解析后的userInfo:', userInfo.value)
+      } catch (e) {
+        console.error('解析用户信息失败:', e)
+        userInfo.value = null
+        // 清除无效的sessionStorage数据
+        sessionStorage.removeItem('userInfo')
+      }
+    } else {
+      console.warn('sessionStorage中的userInfo为空或无效:', storedUserInfo)
+    }
+    
+    userRole.value = sessionStorage.getItem('userRole') || ''
+    console.log('- userRole:', userRole.value)
+  }
   
   // 如果没有token，重定向到登录页
   if (!authToken.value || authToken.value === 'undefined') {
+    console.error('没有有效的authToken，重定向到登录页')
     router.push('/login')
     return
   }
   
   // 检查用户角色是否为user
   if (userRole.value !== 'user') {
+    console.error('用户角色不匹配:', userRole.value)
     alert('权限不足，请使用普通用户账号登录')
     router.push('/login')
     return
   }
+  
+  console.log('UserView.vue - 用户信息加载完成')
+  console.log('最终userInfo:', userInfo.value)
+  console.log('最终authToken:', authToken.value)
 })
 
 const showDropdown = ref(false);
@@ -248,6 +302,7 @@ const mapComponentRef = ref(null);
 const showBicycles = ref(false);
 const showParkingAreas = ref(false);
 const showNavigation = ref(false);
+const showRide = ref(false);
 const showHeatmap = ref(false);
 
 const mapStyles = [
@@ -292,6 +347,10 @@ const handleFeature = (feature) => {
     showNavigation.value = !showNavigation.value;
     return;
   }
+  if (feature === 'ride') {
+    showRide.value = !showRide.value;
+    return;
+  }
   if (feature === 'heatmap') {
     showHeatmap.value = !showHeatmap.value;
     return;
@@ -329,7 +388,11 @@ const closeProfileModal = () => {
 };
 
 const fetchUserProfile = async () => {
+  console.log('开始获取用户个人信息')
+  console.log('使用的token:', authToken.value)
+  
   if (!authToken.value) {
+    console.error('Token为空，无法获取个人信息')
     profileError.value = '未找到认证令牌，请重新登录';
     return;
   }
@@ -338,15 +401,24 @@ const fetchUserProfile = async () => {
   profileError.value = '';
   
   try {
+    console.log('调用getUserProfile API...')
     const response = await getUserProfile(authToken.value);
+    console.log('getUserProfile API 响应:', response)
     
     if (response.code === 200 || response.code === '200') {
+      console.log('个人信息获取成功, 数据:', response.data)
       profileData.value = response.data;
     } else {
+      console.error('个人信息获取失败, 错误码:', response.code, '错误信息:', response.msg)
       profileError.value = response.msg || '获取个人信息失败';
     }
   } catch (error) {
-    console.error('获取个人信息失败:', error);
+    console.error('获取个人信息时发生异常:', error);
+    console.error('错误详情:', {
+      message: error.message,
+      stack: error.stack,
+      response: error.response
+    })
     profileError.value = '网络错误，请稍后重试';
   } finally {
     profileLoading.value = false;
@@ -369,6 +441,31 @@ const getAverageCost = () => {
 const getCostPerMinute = () => {
   if (!profileData.value || profileData.value.totalDurationMinutes === 0) return '0.000';
   return (profileData.value.totalCost / profileData.value.totalDurationMinutes).toFixed(3);
+};
+
+// 处理用户数据更新事件
+const handleUserDataUpdated = (updatedUserData) => {
+  console.log('接收到用户数据更新:', updatedUserData);
+  
+  // 更新本地存储的用户信息
+  if (userInfo.value) {
+    userInfo.value.totalRides = updatedUserData.totalRides;
+    userInfo.value.totalDurationMinutes = updatedUserData.totalDurationMinutes;
+    userInfo.value.totalCost = updatedUserData.totalCost;
+    
+    // 同步更新sessionStorage中的用户信息
+    sessionStorage.setItem('userInfo', JSON.stringify(userInfo.value));
+    
+    // 如果存在完整的用户登录数据，也需要更新
+    if (userLoginData.value && userLoginData.value.data && userLoginData.value.data.userInfo) {
+      userLoginData.value.data.userInfo.totalRides = updatedUserData.totalRides;
+      userLoginData.value.data.userInfo.totalDurationMinutes = updatedUserData.totalDurationMinutes;
+      userLoginData.value.data.userInfo.totalCost = updatedUserData.totalCost;
+      sessionStorage.setItem('userLoginData', JSON.stringify(userLoginData.value));
+    }
+    
+    console.log('用户信息已更新到本地存储');
+  }
 };
 </script>
 

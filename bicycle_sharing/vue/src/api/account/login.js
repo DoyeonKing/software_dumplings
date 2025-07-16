@@ -16,16 +16,17 @@ export function login(data) {
   //   "code": "200",
   //   "msg": "请求成功",
   //   "data": {
-  //     "user": {
-  //       "userid": "eeaf930b6643ed567ccd2a",
-  //       "username": "eeaf930b6643ed567ccd2a",
+  //     "userInfo": {
+  //       "userid": "d13908b5-aab8-48f8-ad00-0bc26a4a2076",
+  //       "username": "user_wzm",
   //       "passwordHash": null,
-  //       "phoneNumber": "18806141291",
-  //       "totalRides": 1,
-  //       "totalDurationMinutes": 5,
-  //       "totalCost": 1.25
+  //       "phoneNumber": "19933332222",
+  //       "totalRides": 0,
+  //       "totalDurationMinutes": 0,
+  //       "totalCost": 0
   //     },
-  //     "token": "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoidXNlciIsInVzZXJJZCI6ImVlYWY5MzBiNjY0M2VkNTY3Y2NkMmEiLCJzdWIiOiJlZWFmOTMwYjY2NDNlZDU2N2NjZDJhIiwiaWF0IjoxNzUyMjIzNDE1LCJleHAiOjE3NTIyNDE0MTV9.MCinoSIVV5m4RHG6rc_gY45u5R730hEPnfjT1Bitb-s"
+  //     "token": "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoidXNlciIsInVzZXJJZCI6ImQxMzkwOGI1LWFhYjgtNDhmOC1hZDAwLTBiYzI2YTRhMjA3NiIsInN1YiI6InVzZXJfd3ptIiwiaWF0IjoxNzUyNTU4NzgxLCJleHAiOjE3NTI1NzY3ODF9.UtGtJk9cDXmTeoxWrmlZB5RTWpD_-_3Cer6MrC3kt9w",
+  //     "role": null
   //   }
   // }
 }
