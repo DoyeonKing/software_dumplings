@@ -38,6 +38,7 @@ public interface EliteSitesMapper {
      * 查询所有精英站点
      * @return 所有精英站点的列表
      */
+    @Select("SELECT * FROM elite_sites")
     List<EliteSites> findAll();
 
 
