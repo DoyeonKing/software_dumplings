@@ -43,6 +43,29 @@ export function rentBike(userId, bikeId) {
 }
 
 /**
+ * 用车接口 - 开始骑行（带位置验证）
+ * @param {string} userId - 用户ID
+ * @param {string} bikeId - 单车ID
+ * @param {number} userLat - 用户位置纬度
+ * @param {number} userLon - 用户位置经度
+ * @returns {Promise} 用车结果
+ */
+export function rentBikeWithLocation(userId, bikeId, userLat, userLon) {
+  return request({
+    url: '/orders/rent-lonlat',
+    method: 'get',
+    params: {
+      userId: userId,
+      bikeId: bikeId,
+      userLat: userLat,
+      userLon: userLon
+    }
+  })
+  
+  // 返回数据格式与rentBike相同
+}
+
+/**
  * 还车接口 - 结束骑行
  * @param {string} userId - 用户ID
  * @param {string} bikeId - 单车ID

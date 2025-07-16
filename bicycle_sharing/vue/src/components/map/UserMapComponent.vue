@@ -280,7 +280,7 @@ import { getAllParkingAreas, getParkingAreasInBounds, convertParkingAreaData } f
 import { getHeatMapData, convertHeatMapData } from '@/api/map/heat';
 import { updateUserProfile } from '@/api/account/profile';
 // 导入骑行API
-import { rentBike, returnBike } from '@/api/riding';
+import { rentBike, returnBike, rentBikeWithLocation } from '@/api/riding';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getRidingRoute } from '@/utils/amap';
 
@@ -1480,14 +1480,25 @@ export default {
         ElMessage.error('用户信息不完整，无法开始骑行');
         return;
       }
+
+      if (!userPosition.value) {
+        ElMessage.error('请先设置您的位置才能开始骑行');
+        return;
+      }
       
       try {
         console.log('开始调用用车API...');
         console.log('用户ID:', props.userInfo.userid);
         console.log('单车ID:', bikeId.value);
+        console.log('用户位置:', userPosition.value);
         
-        // 调用用车API
-        const response = await rentBike(props.userInfo.userid, bikeId.value);
+        // 调用带位置验证的用车API
+        const response = await rentBikeWithLocation(
+          props.userInfo.userid, 
+          bikeId.value,
+          userPosition.value[1], // 纬度
+          userPosition.value[0]  // 经度
+        );
         console.log('用车API响应:', response);
         
         if (response.code === 200) {
@@ -1524,7 +1535,7 @@ export default {
         }
       } catch (error) {
         console.error('调用用车API失败:', error);
-        ElMessage.error('用车失败，请检查网络连接或稍后重试');
+        ElMessage.error('用车失败');
       }
     };
 
