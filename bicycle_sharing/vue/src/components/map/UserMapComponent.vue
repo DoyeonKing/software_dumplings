@@ -20,10 +20,18 @@
       </svg>
     </div>
     <!-- 导航控制面板 -->
-    <div v-if="showNavigation" class="navigation-panel" :class="{ hidden: hideUI }">
+    <div v-if="showNavigation && !isNavigationPanelCollapsed" class="navigation-panel" :class="{ hidden: hideUI }">
       <div class="panel-header">
         <h3>骑行导航</h3>
-        <el-button type="text" @click="cancelNavigation">关闭</el-button>
+        <div class="header-buttons">
+          <el-button type="text" @click="collapseNavigationPanel" class="collapse-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+            收起
+          </el-button>
+          <el-button type="text" @click="cancelNavigation">关闭</el-button>
+        </div>
       </div>
       <div class="panel-content">
         <div class="location-inputs">
@@ -70,14 +78,73 @@
           <p>距离：{{ routeInfo.distance }}</p>
           <p>预计时间：{{ routeInfo.time }}分钟</p>
         </div>
+        
+        <!-- 模拟移动控制 -->
+        <div class="simulation-controls">
+          <h4>🚶‍♂️ 模拟移动</h4>
+          <div class="simulation-settings">
+            <div class="speed-control">
+              <label>移动速度:</label>
+              <el-input-number
+                v-model="simulationSpeed"
+                :min="1"
+                :max="100"
+                :step="1"
+                size="small"
+                :disabled="isSimulating"
+                style="width: 80px;"
+              />
+              <span style="margin-left: 5px; font-size: 12px; color: #666;">km/h</span>
+            </div>
+          </div>
+          <div class="simulation-actions">
+            <el-button
+              v-if="!isSimulating"
+              type="primary"
+              size="small"
+              :disabled="!routeInfo"
+              @click="startSimulation()"
+            >
+              开始模拟
+            </el-button>
+            <el-button
+              v-if="isSimulating"
+              type="warning"
+              size="small"
+              @click="toggleSimulation"
+            >
+              {{ simulationTimer ? '暂停' : '继续' }}
+            </el-button>
+            <el-button
+              v-if="isSimulating"
+              type="danger"
+              size="small"
+              @click="stopSimulation"
+            >
+              停止
+            </el-button>
+          </div>
+          <div v-if="isSimulating" class="simulation-status">
+            <p><small>🏃‍♂️ 正在模拟移动中... ({{ simulationSpeed }}km/h)</small></p>
+            <p><small>进度: {{ simulationIndex + 1 }}/{{ simulationPath.length }} 点</small></p>
+          </div>
+        </div>
       </div>
     </div>
     
     <!-- 骑车面板 -->
-    <div v-if="showRide" class="ride-panel" :class="{ hidden: hideUI }">
+    <div v-if="showRide && !isRidePanelCollapsed" class="ride-panel" :class="{ hidden: hideUI }">
       <div class="panel-header">
         <h3>骑车功能</h3>
-        <el-button type="text" @click="cancelRide">关闭</el-button>
+        <div class="header-buttons">
+          <el-button type="text" @click="collapseRidePanel" class="collapse-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+            收起
+          </el-button>
+          <el-button type="text" @click="cancelRide">关闭</el-button>
+        </div>
       </div>
       <div class="panel-content">
         <!-- 功能选项卡 -->
@@ -89,10 +156,56 @@
         
         <!-- 找车功能 -->
         <div v-if="currentTab === 'find'" class="find-bike-section">
-          <div class="feature-placeholder">
-            <p>🚴‍♂️ 找车功能</p>
-            <p>导航到最近停车点</p>
-            <p>（暂未实现）</p>
+          <div class="find-parking-section">
+            <h4>🚴‍♂️ 找车功能</h4>
+            <div class="action-group">
+              <el-button
+                type="primary"
+                :loading="isSearchingNearestParking"
+                @click="findNearestParkingArea"
+                class="find-parking-btn"
+              >
+                <span v-if="!isSearchingNearestParking">寻找最近停车点</span>
+                <span v-else>正在搜索...</span>
+              </el-button>
+            </div>
+            
+            <!-- 最近停车点信息显示 -->
+            <div v-if="nearestParkingArea" class="parking-info-card">
+              <div class="parking-info-header">
+                <h5>📍 最近停车点</h5>
+              </div>
+              <div class="parking-info-content">
+                <div class="info-row">
+                  <span class="info-label">区域编号:</span>
+                  <span class="info-value">{{ nearestParkingArea.geohash }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">总容量:</span>
+                  <span class="info-value">{{ nearestParkingArea.totalParkingCapacity }}个</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">当前单车:</span>
+                  <span class="info-value bike-count">{{ nearestParkingArea.currentBikeCount }}辆</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">可用车位:</span>
+                  <span class="info-value available-spots">{{ nearestParkingArea.availableSpots }}个</span>
+                </div>
+              </div>
+              
+              <!-- 导航到这里按钮 -->
+              <div v-if="showNavigateButton" class="navigate-action">
+                <el-button
+                  type="success"
+                  size="large"
+                  @click="navigateToNearestParking"
+                  class="navigate-btn"
+                >
+                  🧭 导航到这里
+                </el-button>
+              </div>
+            </div>
           </div>
         </div>
         
@@ -159,6 +272,60 @@
               <p><strong>骑行总距离:</strong> {{ formatDistance(ridingDistance) }}</p>
               <p><strong>预计费用:</strong> ¥{{ calculateFee() }}</p>
             </div>
+            
+            <!-- 寻找最近停车点功能 -->
+            <div class="find-parking-for-return">
+              <h5>🚲 寻找停车点</h5>
+              <div class="action-group">
+                <el-button
+                  type="warning"
+                  :loading="isSearchingNearestParking"
+                  @click="findNearestParkingArea"
+                  class="find-parking-btn"
+                >
+                  <span v-if="!isSearchingNearestParking">寻找最近停车点</span>
+                  <span v-else>正在搜索...</span>
+                </el-button>
+              </div>
+              
+              <!-- 最近停车点信息显示 -->
+              <div v-if="nearestParkingArea" class="parking-info-card">
+                <div class="parking-info-header">
+                  <h5>📍 最近停车点</h5>
+                </div>
+                <div class="parking-info-content">
+                  <div class="info-row">
+                    <span class="info-label">区域编号:</span>
+                    <span class="info-value">{{ nearestParkingArea.geohash }}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">总容量:</span>
+                    <span class="info-value">{{ nearestParkingArea.totalParkingCapacity }}个</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">当前单车:</span>
+                    <span class="info-value bike-count">{{ nearestParkingArea.currentBikeCount }}辆</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">可用车位:</span>
+                    <span class="info-value available-spots">{{ nearestParkingArea.availableSpots }}个</span>
+                  </div>
+                </div>
+                
+                <!-- 导航到这里按钮 -->
+                <div v-if="showNavigateButton" class="navigate-action">
+                  <el-button
+                    type="success"
+                    size="large"
+                    @click="navigateToNearestParking"
+                    class="navigate-btn"
+                  >
+                    🧭 导航到这里
+                  </el-button>
+                </div>
+              </div>
+            </div>
+            
             <div class="return-buttons">
               <el-button
                 type="primary"
@@ -171,15 +338,91 @@
           </div>
           <div v-else class="no-riding">
             <p>当前没有正在使用的单车</p>
+            
+            <!-- 即使没有骑行也可以寻找停车点 -->
+            <div class="find-parking-for-return">
+              <h5>🚲 寻找停车点</h5>
+              <div class="action-group">
+                <el-button
+                  type="warning"
+                  :loading="isSearchingNearestParking"
+                  @click="findNearestParkingArea"
+                  class="find-parking-btn"
+                >
+                  <span v-if="!isSearchingNearestParking">寻找最近停车点</span>
+                  <span v-else>正在搜索...</span>
+                </el-button>
+              </div>
+              
+              <!-- 最近停车点信息显示 -->
+              <div v-if="nearestParkingArea" class="parking-info-card">
+                <div class="parking-info-header">
+                  <h5>📍 最近停车点</h5>
+                </div>
+                <div class="parking-info-content">
+                  <div class="info-row">
+                    <span class="info-label">区域编号:</span>
+                    <span class="info-value">{{ nearestParkingArea.geohash }}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">总容量:</span>
+                    <span class="info-value">{{ nearestParkingArea.totalParkingCapacity }}个</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">当前单车:</span>
+                    <span class="info-value bike-count">{{ nearestParkingArea.currentBikeCount }}辆</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">可用车位:</span>
+                    <span class="info-value available-spots">{{ nearestParkingArea.availableSpots }}个</span>
+                  </div>
+                </div>
+                
+                <!-- 导航到这里按钮 -->
+                <div v-if="showNavigateButton" class="navigate-action">
+                  <el-button
+                    type="success"
+                    size="large"
+                    @click="navigateToNearestParking"
+                    class="navigate-btn"
+                  >
+                    🧭 导航到这里
+                  </el-button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+      </div>
+    </div>
+    
+    <!-- 导航圆形收起组件 -->
+    <div v-if="showNavigation && isNavigationPanelCollapsed" class="navigation-collapsed-button" :class="{ hidden: hideUI }" @click="expandNavigationPanel">
+      <div class="collapsed-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <!-- 导航箭头图标 -->
+          <polygon points="3,11 22,2 13,21 11,13 3,11"/>
+        </svg>
+      </div>
+      <div v-if="routeInfo" class="collapsed-route-indicator">
+        <div class="route-pulse"></div>
+      </div>
+    </div>
+    
+    <!-- 骑车圆形收起组件 -->
+    <div v-if="showRide && isRidePanelCollapsed" class="ride-collapsed-button" :class="{ hidden: hideUI }" @click="expandRidePanel">
+      <div class="collapsed-icon">
+        <img src="/src/components/icons/riding.png" alt="骑行" class="riding-icon" />
+      </div>
+      <div v-if="isRiding" class="collapsed-riding-indicator">
+        <div class="riding-pulse"></div>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import { onMounted, ref, onUnmounted, watch } from 'vue';
+import { onMounted, ref, onUnmounted, watch, nextTick } from 'vue';
 import AMapLoader from '@amap/amap-jsapi-loader';
 // 导入单车数据API
 import { getMapAreaBicycles } from '@/api/map/bicycle';
@@ -187,9 +430,11 @@ import { getAllParkingAreas, getParkingAreasInBounds, convertParkingAreaData } f
 import { getHeatMapData, convertHeatMapData } from '@/api/map/heat';
 import { updateUserProfile } from '@/api/account/profile';
 // 导入骑行API
-import { rentBike, returnBike } from '@/api/riding';
+import { rentBike, returnBike, rentBikeWithLocation, getCurrentRideOrders } from '@/api/riding';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getRidingRoute } from '@/utils/amap';
+// 导入导航API
+import { getNearestParkingArea } from '@/api/navigation';
 
 // 状态文本映射
 const statusText = {
@@ -243,6 +488,10 @@ export default {
     authToken: {
       type: String,
       default: ''
+    },
+    unfinishedRideOrders: {
+      type: Array,
+      default: null
     }
   },
   setup(props, { emit }) {
@@ -257,6 +506,8 @@ export default {
     const parkingPolygons = ref([]);
     const parkingMarkers = ref([]); // 存储停车场图标标记
     const heatmap = ref(null); // 热力图实例
+const predictionHeatmap = ref(null); // 预测热力图实例
+const currentHeatmapType = ref('current'); // 'current' 或 'prediction'
 
     // 导航相关的状态
     const startPoint = ref(null);
@@ -264,6 +515,7 @@ export default {
     const isSelectingStart = ref(false);
     const isSelectingEnd = ref(false);
     const routeInfo = ref(null);
+    const isNavigationPanelCollapsed = ref(false);  // 导航面板是否收起
     const riding = ref(null);  // 存储骑行规划实例
     const navigationMarkers = ref([]);  // 存储导航起终点标记
     const navigationPolyline = ref(null);  // 存储导航路线
@@ -276,6 +528,16 @@ export default {
     const currentTab = ref('use');  // 当前选中的标签页
     const bikeId = ref('');  // 单车ID
     const isRiding = ref(false);  // 是否正在骑行
+    const isRidePanelCollapsed = ref(false);  // 骑车面板是否收起
+    
+    // 模拟移动相关状态
+    const isSimulating = ref(false);  // 是否正在模拟移动
+    const simulationPath = ref([]);  // 模拟移动路径
+    const simulationIndex = ref(0);  // 当前路径点索引
+    const simulationProgress = ref(0);  // 在当前路径段的进度（0-1）
+    const simulationTimer = ref(null);  // 模拟移动定时器
+    const simulationSpeed = ref(15);  // 模拟速度 km/h
+    const navigationUpdateTimer = ref(null);  // 导航更新防抖定时器
     const ridingTime = ref(0);  // 骑行时间（秒）
     const ridingDistance = ref(0);  // 骑行距离（米）
     const currentPosition = ref(null);  // 当前位置
@@ -285,6 +547,11 @@ export default {
 
     // 骑行记录信息（与riding.js返回数据结构一致）
     const rideOrderInfo = ref(null);  // 当前骑行订单信息
+
+    // 最近停车点相关状态
+    const nearestParkingArea = ref(null);  // 最近停车点信息
+    const showNavigateButton = ref(false);  // 是否显示"导航到这里"按钮
+    const isSearchingNearestParking = ref(false);  // 是否正在搜索最近停车点
 
 
 
@@ -374,6 +641,70 @@ export default {
       }
     };
 
+    // 更新预测热力图数据
+    const updatePredictionHeatmap = (predictionData) => {
+      if (!map.value) return;
+
+      try {
+        // 如果预测热力图实例不存在，创建一个
+        if (!predictionHeatmap.value) {
+          predictionHeatmap.value = new window.AMap.HeatMap(map.value, {
+            radius: 35,
+            opacity: [0, 0.8],
+            gradient: {
+              0.4: 'rgb(0, 255, 255)',
+              0.65: 'rgb(0, 255, 0)',
+              0.85: 'rgb(255, 255, 0)',
+              1.0: 'rgb(255, 0, 0)'
+            },
+            zooms: [1, 20],
+            visible: true
+          });
+        }
+
+        // 设置预测热力图数据
+        predictionHeatmap.value.setDataSet({
+          data: predictionData,
+          max: Math.max(...predictionData.map(item => item.count), 1) // 动态计算最大权重
+        });
+
+        // 隐藏当前热力图，显示预测热力图
+        if (heatmap.value) {
+          heatmap.value.hide();
+        }
+        predictionHeatmap.value.show();
+
+        currentHeatmapType.value = 'prediction';
+        console.log('预测热力图数据已更新，点数：', predictionData.length);
+      } catch (error) {
+        console.error('更新预测热力图失败：', error);
+        ElMessage.error('更新预测热力图失败');
+      }
+    };
+
+    // 切换回当前热力图
+    const switchToCurrentHeatmap = async () => {
+      if (!map.value) return;
+
+      try {
+        // 隐藏预测热力图
+        if (predictionHeatmap.value) {
+          predictionHeatmap.value.hide();
+        }
+
+        // 显示当前热力图
+        if (heatmap.value) {
+          heatmap.value.show();
+          await updateHeatmapData();
+        }
+
+        currentHeatmapType.value = 'current';
+      } catch (error) {
+        console.error('切换回当前热力图失败：', error);
+        ElMessage.error('切换热力图失败');
+      }
+    };
+
     // 初始化热力图
     const initHeatmap = async () => {
       if (!map.value) return;
@@ -428,14 +759,23 @@ export default {
       if (newVal) {
         // 如果开启热力图，确保已初始化并显示
         await initHeatmap();
-        if (heatmap.value) {
+        
+        // 根据当前热力图类型显示相应的热力图
+        if (currentHeatmapType.value === 'prediction' && predictionHeatmap.value) {
+          predictionHeatmap.value.show();
+        } else if (heatmap.value) {
           heatmap.value.show();
-          // 更新热力图数据
+          // 更新当前热力图数据
           await updateHeatmapData();
         }
-      } else if (heatmap.value) {
-        // 如果关闭热力图，隐藏热力图层
-        heatmap.value.hide();
+      } else {
+        // 如果关闭热力图，隐藏所有热力图层
+        if (heatmap.value) {
+          heatmap.value.hide();
+        }
+        if (predictionHeatmap.value) {
+          predictionHeatmap.value.hide();
+        }
       }
     });
 
@@ -710,8 +1050,9 @@ export default {
             strokeOpacity: 1,
             fillColor: parkingAreaColor,
             fillOpacity: 0.4,
-            cursor: 'pointer',
-            map: null  // 初始不添加到地图
+            cursor: 'default', // 改为默认光标，避免误导用户
+            map: null,  // 初始不添加到地图
+            clickable: false // 禁用点击事件，避免干扰其他功能
           });
 
           // 创建图标标记（放在区域中心）
@@ -724,7 +1065,7 @@ export default {
             position: center,
             icon: parkingIcon,
             offset: new AMap.Pixel(-20, -20),
-            cursor: 'pointer',
+            cursor: 'pointer', // 只有图标显示可点击光标
             map: null  // 初始不添加到地图
           });
 
@@ -751,76 +1092,24 @@ export default {
             infoWindow.value.open(map.value, marker.getPosition());
           });
 
-          // 添加多边形点击事件
-          polygon.on('click', () => {
-            if (!infoWindow.value) {
-              infoWindow.value = new AMap.InfoWindow({
-                closeWhenClickMap: true,
-                offset: new AMap.Pixel(0, -30)
-              });
-            }
-
-            const content = `
-              <div class="parking-info">
-                <h4>停车区域 ${area.geohash}</h4>
-                <p><strong>区域编号：</strong>${area.geohash}</p>
-                <p><strong>区域组ID：</strong>${area.regionGroupId}</p>
-                <p><strong>停车容量：</strong>${area.parkingCapacity}个</p>
-                <p><strong>中心位置：</strong>${area.centerLat.toFixed(6)}, ${area.centerLon.toFixed(6)}</p>
-              </div>
-            `;
-
-            infoWindow.value.setContent(content);
-            infoWindow.value.open(map.value, center);
-          });
-
-          // 添加多边形鼠标悬停效果
-          let originalOptions = null;
-
-          polygon.on('mouseover', () => {
-            originalOptions = {
-              fillOpacity: polygon.getOptions().fillOpacity,
-              strokeWeight: polygon.getOptions().strokeWeight
-            };
-
-            polygon.setOptions({
-              fillOpacity: 0.6,
-              strokeWeight: 4
-            });
-
-            marker.setzIndex(110);
-          });
-
-          polygon.on('mouseout', () => {
-            if (originalOptions) {
-              polygon.setOptions(originalOptions);
-            }
-            marker.setzIndex(100);
-          });
-
-          // 添加标记鼠标悬停效果
+          // 仅保留标记鼠标悬停效果
           marker.on('mouseover', () => {
-            if (!originalOptions) {
-              originalOptions = {
-                fillOpacity: polygon.getOptions().fillOpacity,
-                strokeWeight: polygon.getOptions().strokeWeight
-              };
-            }
-
             polygon.setOptions({
               fillOpacity: 0.6,
               strokeWeight: 4
             });
-
             marker.setzIndex(110);
           });
 
           marker.on('mouseout', () => {
-            if (originalOptions) {
-              polygon.setOptions(originalOptions);
-            }
+            polygon.setOptions({
+              fillOpacity: 0.4,
+              strokeWeight: 3
+            });
             marker.setzIndex(100);
           });
+
+
 
           parkingPolygons.value.push(polygon);
           parkingMarkers.value.push(marker);
@@ -903,17 +1192,30 @@ export default {
             plugins: ['AMap.Riding']
           });
 
-          // 创建路线点数组
-          const pathPoints = result.route.polyline.map(point => 
-            new AMap.LngLat(point[0], point[1])
-          );
+          // 创建完整的导航路径，包括连接线段
+          const completeNavigationPath = [];
+          
+          // 1. 从用户当前位置到路径起点的连接线
+          if (userPosition.value) {
+            completeNavigationPath.push(new AMap.LngLat(userPosition.value[0], userPosition.value[1]));
+          }
+          
+          // 2. 添加规划的路径点
+          result.route.polyline.forEach(point => {
+            completeNavigationPath.push(new AMap.LngLat(point[0], point[1]));
+          });
+          
+          // 3. 从路径终点到设置终点的连接线
+          if (endPoint.value) {
+            completeNavigationPath.push(new AMap.LngLat(endPoint.value.lng, endPoint.value.lat));
+          }
 
           // 创建或更新路线折线
           if (navigationPolyline.value) {
-            navigationPolyline.value.setPath(pathPoints);
+            navigationPolyline.value.setPath(completeNavigationPath);
           } else {
             navigationPolyline.value = new AMap.Polyline({
-              path: pathPoints,
+              path: completeNavigationPath,
               strokeColor: '#3366FF',
               strokeWeight: 6,
               strokeOpacity: 0.8,
@@ -924,8 +1226,6 @@ export default {
               map: map.value
             });
           }
-
-
 
           // 调整地图视野以显示整个路线
           map.value.setFitView([navigationPolyline.value]);
@@ -1014,13 +1314,46 @@ export default {
       map.value.setDefaultCursor('');
     };
 
+    // 收起导航面板
+    const collapseNavigationPanel = () => {
+      isNavigationPanelCollapsed.value = true;
+    };
+
+    // 展开导航面板
+    const expandNavigationPanel = () => {
+      isNavigationPanelCollapsed.value = false;
+    };
+
     // 取消导航
     const cancelNavigation = () => {
+      // 清除路线和标记
       clearRoute();
+      
+      // 清除防抖定时器
+      if (navigationUpdateTimer.value) {
+        clearTimeout(navigationUpdateTimer.value);
+        navigationUpdateTimer.value = null;
+      }
+      
+      // 清除起终点标记
+      if (navigationMarkers.value.length) {
+        navigationMarkers.value.forEach(marker => {
+          if (marker) {
+            marker.setMap(null);
+          }
+        });
+        navigationMarkers.value = [];
+      }
+      
+      // 重置所有导航相关状态
       startPoint.value = null;
       endPoint.value = null;
       isSelectingStart.value = false;
       isSelectingEnd.value = false;
+      routeInfo.value = null;
+      isNavigationPanelCollapsed.value = false; // 重置收起状态
+      
+      // 关闭导航功能
       emit('update:showNavigation', false);
     };
 
@@ -1216,6 +1549,9 @@ export default {
         map.value.setDefaultCursor('');
         ElMessage.success('用户位置已更新');
         
+        // 触发位置更新相关的逻辑（包括导航路径更新）
+        updateUserPositionMarker();
+        
         // 如果正在骑行，更新当前位置和路径
         if (isRiding.value) {
           currentPosition.value = newPosition;
@@ -1354,6 +1690,12 @@ export default {
 
     // 设置用户位置
     const setUserPosition = () => {
+      // 如果正在模拟移动，先停止模拟
+      if (isSimulating.value) {
+        stopSimulation();
+        ElMessage.info('已停止模拟移动，请设置新位置');
+      }
+      
       isSettingUserPosition.value = true;
       isSelectingStart.value = false;
       isSelectingEnd.value = false;
@@ -1375,14 +1717,25 @@ export default {
         ElMessage.error('用户信息不完整，无法开始骑行');
         return;
       }
+
+      if (!userPosition.value) {
+        ElMessage.error('请先设置您的位置才能开始骑行');
+        return;
+      }
       
       try {
         console.log('开始调用用车API...');
         console.log('用户ID:', props.userInfo.userid);
         console.log('单车ID:', bikeId.value);
+        console.log('用户位置:', userPosition.value);
         
-        // 调用用车API
-        const response = await rentBike(props.userInfo.userid, bikeId.value);
+        // 调用带位置验证的用车API
+        const response = await rentBikeWithLocation(
+          props.userInfo.userid, 
+          bikeId.value,
+          userPosition.value[1], // 纬度
+          userPosition.value[0]  // 经度
+        );
         console.log('用车API响应:', response);
         
         if (response.code === 200) {
@@ -1419,7 +1772,7 @@ export default {
         }
       } catch (error) {
         console.error('调用用车API失败:', error);
-        ElMessage.error('用车失败，请检查网络连接或稍后重试');
+        ElMessage.error('用车失败');
       }
     };
 
@@ -1458,14 +1811,33 @@ export default {
 
       try {
         console.log('开始调用还车API...');
-        console.log('用户ID:', rideOrderInfo.value.userId);
-        console.log('单车ID:', rideOrderInfo.value.bikeId);
+        console.log('骑行订单信息:', rideOrderInfo.value);
+        console.log('用户信息:', props.userInfo);
+        console.log('当前单车ID:', bikeId.value);
+        
+        // 获取用户ID和单车ID，提供备用方案
+        const userId = rideOrderInfo.value?.userId || props.userInfo?.userid;
+        const bikeIdForReturn = rideOrderInfo.value?.bikeId || bikeId.value;
+        
+        console.log('最终使用的用户ID:', userId);
+        console.log('最终使用的单车ID:', bikeIdForReturn);
         console.log('当前位置:', userPosition.value);
+        
+        // 验证必要参数
+        if (!userId) {
+          ElMessage.error('无法获取用户ID，请重新登录后再试');
+          return;
+        }
+        
+        if (!bikeIdForReturn) {
+          ElMessage.error('无法获取单车ID，请重新开始骑行');
+          return;
+        }
         
         // 调用还车API
         const response = await returnBike(
-          rideOrderInfo.value.userId,
-          rideOrderInfo.value.bikeId,
+          userId,
+          bikeIdForReturn,
           userPosition.value[1], // 纬度
           userPosition.value[0]  // 经度
         );
@@ -1491,39 +1863,60 @@ export default {
           try {
             await ElMessageBox.alert(
               `
-              <div style="text-align: left; padding: 10px;">
-                <h4 style="margin: 0 0 15px 0; color: #409eff;">骑行完成</h4>
-                <div style="margin-bottom: 10px;">
-                  <h5 style="color: #666; margin: 5px 0;">订单信息</h5>
-                  <p style="margin: 5px 0;"><strong>订单ID:</strong> ${completeRideInfo.orderId}</p>
-                  <p style="margin: 5px 0;"><strong>单车编号:</strong> ${completeRideInfo.bikeId}</p>
+              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 20px; color: white; box-shadow: 0 8px 32px rgba(0,0,0,0.1);">
+                <div style="text-align: center; margin-bottom: 20px;">
+                  <div style="width: 60px; height: 60px; background: rgba(255,255,255,0.2); border-radius: 50%; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+                    🚴‍♂️
+                  </div>
+                  <h3 style="margin: 0; font-size: 20px; font-weight: 600;">骑行完成</h3>
                 </div>
-                <div style="margin-bottom: 10px;">
-                  <h5 style="color: #666; margin: 5px 0;">时间信息</h5>
-                  <p style="margin: 5px 0;"><strong>开始时间:</strong> ${completeRideInfo.startTime}</p>
-                  <p style="margin: 5px 0;"><strong>结束时间:</strong> ${completeRideInfo.endTime}</p>
-                  <p style="margin: 5px 0;"><strong>骑行时长:</strong> ${completeRideInfo.durationMinutes || 0}分钟</p>
+                
+                <div style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 15px; margin-bottom: 15px; backdrop-filter: blur(10px);">
+                  <h4 style="margin: 0 0 10px 0; font-size: 16px; display: flex; align-items: center; gap: 8px;">
+                    ⏰ 时间信息
+                  </h4>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
+                    <div><strong>开始时间:</strong><br/>${completeRideInfo.startTime}</div>
+                    <div><strong>结束时间:</strong><br/>${completeRideInfo.endTime}</div>
+                  </div>
+                  <div style="margin-top: 10px; text-align: center; background: rgba(255,255,255,0.2); padding: 8px; border-radius: 6px;">
+                    <strong>骑行时长: ${completeRideInfo.durationMinutes || 0}分钟</strong>
+                  </div>
                 </div>
-                <div style="margin-bottom: 10px;">
-                  <h5 style="color: #666; margin: 5px 0;">位置信息</h5>
-                  <p style="margin: 5px 0;"><strong>起始区域:</strong> ${completeRideInfo.startGeohash}</p>
-                  <p style="margin: 5px 0;"><strong>结束区域:</strong> ${completeRideInfo.endGeohash || '未知'}</p>
+
+                <div style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 15px; margin-bottom: 15px; backdrop-filter: blur(10px);">
+                  <h4 style="margin: 0 0 10px 0; font-size: 16px; display: flex; align-items: center; gap: 8px;">
+                    📍 位置信息
+                  </h4>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
+                    <div><strong>起始区域:</strong><br/>${completeRideInfo.startGeohash}</div>
+                    <div><strong>结束区域:</strong><br/>${completeRideInfo.endGeohash || '未知'}</div>
+                  </div>
                 </div>
-                <div style="margin-bottom: 10px;">
-                  <h5 style="color: #666; margin: 5px 0;">骑行数据</h5>
-                  <p style="margin: 5px 0;"><strong>骑行距离:</strong> ${completeRideInfo.distance ? (completeRideInfo.distance / 1000).toFixed(2) + 'km' : formatDistance(ridingDistance.value)}</p>
-                  <p style="margin: 5px 0;"><strong>本次费用:</strong> <span style="color: #f56c6c;">¥${completeRideInfo.cost || completeRideInfo.localFee}</span></p>
+
+                <div style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 15px; margin-bottom: 20px; backdrop-filter: blur(10px);">
+                  <h4 style="margin: 0 0 10px 0; font-size: 16px; display: flex; align-items: center; gap: 8px;">
+                    📊 骑行数据
+                  </h4>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px; margin-bottom: 10px;">
+                    <div><strong>骑行距离:</strong><br/>${completeRideInfo.distance ? (completeRideInfo.distance / 1000).toFixed(2) + 'km' : formatDistance(ridingDistance.value)}</div>
+                    <div style="text-align: center; background: rgba(255,107,107,0.3); padding: 8px; border-radius: 6px; border: 2px solid #ff6b6b;">
+                      <strong style="color: #ffeb3b; font-size: 16px;">本次费用<br/>¥${completeRideInfo.cost || completeRideInfo.localFee}</strong>
+                    </div>
+                  </div>
                 </div>
-                <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee;">
-                  <p style="margin: 0; color: #666; font-size: 14px;">${response.message || '感谢您的使用，祝您出行愉快！'}</p>
+
+                <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px; font-size: 14px;">
+                  <span style="color: #e8f5e8;">✨ ${response.message || '感谢您的使用，祝您出行愉快！'} ✨</span>
                 </div>
               </div>
               `,
-              '骑行完成',
+              '',
               {
                 dangerouslyUseHTMLString: true,
                 confirmButtonText: '确定',
-                type: 'success'
+                type: 'success',
+                customClass: 'custom-ride-complete-dialog'
               }
             );
           } catch (dialogError) {
@@ -1650,17 +2043,292 @@ export default {
     };
 
     const calculateFee = () => {
-      // 新的计费逻辑：每10秒1.5元
-      const pricePerTenSeconds = 1.5;
-      const tenSecondPeriods = Math.ceil(ridingTime.value / 10);
-      return (tenSecondPeriods * pricePerTenSeconds).toFixed(2);
+      // 计费逻辑：每分钟0.5元，不足1分钟按1分钟计费，最低1元
+      const pricePerMinute = 0.5;
+      const minutes = Math.ceil(ridingTime.value / 60); // 不足1分钟按1分钟计
+      const fee = minutes * pricePerMinute;
+      const minFee = 1; // 最低1元
+      return Math.max(fee, minFee).toFixed(2);
+    };
+
+    // 收起骑车面板
+    const collapseRidePanel = () => {
+      isRidePanelCollapsed.value = true;
+    };
+
+    // 展开骑车面板
+    const expandRidePanel = () => {
+      isRidePanelCollapsed.value = false;
     };
 
     const cancelRide = () => {
+      // 如果正在骑行，则收起而不是关闭
       if (isRiding.value) {
+        collapseRidePanel();
+        ElMessage.info('正在骑行中，已收起面板。点击左侧圆形按钮可重新展开。');
+        return;
+      }
+      
+      // 如果没有骑行，则正常关闭
+      if (ridingTimer.value) {
         stopRiding();
       }
+      isRidePanelCollapsed.value = false; // 重置收起状态
       emit('update:showRide', false);
+    };
+
+    // 模拟移动相关方法
+    
+    // 开始模拟移动
+    const startSimulation = (path = null) => {
+      // 如果没有提供路径，尝试使用导航路径
+      const pathToUse = path || (navigationPolyline.value ? 
+        navigationPolyline.value.getPath().map(point => [point.getLng(), point.getLat()]) : 
+        []);
+      
+      if (!pathToUse || pathToUse.length < 2) {
+        ElMessage.warning('请先规划导航路线或提供有效路径');
+        return;
+      }
+      
+      simulationPath.value = pathToUse;
+      simulationIndex.value = 0;
+      simulationProgress.value = 0;
+      isSimulating.value = true;
+      
+      // 设置起始位置
+      if (simulationPath.value.length > 0) {
+        userPosition.value = [...simulationPath.value[0]];
+        updateUserPositionMarker();
+        
+        // 如果正在导航，立即更新导航路径
+        if (isNavigating()) {
+          // 清除防抖定时器，立即执行更新
+          if (navigationUpdateTimer.value) {
+            clearTimeout(navigationUpdateTimer.value);
+            navigationUpdateTimer.value = null;
+          }
+          // 立即更新导航路径
+          setTimeout(() => updateNavigationRoute(), 100);
+        }
+      }
+      
+      // 开始定时器（每100ms更新一次）
+      simulationTimer.value = setInterval(updateSimulationPosition, 100);
+      
+      ElMessage.success(`开始模拟移动，路径包含 ${pathToUse.length} 个点`);
+    };
+    
+    // 暂停/恢复模拟移动
+    const toggleSimulation = () => {
+      if (!isSimulating.value) return;
+      
+      if (simulationTimer.value) {
+        clearInterval(simulationTimer.value);
+        simulationTimer.value = null;
+        ElMessage.info('模拟移动已暂停');
+      } else {
+        simulationTimer.value = setInterval(updateSimulationPosition, 100);
+        ElMessage.info('模拟移动已恢复');
+      }
+    };
+    
+    // 停止模拟移动
+    const stopSimulation = () => {
+      if (simulationTimer.value) {
+        clearInterval(simulationTimer.value);
+        simulationTimer.value = null;
+      }
+      isSimulating.value = false;
+      simulationIndex.value = 0;
+      simulationProgress.value = 0;
+      simulationPath.value = [];
+      ElMessage.success('模拟移动已停止');
+    };
+    
+    // 更新模拟位置
+    const updateSimulationPosition = () => {
+      if (!isSimulating.value || simulationPath.value.length < 2) return;
+      
+      const currentIndex = simulationIndex.value;
+      const nextIndex = currentIndex + 1;
+      
+      // 检查是否到达路径末尾
+      if (nextIndex >= simulationPath.value.length) {
+        stopSimulation();
+        ElMessage.success('模拟移动完成');
+        return;
+      }
+      
+      const currentPoint = simulationPath.value[currentIndex];
+      const nextPoint = simulationPath.value[nextIndex];
+      
+      // 计算这一段的距离（米）
+      const segmentDistance = calculateDistance(currentPoint, nextPoint);
+      
+      // 计算速度（米/秒）
+      const speedMS = (simulationSpeed.value * 1000) / 3600; // km/h 转 m/s
+      
+      // 计算每次更新的进度增量（基于100ms更新间隔）
+      const progressIncrement = (speedMS * 0.1) / segmentDistance; // 0.1秒 = 100ms
+      
+      // 更新进度
+      simulationProgress.value += progressIncrement;
+      
+      // 如果当前段走完，移动到下一段
+      if (simulationProgress.value >= 1) {
+        simulationIndex.value++;
+        simulationProgress.value = 0;
+        return; // 下次更新时处理新段
+      }
+      
+      // 计算当前插值位置
+      const newPosition = interpolatePosition(currentPoint, nextPoint, simulationProgress.value);
+      userPosition.value = newPosition;
+      
+      // 更新地图上的用户位置标记
+      updateUserPositionMarker();
+      
+      // 如果正在骑行，更新骑行数据
+      if (isRiding.value) {
+        currentPosition.value = newPosition;
+        ridingPath.value.push([...newPosition]);
+        
+        // 计算累计距离
+        if (ridingPath.value.length > 1) {
+          const lastPos = ridingPath.value[ridingPath.value.length - 2];
+          const distance = calculateDistance(lastPos, newPosition);
+          ridingDistance.value += distance;
+        }
+        
+        // 更新骑行路径
+        updateRidingPath();
+      }
+    };
+    
+    // 两点间插值计算
+    const interpolatePosition = (point1, point2, progress) => {
+      const lng = point1[0] + (point2[0] - point1[0]) * progress;
+      const lat = point1[1] + (point2[1] - point1[1]) * progress;
+      return [lng, lat];
+    };
+    
+    // 更新用户位置标记
+    const updateUserPositionMarker = () => {
+      if (userPositionMarker.value && userPosition.value) {
+        userPositionMarker.value.setPosition(userPosition.value);
+        
+        // 如果正在导航，更新导航路径
+        if (isNavigating()) {
+          updateNavigationRoute();
+        }
+        
+        // 可选：让地图跟随用户移动（注释掉以避免干扰）
+        // if (map.value) {
+        //   map.value.setCenter(userPosition.value);
+        // }
+      }
+    };
+
+    // 检查是否正在导航
+    const isNavigating = () => {
+      return props.showNavigation && 
+             !isNavigationPanelCollapsed.value && 
+             routeInfo.value && 
+             endPoint.value;
+    };
+
+    // 更新导航路径（从当前用户位置重新规划到终点）- 带防抖
+    const updateNavigationRoute = () => {
+      if (!userPosition.value || !endPoint.value) return;
+      
+      // 清除之前的定时器
+      if (navigationUpdateTimer.value) {
+        clearTimeout(navigationUpdateTimer.value);
+      }
+      
+      // 设置防抖定时器（1秒后执行，避免过于频繁的API调用）
+      navigationUpdateTimer.value = setTimeout(async () => {
+        try {
+          // 更新起点为当前用户位置
+          startPoint.value = {
+            lng: userPosition.value[0],
+            lat: userPosition.value[1]
+          };
+
+          // 更新起点标记位置
+          if (navigationMarkers.value[0]) {
+            navigationMarkers.value[0].setPosition([startPoint.value.lng, startPoint.value.lat]);
+          }
+
+          // 重新计算路线（静默模式，不显示消息）
+          await calculateRouteQuietly();
+          
+        } catch (error) {
+          console.warn('更新导航路径失败:', error);
+          // 静默失败，不显示错误消息以避免干扰用户体验
+        }
+      }, 1000); // 1秒防抖
+    };
+
+    // 静默计算路线（不显示成功/失败消息）
+    const calculateRouteQuietly = async () => {
+      if (!startPoint.value || !endPoint.value) return;
+
+      // 验证坐标值是否有效
+      if (!isValidCoordinate(startPoint.value) || !isValidCoordinate(endPoint.value)) {
+        return;
+      }
+
+      try {
+        // 准备起点和终点坐标数组
+        const start = [startPoint.value.lng, startPoint.value.lat];
+        const end = [endPoint.value.lng, endPoint.value.lat];
+
+        // 调用封装好的路径规划服务
+        const result = await getRidingRoute(start, end);
+
+        if (result.status === 'complete' && result.route) {
+          // 更新路线信息
+          routeInfo.value = {
+            distance: (result.route.distance / 1000).toFixed(1) + 'km',
+            time: Math.ceil(result.route.duration / 60)
+          };
+
+          // 重新初始化地图API用于显示路线
+          const AMap = await AMapLoader.load({
+            key: '7a9ebfd8db9264a7f90b65369bd2970a',
+            version: '2.0',
+            plugins: ['AMap.Riding']
+          });
+
+          // 创建完整的导航路径，包括连接线段
+          const completeNavigationPath = [];
+          
+          // 1. 从用户当前位置到路径起点的连接线
+          if (userPosition.value) {
+            completeNavigationPath.push(new AMap.LngLat(userPosition.value[0], userPosition.value[1]));
+          }
+          
+          // 2. 添加规划的路径点
+          result.route.polyline.forEach(point => {
+            completeNavigationPath.push(new AMap.LngLat(point[0], point[1]));
+          });
+          
+          // 3. 从路径终点到设置终点的连接线
+          if (endPoint.value) {
+            completeNavigationPath.push(new AMap.LngLat(endPoint.value.lng, endPoint.value.lat));
+          }
+
+          // 更新路线折线
+          if (navigationPolyline.value) {
+            navigationPolyline.value.setPath(completeNavigationPath);
+          }
+        }
+      } catch (error) {
+        // 静默处理错误
+        console.warn('静默路线规划失败:', error);
+      }
     };
 
     // 更新用户数据
@@ -1722,9 +2390,321 @@ export default {
       }
     };
 
+    // 寻找最近停车点
+    const findNearestParkingArea = async () => {
+      if (!userPosition.value) {
+        ElMessage.warning('请先设置您的当前位置');
+        return;
+      }
 
+      if (isSearchingNearestParking.value) {
+        return;
+      }
 
+      try {
+        isSearchingNearestParking.value = true;
+        console.log('开始搜索最近停车点，用户位置:', userPosition.value);
 
+        // 调用API获取最近停车点
+        const response = await getNearestParkingArea(
+          userPosition.value[1], // 纬度
+          userPosition.value[0]  // 经度
+        );
+
+        console.log('最近停车点API响应:', response);
+
+        if (response.code === 200 || response.code === '200') {
+          nearestParkingArea.value = response.data;
+          showNavigateButton.value = true;
+
+          // 将地图中心移动到停车点位置
+          const parkingCenter = [
+            nearestParkingArea.value.centerLon,
+            nearestParkingArea.value.centerLat
+          ];
+          
+          if (map.value) {
+            map.value.setCenter(parkingCenter);
+            map.value.setZoom(17); // 设置合适的缩放级别
+          }
+
+          // 自动开启停车点显示功能
+          if (!props.showParkingAreas) {
+            emit('update:showParkingAreas', true);
+          }
+
+          // 等待停车点显示完成后，高亮显示找到的停车点
+          setTimeout(() => {
+            highlightNearestParkingArea();
+          }, 500);
+
+          ElMessage.success(`找到最近停车点：${nearestParkingArea.value.geohash}`);
+        } else {
+          ElMessage.error(response.message || response.msg || '获取最近停车点失败');
+        }
+      } catch (error) {
+        console.error('搜索最近停车点失败:', error);
+        ElMessage.error('搜索最近停车点失败，请检查网络连接');
+      } finally {
+        isSearchingNearestParking.value = false;
+      }
+    };
+
+    // 高亮显示最近停车点
+    const highlightNearestParkingArea = () => {
+      if (!map.value || !nearestParkingArea.value) return;
+
+      try {
+        // 创建一个特殊的标记来高亮显示最近停车点
+        const highlightMarker = new AMap.Marker({
+          position: [nearestParkingArea.value.centerLon, nearestParkingArea.value.centerLat],
+          map: map.value,
+          content: `
+            <div style="background: linear-gradient(45deg, #ff6b6b, #ff8e53); 
+                        border-radius: 50%; 
+                        width: 60px; 
+                        height: 60px; 
+                        display: flex; 
+                        align-items: center; 
+                        justify-content: center; 
+                        color: white; 
+                        font-weight: bold; 
+                        font-size: 12px;
+                        box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+                        animation: pulse-highlight 2s infinite;">
+              最近
+            </div>
+          `,
+          offset: new AMap.Pixel(-30, -30),
+          zIndex: 200
+        });
+
+        // 添加CSS动画样式
+        if (!document.getElementById('highlight-marker-style')) {
+          const style = document.createElement('style');
+          style.id = 'highlight-marker-style';
+          style.textContent = `
+            @keyframes pulse-highlight {
+              0% { transform: scale(1); opacity: 1; }
+              50% { transform: scale(1.1); opacity: 0.8; }
+              100% { transform: scale(1); opacity: 1; }
+            }
+          `;
+          document.head.appendChild(style);
+        }
+
+        // 5秒后移除高亮标记
+        setTimeout(() => {
+          if (highlightMarker) {
+            highlightMarker.setMap(null);
+          }
+        }, 5000);
+
+      } catch (error) {
+        console.error('高亮显示停车点失败:', error);
+      }
+    };
+
+    // 导航到最近停车点
+    const navigateToNearestParking = () => {
+      if (!nearestParkingArea.value || !userPosition.value) {
+        ElMessage.warning('停车点信息不完整');
+        return;
+      }
+
+      try {
+        console.log('开始导航到最近停车点:', nearestParkingArea.value);
+
+        // 1. 收起骑车面板（不关闭）
+        collapseRidePanel();
+
+        // 2. 自动开启导航功能
+        emit('update:showNavigation', true);
+
+        // 3. 设置起点为用户当前位置
+        startPoint.value = {
+          lng: userPosition.value[0],
+          lat: userPosition.value[1]
+        };
+
+        // 4. 设置终点为停车点位置
+        endPoint.value = {
+          lng: nearestParkingArea.value.centerLon,
+          lat: nearestParkingArea.value.centerLat
+        };
+
+        // 5. 添加起终点标记
+        setTimeout(async () => {
+          const AMap = await AMapLoader.load({
+            key: '7a9ebfd8db9264a7f90b65369bd2970a',
+            version: '2.0'
+          });
+
+          // 清除之前的标记
+          if (navigationMarkers.value.length) {
+            navigationMarkers.value.forEach(marker => {
+              if (marker) {
+                marker.setMap(null);
+              }
+            });
+            navigationMarkers.value = [];
+          }
+
+          // 添加起点标记
+          const startMarker = new AMap.Marker({
+            position: [startPoint.value.lng, startPoint.value.lat],
+            map: map.value,
+            offset: new AMap.Pixel(-13, -34),
+            icon: new AMap.Icon({
+              size: new AMap.Size(25, 34),
+              imageSize: new AMap.Size(25, 34),
+              image: 'https://webapi.amap.com/theme/v1.3/markers/n/start.png'
+            })
+          });
+
+          // 添加终点标记
+          const endMarker = new AMap.Marker({
+            position: [endPoint.value.lng, endPoint.value.lat],
+            map: map.value,
+            offset: new AMap.Pixel(-13, -34),
+            icon: new AMap.Icon({
+              size: new AMap.Size(25, 34),
+              imageSize: new AMap.Size(25, 34),
+              image: 'https://webapi.amap.com/theme/v1.3/markers/n/end.png'
+            })
+          });
+
+          navigationMarkers.value = [startMarker, endMarker];
+
+          // 6. 自动开始导航
+          setTimeout(() => {
+            calculateRoute();
+          }, 100);
+
+        }, 100);
+
+        // 重置最近停车点状态
+        nearestParkingArea.value = null;
+        showNavigateButton.value = false;
+
+        ElMessage.success('开始导航到最近停车点');
+        console.log('导航设置完成:', { startPoint: startPoint.value, endPoint: endPoint.value });
+
+      } catch (error) {
+        console.error('导航到最近停车点失败:', error);
+        ElMessage.error('导航设置失败');
+      }
+    };
+
+    // 处理未完成的骑行记录
+    const handleUnfinishedRideOrders = (orders) => {
+      try {
+        console.log('处理未完成骑行记录:', orders);
+        
+        // 取第一个未完成的订单（通常用户只会有一个未完成的订单）
+        const firstOrder = orders[0];
+        
+        if (firstOrder) {
+          console.log('开始恢复骑行状态，订单信息:', firstOrder);
+          
+          // 首先切换到用车标签页
+          currentTab.value = 'use';
+          
+          // 恢复骑行状态
+          isRiding.value = true;
+          bikeId.value = firstOrder.bikeid;
+          
+          // 恢复订单信息
+          rideOrderInfo.value = {
+            orderId: firstOrder.orderid,
+            startTime: firstOrder.startTime,
+            startGeohash: firstOrder.startGeohash,
+            userId: firstOrder.userid,
+            bikeId: firstOrder.bikeid
+          };
+          
+          // 计算骑行时长（从开始时间到现在）
+          if (firstOrder.startTime) {
+            const startTime = new Date(firstOrder.startTime);
+            const now = new Date();
+            const durationSeconds = Math.floor((now - startTime) / 1000);
+            ridingTime.value = durationSeconds;
+            console.log('计算的骑行时长:', durationSeconds, '秒');
+          }
+
+          // 设置起始位置
+          if (firstOrder.startLat && firstOrder.startLon) {
+            const startPosition = [firstOrder.startLon, firstOrder.startLat];
+            ridingPath.value = [startPosition];
+            
+            // 如果用户位置还没有设置，将起始位置作为当前位置
+            if (!userPosition.value) {
+              userPosition.value = startPosition;
+              currentPosition.value = startPosition;
+              
+              // 等待地图初始化完成后更新用户位置标记
+              setTimeout(() => {
+                updateUserPositionMarker();
+              }, 1000);
+            } else {
+              currentPosition.value = userPosition.value;
+            }
+          }
+
+          // 开始骑行计时器
+          if (!ridingTimer.value) {
+            ridingTimer.value = setInterval(() => {
+              ridingTime.value += 1;
+              
+              // 每2秒记录一次位置
+              if (ridingTime.value % 2 === 0) {
+                recordPosition();
+              }
+            }, 1000);
+          }
+
+          // 等待Vue响应式更新完成后，显示恢复状态
+          nextTick(() => {
+            // 先确保面板是展开的，让用户看到恢复的骑行状态
+            isRidePanelCollapsed.value = false;
+
+            console.log('骑行状态已恢复:', {
+              currentTab: currentTab.value,
+              isRiding: isRiding.value,
+              bikeId: bikeId.value,
+              orderId: rideOrderInfo.value.orderId,
+              ridingTime: ridingTime.value,
+              isRidePanelCollapsed: isRidePanelCollapsed.value
+            });
+
+            // 显示提示信息
+            ElMessage.info({
+              message: `发现未完成的骑行记录，单车ID: ${firstOrder.bikeid}`,
+              duration: 3000,
+              showClose: true
+            });
+
+            // 5秒后自动收起面板，显示红色脉动指示器
+            setTimeout(() => {
+              isRidePanelCollapsed.value = true;
+              console.log('骑车面板已自动收起，显示脉动指示器');
+            }, 5000);
+          });
+        }
+      } catch (error) {
+        console.error('处理未完成骑行记录失败:', error);
+      }
+    };
+
+    // 监听未完成骑行记录的变化
+    watch(() => props.unfinishedRideOrders, (newOrders) => {
+      if (newOrders && Array.isArray(newOrders) && newOrders.length > 0) {
+        // 延迟处理，确保组件完全加载后再恢复状态
+        setTimeout(() => {
+          handleUnfinishedRideOrders(newOrders);
+        }, 500);
+      }
+    }, { immediate: true });
 
     onMounted(async () => {
       initMap().then(() => {
@@ -1748,10 +2728,20 @@ export default {
         clearInterval(ridingTimer.value);
         ridingTimer.value = null;
       }
-      // 清理用户位置标记样式
+      // 清理模拟移动定时器
+      if (simulationTimer.value) {
+        clearInterval(simulationTimer.value);
+        simulationTimer.value = null;
+      }
+      // 清理导航更新防抖定时器
+      if (navigationUpdateTimer.value) {
+        clearTimeout(navigationUpdateTimer.value);
+        navigationUpdateTimer.value = null;
+      }
+      // 清理用户位置标记样式和高亮样式
       const markerStyles = document.querySelectorAll('style');
       markerStyles.forEach(style => {
-        if (style.textContent && style.textContent.includes('user-position-marker')) {
+        if (style.textContent && (style.textContent.includes('user-position-marker') || style.textContent.includes('pulse-highlight'))) {
           style.remove();
         }
       });
@@ -1776,9 +2766,12 @@ export default {
       isSelectingStart,
       isSelectingEnd,
       routeInfo,
+      isNavigationPanelCollapsed,
       selectCurrentPositionAsStart,
       userPosition,
       setUserPosition,
+      collapseNavigationPanel,
+      expandNavigationPanel,
       // 骑车相关状态
       currentTab,
       bikeId,
@@ -1788,6 +2781,7 @@ export default {
       currentPosition,
       ridingPath,
       rideOrderInfo,
+      isRidePanelCollapsed,
       // 骑车相关方法
       startRiding,
       stopRiding,
@@ -1798,7 +2792,32 @@ export default {
       formatPosition,
       calculateFee,
       cancelRide,
-      updateUserData
+      collapseRidePanel,
+      expandRidePanel,
+      updateUserData,
+      // 模拟移动相关状态和方法
+      isSimulating,
+      simulationSpeed,
+      simulationIndex,
+      simulationPath,
+      simulationTimer,
+      navigationUpdateTimer,
+      startSimulation,
+      toggleSimulation,
+      stopSimulation,
+      isNavigating,
+      updateNavigationRoute,
+      // 最近停车点相关方法和状态
+      nearestParkingArea,
+      showNavigateButton,
+      isSearchingNearestParking,
+      findNearestParkingArea,
+      navigateToNearestParking,
+      // 未完成骑行记录处理
+      handleUnfinishedRideOrders,
+      // 热力图相关方法
+      updatePredictionHeatmap,
+      switchToCurrentHeatmap
     };
   }
 }
@@ -1882,6 +2901,59 @@ export default {
 .route-info p {
   margin: 5px 0;
   color: #666;
+}
+
+/* 模拟移动控制样式 */
+.simulation-controls {
+  margin-top: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.simulation-controls h4 {
+  margin: 0 0 12px 0;
+  color: #495057;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.simulation-settings {
+  margin-bottom: 12px;
+}
+
+.speed-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.speed-control label {
+  font-size: 13px;
+  color: #666;
+  white-space: nowrap;
+}
+
+.simulation-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.simulation-status {
+  margin-top: 10px;
+  padding: 8px;
+  background: rgba(24, 144, 255, 0.1);
+  border-radius: 4px;
+  border-left: 3px solid #1890ff;
+}
+
+.simulation-status p {
+  margin: 2px 0;
+  color: #1890ff;
+  font-size: 12px;
 }
 
 /* 继承现有的信息窗体样式 */
@@ -1992,6 +3064,25 @@ export default {
   font-weight: 600;
 }
 
+.header-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.collapse-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  padding: 4px 8px;
+}
+
+.collapse-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
 .ride-panel .panel-content {
   padding: 16px;
 }
@@ -2026,17 +3117,130 @@ export default {
 
 /* 找车功能样式 */
 .find-bike-section {
+  padding: 15px 0;
+}
+
+.find-parking-section {
   text-align: center;
-  padding: 40px 20px;
 }
 
-.feature-placeholder {
-  color: #666;
+.find-parking-section h4 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.action-group {
+  margin-bottom: 20px;
+}
+
+.find-parking-btn {
+  width: 100%;
+  padding: 12px;
   font-size: 14px;
+  font-weight: 500;
 }
 
-.feature-placeholder p {
-  margin: 8px 0;
+/* 停车点信息卡片样式 */
+.parking-info-card {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border-radius: 12px;
+  padding: 15px;
+  margin-top: 15px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  text-align: left;
+  transition: all 0.3s ease;
+}
+
+.parking-info-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.parking-info-header {
+  text-align: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.parking-info-header h5 {
+  margin: 0;
+  color: #333;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.parking-info-content {
+  margin-bottom: 15px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 4px 0;
+}
+
+.info-label {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+.info-value {
+  font-size: 13px;
+  color: #333;
+  font-weight: 600;
+}
+
+.info-value.bike-count {
+  color: #1890ff;
+}
+
+.info-value.available-spots {
+  color: #52c41a;
+}
+
+.navigate-action {
+  text-align: center;
+  margin-top: 15px;
+}
+
+.navigate-btn {
+  width: 100%;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
+  border: none;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.navigate-btn:hover {
+  background: linear-gradient(135deg, #389e0d 0%, #52c41a 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(82, 196, 26, 0.3);
+}
+
+/* 还车功能中的停车点搜索样式 */
+.find-parking-for-return {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 15px;
+  margin: 15px 0;
+  border: 1px solid #dee2e6;
+}
+
+.find-parking-for-return h5 {
+  margin: 0 0 12px 0;
+  color: #333;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
 }
 
 /* 用车功能样式 */
@@ -2166,6 +3370,210 @@ export default {
   font-size: 14px;
 }
 
+/* 导航圆形收起组件样式 */
+.navigation-collapsed-button {
+  position: absolute;
+  left: 20px;
+  top: 40%;
+  transform: translateY(-50%);
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(79, 172, 254, 0.4), 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: visible;
+}
+
+.navigation-collapsed-button:hover {
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 6px 25px rgba(79, 172, 254, 0.5), 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.navigation-collapsed-button.hidden {
+  display: none;
+}
+
+.navigation-collapsed-button .collapsed-icon {
+  color: white;
+  transition: transform 0.3s ease;
+}
+
+.navigation-collapsed-button:hover .collapsed-icon {
+  transform: scale(1.1);
+}
+
+.collapsed-route-indicator {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 20px;
+  height: 20px;
+  background: #52c41a;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid white;
+  box-shadow: 0 2px 8px rgba(82, 196, 26, 0.3);
+}
+
+.route-pulse {
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+  animation: pulse-route 2s infinite;
+}
+
+@keyframes pulse-route {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+}
+
+/* 骑车圆形收起组件样式 */
+.ride-collapsed-button {
+  position: absolute;
+  left: 20px;
+  top: 60%;
+  transform: translateY(-50%);
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4), 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: visible;
+}
+
+.ride-collapsed-button:hover {
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5), 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.ride-collapsed-button.hidden {
+  display: none;
+}
+
+.collapsed-icon {
+  color: white;
+  transition: transform 0.3s ease;
+}
+
+.ride-collapsed-button:hover .collapsed-icon {
+  transform: scale(1.1);
+}
+
+.riding-icon {
+  width: 30px;
+  height: 30px;
+  filter: brightness(0) invert(1);
+  transition: transform 0.3s ease;
+}
+
+.collapsed-riding-indicator {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 20px;
+  height: 20px;
+  background: #ff4757;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid white;
+  box-shadow: 0 2px 8px rgba(255, 71, 87, 0.3);
+}
+
+.riding-pulse {
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+  animation: pulse-riding 1.5s infinite;
+}
+
+@keyframes pulse-riding {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+}
+
+/* 自定义骑行完成弹窗样式 */
+:deep(.custom-ride-complete-dialog) {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  border: none;
+}
+
+:deep(.custom-ride-complete-dialog .el-message-box__header) {
+  display: none;
+}
+
+:deep(.custom-ride-complete-dialog .el-message-box__content) {
+  padding: 0;
+  text-align: left;
+}
+
+:deep(.custom-ride-complete-dialog .el-message-box__message) {
+  margin: 0;
+}
+
+:deep(.custom-ride-complete-dialog .el-message-box__btns) {
+  padding: 15px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+:deep(.custom-ride-complete-dialog .el-button--primary) {
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  font-weight: 600;
+  padding: 8px 24px;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+}
+
+:deep(.custom-ride-complete-dialog .el-button--primary:hover) {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .ride-panel {
@@ -2185,6 +3593,50 @@ export default {
   
   .current-position {
     font-size: 11px;
+  }
+  
+  .navigation-collapsed-button {
+    width: 50px;
+    height: 50px;
+    left: 15px;
+    top: 35%;
+  }
+  
+  .ride-collapsed-button {
+    width: 50px;
+    height: 50px;
+    left: 15px;
+    top: 55%;
+  }
+  
+  .collapsed-route-indicator,
+  .collapsed-riding-indicator {
+    width: 16px;
+    height: 16px;
+    top: -3px;
+    right: -3px;
+    border-width: 2px;
+  }
+  
+  .route-pulse,
+  .riding-pulse {
+    width: 6px;
+    height: 6px;
+  }
+  
+  /* 移动端骑行完成弹窗样式 */
+  :deep(.custom-ride-complete-dialog) {
+    margin: 20px;
+    max-width: calc(100vw - 40px);
+  }
+  
+  :deep(.custom-ride-complete-dialog .el-message-box__btns) {
+    padding: 12px 15px;
+  }
+  
+  :deep(.custom-ride-complete-dialog .el-button--primary) {
+    padding: 6px 20px;
+    font-size: 14px;
   }
 }
 </style> 

@@ -210,16 +210,4 @@ public class StaffServiceImpl implements IStaffService {
         // 调用 Mapper 查询用户信息
         return staffMapper.selectById(staffId);
     }
-
-
-    /**
-     * 根据管理员ID获取其管理的所有工作人员信息
-     * @param managerId 管理员ID
-     * @return 该管理员管理的所有工作人员对象的列表
-     */
-    @Override
-    public List<Staff> getStaffByManagerId(Integer managerId) {
-        // 直接调用 StaffMapper 来根据 managerId 查询工作人员列表
-        return staffMapper.selectStaffByManagerId(managerId);
-    }
 }

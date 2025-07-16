@@ -19,6 +19,136 @@
       <div class="feature-item" @click="toggleMapSettings">地图设置</div>
     </div>
 
+    <!-- 热力图控制面板 -->
+    <div v-if="showHeatmapPanel" class="heatmap-panel" :class="{ hidden: hideUI }">
+      <div class="panel-header">
+        <h3>热力图控制</h3>
+        <div class="header-buttons">
+          <el-button type="text" @click="closeHeatmapPanel" class="close-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+            关闭
+          </el-button>
+        </div>
+      </div>
+      <div class="panel-content">
+        <!-- 热力图类型选择 -->
+        <div class="heatmap-type-section">
+          <h4>热力图类型</h4>
+          <div class="type-options">
+            <div class="type-option" 
+                 :class="{ active: heatmapType === 'current' }"
+                 @click="selectHeatmapType('current')">
+              <div class="type-icon">📍</div>
+              <div class="type-content">
+                <div class="type-title">当前分布</div>
+                <div class="type-desc">显示当前单车分布热力图</div>
+              </div>
+            </div>
+            <div class="type-option" 
+                 :class="{ active: heatmapType === 'prediction' }"
+                 @click="selectHeatmapType('prediction')">
+              <div class="type-icon">🔮</div>
+              <div class="type-content">
+                <div class="type-title">预测分布</div>
+                <div class="type-desc">显示指定时间的预测热力图</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 预测时间选择（仅在预测模式下显示） -->
+        <div v-if="heatmapType === 'prediction'" class="prediction-time-section">
+          <h4>预测时间设置</h4>
+          <div class="time-inputs">
+            <div class="input-group">
+              <label>日期：</label>
+              <el-date-picker
+                v-model="predictionDate"
+                type="date"
+                placeholder="选择日期"
+                format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD"
+                size="small"
+                style="width: 100%;"
+              />
+            </div>
+            <div class="input-group">
+              <label>时间：</label>
+              <el-select
+                v-model="predictionHour"
+                placeholder="选择小时"
+                size="small"
+                style="width: 100%;"
+              >
+                <el-option
+                  v-for="hour in 24"
+                  :key="hour - 1"
+                  :label="`${hour - 1}:00`"
+                  :value="hour - 1"
+                />
+              </el-select>
+            </div>
+          </div>
+          <div class="prediction-actions">
+            <el-button
+              type="primary"
+              size="small"
+              :loading="isLoadingPrediction"
+              @click="loadPredictionHeatmap"
+            >
+              {{ isLoadingPrediction ? '加载中...' : '加载预测数据' }}
+            </el-button>
+          </div>
+        </div>
+
+        <!-- 热力图控制按钮 -->
+        <div class="heatmap-controls">
+          <h4>热力图控制</h4>
+          <div class="control-buttons">
+            <el-button
+              type="success"
+              size="small"
+              @click="showHeatmap = true"
+              :disabled="showHeatmap"
+            >
+              显示热力图
+            </el-button>
+            <el-button
+              type="warning"
+              size="small"
+              @click="showHeatmap = false"
+              :disabled="!showHeatmap"
+            >
+              隐藏热力图
+            </el-button>
+          </div>
+        </div>
+
+        <!-- 当前状态显示 -->
+        <div class="status-section">
+          <h4>当前状态</h4>
+          <div class="status-info">
+            <div class="status-item">
+              <span class="status-label">热力图类型：</span>
+              <span class="status-value">{{ heatmapType === 'current' ? '当前分布' : '预测分布' }}</span>
+            </div>
+            <div v-if="heatmapType === 'prediction'" class="status-item">
+              <span class="status-label">预测时间：</span>
+              <span class="status-value">{{ predictionDate }} {{ predictionHour }}:00</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">显示状态：</span>
+              <span class="status-value" :class="{ 'active': showHeatmap }">
+                {{ showHeatmap ? '已显示' : '已隐藏' }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 地图设置面板 -->
     <div class="map-settings" v-if="showMapSettings" :class="{ hidden: hideUI }">
       <div class="settings-header">
@@ -183,6 +313,7 @@
       :showHeatmap="showHeatmap"
       :userInfo="userInfo"
       :authToken="authToken"
+      :unfinishedRideOrders="unfinishedRideOrders"
       @update:showNavigation="showNavigation = $event"
       @update:showRide="showRide = $event"
       @user-data-updated="handleUserDataUpdated"
@@ -194,8 +325,11 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { ElMessage } from 'element-plus';
 import UserMapComponent from '@/components/map/UserMapComponent.vue';
 import { getUserProfile } from '@/api/account/profile.js';
+import { getCurrentRideOrders } from '@/api/riding.js';
+import { getHeatMapPredictionData, convertPredictionHeatMapData } from '@/api/map/heat.js';
 
 const router = useRouter()
 
@@ -290,6 +424,9 @@ onMounted(() => {
   console.log('UserView.vue - 用户信息加载完成')
   console.log('最终userInfo:', userInfo.value)
   console.log('最终authToken:', authToken.value)
+  
+  // 检查用户是否有未完成的骑行记录
+  checkUnfinishedRideOrders()
 })
 
 const showDropdown = ref(false);
@@ -304,6 +441,16 @@ const showParkingAreas = ref(false);
 const showNavigation = ref(false);
 const showRide = ref(false);
 const showHeatmap = ref(false);
+
+// 热力图控制相关
+const showHeatmapPanel = ref(false);
+const heatmapType = ref('current'); // 'current' 或 'prediction'
+const predictionDate = ref(new Date().toISOString().split('T')[0]); // 默认为今天
+const predictionHour = ref(new Date().getHours()); // 默认为当前小时
+const isLoadingPrediction = ref(false);
+
+// 未完成骑行记录状态
+const unfinishedRideOrders = ref(null);
 
 const mapStyles = [
   { label: '标准', value: 'normal' },
@@ -352,8 +499,67 @@ const handleFeature = (feature) => {
     return;
   }
   if (feature === 'heatmap') {
-    showHeatmap.value = !showHeatmap.value;
+    showHeatmapPanel.value = !showHeatmapPanel.value;
     return;
+  }
+};
+
+// 热力图相关方法
+const closeHeatmapPanel = () => {
+  showHeatmapPanel.value = false;
+};
+
+const selectHeatmapType = (type) => {
+  heatmapType.value = type;
+  if (type === 'current') {
+    // 切换到当前分布时，隐藏热力图面板，直接显示当前热力图
+    showHeatmapPanel.value = false;
+    showHeatmap.value = true;
+    
+    // 通知地图组件切换到当前热力图
+    if (mapComponentRef.value) {
+      mapComponentRef.value.switchToCurrentHeatmap();
+    }
+  }
+};
+
+const loadPredictionHeatmap = async () => {
+  if (!predictionDate.value || predictionHour.value === null) {
+    ElMessage.warning('请选择预测日期和时间');
+    return;
+  }
+
+  isLoadingPrediction.value = true;
+  
+  try {
+    // 调用预测热力图API
+    const response = await getHeatMapPredictionData({
+      reportDateStr: predictionDate.value,
+      predictionTimeHour: predictionHour.value
+    });
+
+    if (response.code === '200' || response.code === 200) {
+      // 转换预测数据为热力图格式
+      const heatmapData = convertPredictionHeatMapData(response.data);
+      
+      // 通知地图组件更新预测热力图数据
+      if (mapComponentRef.value) {
+        mapComponentRef.value.updatePredictionHeatmap(heatmapData);
+      }
+      
+      // 显示热力图
+      showHeatmap.value = true;
+      showHeatmapPanel.value = false;
+      
+      ElMessage.success('预测热力图加载成功');
+    } else {
+      ElMessage.error(response.msg || '加载预测数据失败');
+    }
+  } catch (error) {
+    console.error('加载预测热力图失败:', error);
+    ElMessage.error('加载预测数据失败，请稍后重试');
+  } finally {
+    isLoadingPrediction.value = false;
   }
 };
 
@@ -465,6 +671,40 @@ const handleUserDataUpdated = (updatedUserData) => {
     }
     
     console.log('用户信息已更新到本地存储');
+  }
+};
+
+// 检查用户未完成的骑行记录
+const checkUnfinishedRideOrders = async () => {
+  if (!userInfo.value || !userInfo.value.userid) {
+    console.log('用户信息不完整，跳过未完成骑行检查');
+    return;
+  }
+
+  try {
+    console.log('开始检查用户未完成骑行记录, 用户ID:', userInfo.value.userid);
+    
+    const response = await getCurrentRideOrders(userInfo.value.userid);
+    console.log('未完成骑行记录API响应:', response);
+
+    // 判断是否有未完成记录：检查data是否为null
+    if (response.data !== null && Array.isArray(response.data) && response.data.length > 0) {
+      console.log('发现未完成骑行记录:', response.data);
+      
+      // 存储未完成骑行记录
+      unfinishedRideOrders.value = response.data;
+      
+      // 自动开启骑车功能并设置为收起状态
+      showRide.value = true;
+      
+      console.log('已自动开启骑车功能，用户有', response.data.length, '个未完成的骑行记录');
+    } else {
+      console.log('没有发现未完成的骑行记录');
+      unfinishedRideOrders.value = null;
+    }
+  } catch (error) {
+    console.error('检查未完成骑行记录失败:', error);
+    // 不显示错误信息给用户，静默处理
   }
 };
 </script>
@@ -1006,8 +1246,181 @@ const handleUserDataUpdated = (updatedUserData) => {
   transform: translateY(-1px);
 }
 
+/* 热力图控制面板样式 */
+.heatmap-panel {
+  position: absolute;
+  top: 80px;
+  left: 100px;
+  width: 400px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.heatmap-panel.hidden {
+  display: none;
+}
+
+.heatmap-panel .panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #eee;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 12px 12px 0 0;
+}
+
+.heatmap-panel .panel-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.heatmap-panel .panel-content {
+  padding: 20px;
+}
+
+.heatmap-type-section,
+.prediction-time-section,
+.heatmap-controls,
+.status-section {
+  margin-bottom: 24px;
+}
+
+.heatmap-type-section h4,
+.prediction-time-section h4,
+.heatmap-controls h4,
+.status-section h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.type-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.type-option {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #fafafa;
+}
+
+.type-option:hover {
+  border-color: #667eea;
+  background: #f8f9ff;
+  transform: translateY(-2px);
+}
+
+.type-option.active {
+  border-color: #667eea;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.type-icon {
+  font-size: 1.5rem;
+  margin-right: 12px;
+}
+
+.type-content {
+  flex: 1;
+}
+
+.type-title {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+
+.type-desc {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.time-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-group label {
+  font-weight: 500;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.prediction-actions {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.control-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.status-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.status-label {
+  font-weight: 500;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.status-value {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.status-value.active {
+  color: #28a745;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
+  .heatmap-panel {
+    width: 95vw;
+    left: 2.5vw;
+    top: 60px;
+  }
+  
   .profile-card {
     width: 95vw;
     padding: 20px;

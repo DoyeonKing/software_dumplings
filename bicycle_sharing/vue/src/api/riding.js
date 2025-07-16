@@ -43,6 +43,29 @@ export function rentBike(userId, bikeId) {
 }
 
 /**
+ * 用车接口 - 开始骑行（带位置验证）
+ * @param {string} userId - 用户ID
+ * @param {string} bikeId - 单车ID
+ * @param {number} userLat - 用户位置纬度
+ * @param {number} userLon - 用户位置经度
+ * @returns {Promise} 用车结果
+ */
+export function rentBikeWithLocation(userId, bikeId, userLat, userLon) {
+  return request({
+    url: '/orders/rent-lonlat',
+    method: 'get',
+    params: {
+      userId: userId,
+      bikeId: bikeId,
+      userLat: userLat,
+      userLon: userLon
+    }
+  })
+  
+  // 返回数据格式与rentBike相同
+}
+
+/**
  * 还车接口 - 结束骑行
  * @param {string} userId - 用户ID
  * @param {string} bikeId - 单车ID
@@ -86,4 +109,56 @@ export function returnBike(userId, bikeId, endLat, endLon) {
   //   },
   //   "message": "还车成功！"
   // }
+}
+
+/**
+ * 获取用户当前未完成的骑行记录
+ * @param {string} userId - 用户ID
+ * @returns {Promise} 未完成骑行记录列表
+ * 
+ * 返回数据格式说明：
+ * 1. 有未完成记录时：
+ * {
+ *   "code": 200,
+ *   "data": [
+ *     {
+ *       "orderid": "164185a4-d4a0-4540-837a-d8b9997481b8",
+ *       "bikeid": "00074911-2446-4da3-9242-f88d04d2fb5c", 
+ *       "userid": "000184e8-1bf5-4e5e-9233-595aac79a3a6",
+ *       "startTime": "2025-07-15 08:24:34",
+ *       "endTime": null,
+ *       "startLat": 22.4694441258,
+ *       "startLon": 113.8723440824,
+ *       "endLat": null,
+ *       "endLon": null,
+ *       "distanceM": null,
+ *       "cost": null,
+ *       "startGeohash": "webzz4r",
+ *       "endGeohash": null,
+ *       "startWeekday": 2,
+ *       "startHour": 16,
+ *       "isWeekend": 0,
+ *       "durationMinutes": null
+ *     }
+ *   ],
+ *   "message": "获取成功！"
+ * }
+ * 
+ * 2. 无未完成记录时：
+ * {
+ *   "code": 400,
+ *   "data": null,
+ *   "message": "未找到未完成的骑行记录"
+ * }
+ * 
+ * 注意：判断是否有未完成记录应检查 data 是否为 null，而不是判断 code
+ */
+export function getCurrentRideOrders(userId) {
+  return request({
+    url: '/orders/current-ride',
+    method: 'get',
+    params: {
+      userId: userId
+    }
+  })
 }
