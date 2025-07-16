@@ -4,6 +4,13 @@
 
     <MenuComponent @profile-saved="handleProfileSaved" />
 
+    <!-- API测试链接 - 左上角 -->
+    <div class="top-left-link-group">
+      <span class="api-test-link" @click="goToAPITest">
+        API测试
+      </span>
+    </div>
+
     <div class="top-right-btn-group btn-group">
       <button class="yellow-btn" @click="onToggleBikes">
         {{ showBikes ? '隐藏单车' : '显示单车' }}
@@ -18,10 +25,9 @@
 
     <!-- 修改左侧信息面板为可折叠面板 -->
     <div class="left-panels">
-      <div class="collapsible-panel">
+      <div class="collapsible-panel" :class="{ expanded: areaPanelExpanded }">
         <div class="panel-header" @click="toggleAreaPanel">
           <span class="panel-title">区域数据</span>
-          <span class="panel-icon">{{ areaPanelExpanded ? '▼' : '▶' }}</span>
         </div>
         <div class="panel-content" v-show="areaPanelExpanded">
           <div class="info-card">
@@ -56,15 +62,14 @@
         </div>
       </div>
 
-      <div class="collapsible-panel">
+      <div class="collapsible-panel suggestion-panel-container" :class="{ expanded: suggestionPanelExpanded }">
         <div class="panel-header" @click="toggleSuggestionPanel">
           <span class="panel-title">调度建议</span>
-          <span class="panel-icon">{{ suggestionPanelExpanded ? '▼' : '▶' }}</span>
         </div>
         <div class="panel-content" v-show="suggestionPanelExpanded">
-          <DispatchSuggestionPanel 
-            @suggestion-accepted="handleSuggestionAccepted"
-            @suggestion-rejected="handleSuggestionRejected"
+          <DispatchSuggestionPanel
+              @suggestion-accepted="handleSuggestionAccepted"
+              @suggestion-rejected="handleSuggestionRejected"
           />
         </div>
       </div>
@@ -142,33 +147,21 @@
             </div>
 
             <div class="task-section">
-              <label>管理员ID：</label>
-              <div class="manager-input-group">
-                <input 
-                  type="text" 
-                  v-model="managerId" 
-                  placeholder="请输入管理员ID"
-                  class="yellow-input"
-                />
-              </div>
-            </div>
-
-            <div class="task-section" v-if="managerId">
               <label>选择工作人员：</label>
               <div class="task-workers-list">
                 <div
-                  v-for="worker in filteredWorkers"
-                  :key="worker.staffId"
-                  :class="['worker-item', { selected: selectedWorker && selectedWorker.staffId === worker.staffId }]"
-                  @click="selectWorker(worker)"
+                    v-for="worker in workers"
+                    :key="worker.id"
+                    :class="['worker-card', { selected: selectedWorker && selectedWorker.id === worker.id }]"
+                    @click="selectWorker(worker)"
                 >
+                  <img :src="worker.avatar" class="worker-avatar" />
                   <div class="worker-info">
-                    <div class="worker-id">工号：{{ worker.staffId }}</div>
-                    <div class="worker-name">用户名：{{ worker.username }}</div>
+                    <div class="worker-staff-id">工作人员ID：{{ worker.staffId }}</div>
+                    <div class="worker-username">用户名：{{ worker.username }}</div>
+                    <div class="worker-manager-id">上级管理员ID：{{ worker.managerId }}</div>
+                    <div class="worker-geohash">负责区域：{{ worker.geohash }}</div>
                   </div>
-                </div>
-                <div v-if="filteredWorkers.length === 0" class="no-workers-tip">
-                  没有找到该管理员负责的工作人员
                 </div>
               </div>
             </div>
@@ -200,6 +193,7 @@ import AMapLoader from '@/utils/loadAMap.js';
 import bicycleIcon from '@/components/icons/bicycle.png';
 import { getMapAreaBicycles } from '@/api/map/bicycle';
 import { getParkingAreasInBounds, convertParkingAreaData } from '@/api/map/parking.js';
+import { getManagedStaff } from '@/api/account/staffService.js';
 
 // 颜色定义
 const HIGHLIGHT_COLORS = {
@@ -233,8 +227,7 @@ export default {
       endPredictData: { take: 0, park: 0, total: 0 },
       selectedWorker: null,
       dispatchAmount: 1,
-      managerId: '',
-      allWorkers: [],
+      workers: [],
       // 地图相关
       map: null,
       infoWindow: null,
@@ -246,20 +239,14 @@ export default {
       bikes: [],
       showBikes: true,
       // 新增面板状态
-      areaPanelExpanded: true,
-      suggestionPanelExpanded: true,
+      areaPanelExpanded: false,
+      suggestionPanelExpanded: false,
       // 添加高亮区域的颜色配置
       areaColors: {
         start: { fillColor: "#ffcdd2", fillOpacity: 0.5, strokeColor: "#ef5350" },
         end: { fillColor: "#c8e6c9", fillOpacity: 0.5, strokeColor: "#66bb6a" }
       }
     };
-  },
-  computed: {
-    filteredWorkers() {
-      if (!this.managerId) return [];
-      return this.allWorkers.filter(worker => worker.managerId === this.managerId);
-    }
   },
   watch: {
     predictHour() { this.updatePrediction(this.currentArea, this.predictHour, 'predictData'); },
@@ -287,7 +274,7 @@ export default {
           rawData = response;
         } else if (response && response.data && Array.isArray(response.data)) {
           rawData = response.data;
-        } else if (response && response.code === 200 && Array.isArray(response.data)) {
+        } else if (response && (response.code === 200 || response.code === '200') && Array.isArray(response.data)) {
           rawData = response.data;
         }
 
@@ -439,7 +426,7 @@ export default {
 
     publishTask() {
       if (!this.selectedStartArea || !this.selectedEndArea || !this.selectedWorker || this.dispatchAmount < 1) return;
-      alert(`调度任务已发布！\n\n` + `起点：${this.selectedStartArea.geohash}\n` + `终点：${this.selectedEndArea.geohash}\n` + `调度数量：${this.dispatchAmount}\n` + `工作人员：${this.selectedWorker.name} (${this.selectedWorker.phone})`);
+      alert(`调度任务已发布！\n\n` + `起点：${this.selectedStartArea.geohash}\n` + `终点：${this.selectedEndArea.geohash}\n` + `调度数量：${this.dispatchAmount}\n` + `执行工作人员：${this.selectedWorker.username} (ID: ${this.selectedWorker.staffId})\n` + `负责区域：${this.selectedWorker.geohash}`);
       this.cancelOrClearSelection('start');
       this.cancelOrClearSelection('end');
       this.selectedWorker = null;
@@ -494,6 +481,7 @@ export default {
 
     handleProfileSaved(formData) { console.log('个人资料已保存:', formData); window.alert('个人信息已在控制台输出。'); },
     goHome() { this.$router.push('/admin'); },
+    goToAPITest() { this.$router.push('/api-test-manager-staff'); },
     updatePrediction(area, hour, dataProperty) {
       if (!area || !area.id) { this[dataProperty] = { take: 0, park: 0, total: 0 }; return; }
       const take = Math.round((area.baseTakeRate || 3) * hour * (Math.random() * 0.4 + 0.8));
@@ -505,23 +493,11 @@ export default {
       if (type === 'start') { this.startSelectionActive = true; this.selectingFor = 'start'; }
       else if (type === 'end') { this.endSelectionActive = true; this.selectingFor = 'end'; }
     },
-    selectWorker(worker) {
-      this.selectedWorker = worker;
-    },
+    selectWorker(worker) { this.selectedWorker = worker; },
     changeDispatchAmount(delta) {
       let next = this.dispatchAmount + delta;
       if (next < 1) next = 1;
       this.dispatchAmount = next;
-    },
-    async fetchWorkers() {
-      try {
-        const response = await fetch('http://localhost:8080/staff/workers');
-        const data = await response.json();
-        this.allWorkers = data;
-      } catch (error) {
-        console.error('获取工作人员列表失败:', error);
-        alert('获取工作人员列表失败');
-      }
     },
 
     // 添加面板切换方法
@@ -545,17 +521,17 @@ export default {
         id: suggestion.endArea,
         currentBikes: 20, // 使用默认值，实际应该从API获取
       };
-      
+
       // 设置调度数量
       this.dispatchAmount = suggestion.amount;
-      
+
       // 展开任务面板
       this.taskPanelCollapsed = false;
-      
+
       // 更新预测数据
       this.updatePrediction(this.selectedStartArea, this.startPredictHour, 'startPredictData');
       this.updatePrediction(this.selectedEndArea, this.endPredictHour, 'endPredictData');
-      
+
       // 更新地图上的多边形样式
       this.updatePolygonStyles();
     },
@@ -577,10 +553,74 @@ export default {
           polygon.setOptions(this.areaColors.end);
         }
       });
+    },
+
+    // 获取管理员手下的工作人员
+    async loadManagedStaff() {
+      try {
+        // 检查是否有token
+        const token = sessionStorage.getItem('authToken'); // 修正键名为authToken
+        console.log('当前token:', token); // 调试信息
+        console.log('Authorization头部格式:', token ? 'Bearer ' + token : ''); // 调试信息
+        
+        if (!token) {
+          console.warn('未找到登录token，无法获取工作人员数据');
+          this.workers = [];
+          return;
+        }
+
+        console.log('开始调用getManagedStaff API...'); // 调试信息
+        const response = await getManagedStaff();
+        console.log('API完整响应:', response); // 调试信息
+        
+        if (response && (response.code === 200 || response.code === '200') && response.data) {
+          // 处理API返回的数据，显示完整的工作人员信息
+          this.workers = response.data.map(staff => ({
+            id: staff.staffId, // 工作人员ID
+            staffId: staff.staffId, // 工作人员ID
+            username: staff.username, // 用户名
+            managerId: staff.managerId, // 上级管理员ID
+            geohash: staff.geohash, // 负责区域
+            avatar: `https://api.dicebear.com/7.x/miniavs/svg?seed=${staff.staffId}` // 生成头像
+          }));
+          console.log('成功加载工作人员数据:', this.workers);
+        } else {
+          console.warn('获取工作人员数据失败:', response);
+          // 如果是500错误，可能是后端问题
+          if (response && response.code === '500') {
+            console.error('后端服务器错误(500)，可能原因：');
+            console.error('1. 数据库连接问题');
+            console.error('2. 后端业务逻辑错误');
+            console.error('3. Token格式或权限问题');
+            console.error('错误信息:', response.msg);
+          }
+          this.workers = [];
+        }
+      } catch (error) {
+        console.error('加载工作人员数据失败:', error);
+        console.error('错误详情:', error.response); // 更详细的错误信息
+        
+        // 根据不同的错误状态码给出提示
+        if (error.response) {
+          switch (error.response.status) {
+            case 401:
+              console.warn('登录已过期或无权限，请重新登录');
+              break;
+            case 403:
+              console.warn('权限不足，无法访问工作人员数据');
+              break;
+            case 500:
+              console.warn('服务器内部错误，请联系管理员');
+              break;
+            default:
+              console.warn(`HTTP错误: ${error.response.status}`);
+          }
+        }
+        this.workers = [];
+      }
     }
   },
   mounted() {
-    this.fetchWorkers(); // 页面加载时获取所有工作人员信息
     AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
       // 初始化地图
       this.map = new window.AMap.Map("mapContainer", {
@@ -634,6 +674,9 @@ export default {
       this.map.on('zoomend', loadAllData);
 
     }).catch(err => { alert('地图加载失败: ' + err.message); });
+
+    // 加载工作人员数据
+    this.loadManagedStaff();
   },
 
   beforeUnmount() {
@@ -649,11 +692,26 @@ export default {
 
 .location-view-root { position: relative; height: 100vh; overflow: hidden; }
 #mapContainer { width: 100vw; height: 100vh; position: fixed; top: 0; left: 0; z-index: 1; }
+.top-left-link-group { position: fixed; top: 0px; left: 15px; z-index: 30; }
 .top-right-btn-group { position: fixed; top: 20px; right: 30px; z-index: 30; }
 .left-info-panel { position: fixed; top: 90px; left: 30px; z-index: 20; display: flex; flex-direction: column; gap: 14px; min-width: 260px; max-width: 320px; }
 .info-title { font-size: 1.1rem; font-weight: 700; color: #222; margin-bottom: 6px; }
 .info-content { font-size: 1rem; color: #444; }
 .info-number { color: #FFD600; font-weight: bold; font-size: 1.1em; }
+
+.api-test-link { 
+  color: #17a2b8; 
+  font-size: 0.75rem; 
+  font-weight: 500; 
+  cursor: pointer; 
+  transition: all 0.3s; 
+  text-decoration: underline;
+  user-select: none;
+}
+.api-test-link:hover { 
+  color: #138496; 
+  text-decoration: none;
+}
 .predict-filter { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .yellow-select { background: #f7f7f7; border: 1.5px solid #FFD600; border-radius: 8px; padding: 4px 12px; font-size: 1rem; color: #222; font-weight: bold; outline: none; transition: background 0.2s; }
 .yellow-select.small-select { padding: 2px 8px; font-size: 0.9rem; border-radius: 6px; }
@@ -681,13 +739,16 @@ export default {
 .predict-park { color: #d32f2f; }
 .predict-total { color: #1976d2; }
 
-.task-workers-list { display: flex; flex-direction: column; gap: 10px; max-height: 180px; overflow-y: auto; padding-right: 5px; }
-.worker-card { border: 2px solid #eee; border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; cursor: pointer; transition: border 0.2s, box-shadow 0.2s, background 0.2s; }
+.task-workers-list { display: flex; flex-direction: column; gap: 12px; max-height: 240px; overflow-y: auto; padding-right: 5px; }
+.worker-card { border: 2px solid #eee; border-radius: 10px; padding: 12px 14px; display: flex; align-items: flex-start; cursor: pointer; transition: border 0.2s, box-shadow 0.2s, background 0.2s; min-height: 100px; }
 .worker-card:hover { border-color: #FFD600; }
 .worker-card.selected { border: 2.5px solid #FFD600; background: #fffbe6; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-.worker-avatar { width: 48px; height: 48px; border-radius: 50%; margin-right: 12px; background: #fff; border: 1.5px solid #FFD600; flex-shrink: 0; }
-.worker-info { text-align: left; font-size: 0.9rem; color: #444; line-height: 1.4; }
-.worker-id { font-weight: bold; }
+.worker-avatar { width: 50px; height: 50px; border-radius: 50%; margin-right: 14px; background: #fff; border: 1.5px solid #FFD600; flex-shrink: 0; margin-top: 2px; }
+.worker-info { text-align: left; font-size: 0.85rem; color: #444; line-height: 1.5; flex: 1; }
+.worker-staff-id { font-weight: bold; color: #333; margin-bottom: 4px; }
+.worker-username { color: #2c5aa0; font-weight: 600; margin-bottom: 4px; }
+.worker-manager-id { color: #666; margin-bottom: 4px; }
+.worker-geohash { color: #28a745; font-weight: 500; background: #f8f9fa; padding: 2px 6px; border-radius: 4px; display: inline-block; }
 
 .amount-input-group { display: flex; align-items: center; gap: 8px; }
 .amount-btn { width: 32px; height: 32px; font-size: 1.2rem; border-radius: 50%; }
@@ -708,25 +769,38 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  min-width: 300px;
-  max-width: 360px;
+  min-width: 320px;
 }
 
 .collapsible-panel {
   background: white;
   border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+/* 未展开时的样式 */
+.collapsible-panel:not(.expanded) .panel-header {
+  width: fit-content;
+  min-width: 120px;
+  border-radius: 12px;
+}
+
+/* 展开时的样式 */
+.collapsible-panel.expanded .panel-header {
+  width: 100%;
+  border-radius: 12px 12px 0 0;
 }
 
 .panel-header {
-  padding: 12px 16px;
-  background: #f8f8f8;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  padding: 12px 16px;
+  background: white;
   cursor: pointer;
-  transition: background-color 0.2s;
+  user-select: none;
+  transition: all 0.3s ease;
 }
 
 .panel-header:hover {
@@ -736,17 +810,54 @@ export default {
 .panel-title {
   font-weight: 600;
   color: #333;
-  font-size: 1.1rem;
+  flex: 1;
 }
 
 .panel-icon {
+  margin-left: 8px;
   color: #666;
-  font-size: 0.9rem;
+  font-size: 12px;
 }
 
 .panel-content {
   background: white;
-  transition: all 0.3s ease;
+  border-radius: 0 0 12px 12px;
+}
+
+/* 调度建议面板特定样式 */
+.suggestion-panel-container {
+  min-width: 320px;
+}
+
+.suggestion-panel-container .suggestion-panel {
+  width: 100%;
+  max-width: none;
+  padding: 12px;
+}
+
+.suggestion-panel-container .search-section {
+  width: 100%;
+}
+
+.suggestion-panel-container .search-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.suggestion-panel-container .filter-buttons {
+  width: 100%;
+  display: flex;
+  gap: 8px;
+}
+
+.suggestion-panel-container .suggestions-list {
+  width: 100%;
+  margin: 0;
+}
+
+.suggestion-panel-container .suggestion-item {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .info-card {
@@ -781,82 +892,5 @@ export default {
     min-width: unset;
     max-width: calc(100vw - 20px);
   }
-}
-
-.manager-input-group {
-  margin-top: 8px;
-}
-
-.yellow-input {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1.5px solid #FFD600;
-  border-radius: 8px;
-  font-size: 14px;
-  outline: none;
-  transition: all 0.3s;
-}
-
-.yellow-input:focus {
-  box-shadow: 0 0 0 2px rgba(255, 214, 0, 0.2);
-}
-
-.task-workers-list {
-  margin-top: 8px;
-  max-height: 200px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.task-workers-list::-webkit-scrollbar {
-  width: 4px;
-}
-
-.task-workers-list::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 2px;
-}
-
-.task-workers-list::-webkit-scrollbar-thumb {
-  background: #FFD600;
-  border-radius: 2px;
-}
-
-.worker-item {
-  padding: 12px;
-  border-radius: 8px;
-  background: white;
-  border: 1px solid #eee;
-  margin-bottom: 8px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.worker-item:hover {
-  border-color: #FFD600;
-}
-
-.worker-item.selected {
-  background: #fff8e1;
-  border-color: #FFD600;
-  box-shadow: 0 0 0 1px #FFD600;
-}
-
-.worker-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.worker-id, .worker-name {
-  font-size: 14px;
-  color: #333;
-}
-
-.no-workers-tip {
-  text-align: center;
-  color: #666;
-  padding: 16px;
-  font-size: 14px;
 }
 </style>

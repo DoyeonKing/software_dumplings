@@ -12,20 +12,20 @@
 
     <div class="filter-buttons">
       <button 
-        :class="['filter-btn', { active: currentFilter === 'pending' }]"
-        @click="setFilter('pending')"
+        :class="['filter-btn', { active: currentFilter === 'PENDING' }]"
+        @click="setFilter('PENDING')"
       >
         待处理
       </button>
       <button 
-        :class="['filter-btn', { active: currentFilter === 'accepted' }]"
-        @click="setFilter('accepted')"
+        :class="['filter-btn', { active: currentFilter === 'ACCEPTED' }]"
+        @click="setFilter('ACCEPTED')"
       >
         已接受
       </button>
       <button 
-        :class="['filter-btn', { active: currentFilter === 'rejected' }]"
-        @click="setFilter('rejected')"
+        :class="['filter-btn', { active: currentFilter === 'REJECTED' }]"
+        @click="setFilter('REJECTED')"
       >
         已拒绝
       </button>
@@ -40,26 +40,34 @@
         <div class="suggestion-content">
           <div class="suggestion-header">
             <span class="suggestion-id">建议ID: {{ suggestion.id }}</span>
-            <div class="suggestion-status" :class="suggestion.status">
-              {{ getStatusText(suggestion.status) }}
+            <div class="suggestion-status" :class="suggestion.suggestionStatus?.toLowerCase()">
+              {{ getStatusText(suggestion.suggestionStatus) }}
             </div>
           </div>
           <div class="suggestion-details">
             <div class="detail-row">
               <span class="label">起点:</span>
-              <span class="value">{{ suggestion.startArea }}</span>
+              <span class="value">{{ suggestion.sourceGeohash }}</span>
             </div>
             <div class="detail-row">
               <span class="label">终点:</span>
-              <span class="value">{{ suggestion.endArea }}</span>
+              <span class="value">{{ suggestion.targetGeohash }}</span>
             </div>
             <div class="detail-row">
               <span class="label">调度数量:</span>
-              <span class="value">{{ suggestion.amount }} 辆</span>
+              <span class="value">{{ suggestion.suggestedBikeCount }} 辆</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">预测时间:</span>
+              <span class="value">{{ formatDateTime(suggestion.predictionTargetTime) }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="label">建议时间:</span>
+              <span class="value">{{ formatDateTime(suggestion.suggestionTime) }}</span>
             </div>
           </div>
         </div>
-        <div class="suggestion-actions" v-if="suggestion.status === 'pending'">
+        <div class="suggestion-actions" v-if="suggestion.suggestionStatus === 'PENDING'">
           <button class="action-btn accept" @click="acceptSuggestion(suggestion)">
             接受
           </button>
@@ -73,84 +81,15 @@
 </template>
 
 <script>
+import { getAllSuggestions, updateSuggestionStatus } from '@/api/prediction/suggestionService';
+
 export default {
   name: 'DispatchSuggestionPanel',
   data() {
     return {
       searchQuery: '',
-      currentFilter: 'pending',
-      suggestions: [
-        {
-          id: 'DS001',
-          startArea: 'ws105qy',
-          endArea: 'ws10547',
-          amount: 5,
-          status: 'pending'
-        },
-        {
-          id: 'DS002',
-          startArea: 'ws105w5',
-          endArea: 'ws105r6',
-          amount: 3,
-          status: 'pending'
-        },
-        {
-          id: 'DS003',
-          startArea: 'ws105wc',
-          endArea: 'ws105qy',
-          amount: 4,
-          status: 'pending'
-        },
-        {
-          id: 'DS004',
-          startArea: 'ws10547',
-          endArea: 'ws105w5',
-          amount: 6,
-          status: 'pending'
-        },
-        {
-          id: 'DS005',
-          startArea: 'ws105r6',
-          endArea: 'ws105wc',
-          amount: 2,
-          status: 'pending'
-        },
-        {
-          id: 'DS006',
-          startArea: 'ws105qy',
-          endArea: 'ws105w5',
-          amount: 7,
-          status: 'pending'
-        },
-        {
-          id: 'DS007',
-          startArea: 'ws105wc',
-          endArea: 'ws10547',
-          amount: 3,
-          status: 'pending'
-        },
-        {
-          id: 'DS008',
-          startArea: 'ws105w5',
-          endArea: 'ws105wc',
-          amount: 4,
-          status: 'pending'
-        },
-        {
-          id: 'DS009',
-          startArea: 'ws10547',
-          endArea: 'ws105r6',
-          amount: 5,
-          status: 'pending'
-        },
-        {
-          id: 'DS010',
-          startArea: 'ws105r6',
-          endArea: 'ws105qy',
-          amount: 6,
-          status: 'pending'
-        }
-      ]
+      currentFilter: 'PENDING',
+      suggestions: []
     }
   },
   computed: {
@@ -158,11 +97,11 @@ export default {
       return this.suggestions
         .filter(suggestion => {
           const matchesSearch = this.searchQuery === '' ||
-            suggestion.id.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-            suggestion.startArea.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-            suggestion.endArea.toLowerCase().includes(this.searchQuery.toLowerCase());
+            suggestion.id.toString().includes(this.searchQuery) ||
+            suggestion.sourceGeohash.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+            suggestion.targetGeohash.toLowerCase().includes(this.searchQuery.toLowerCase());
           
-          const matchesFilter = this.currentFilter === suggestion.status;
+          const matchesFilter = this.currentFilter === suggestion.suggestionStatus;
           
           return matchesSearch && matchesFilter;
         });
@@ -174,23 +113,149 @@ export default {
     },
     getStatusText(status) {
       const statusMap = {
-        pending: '待处理',
-        accepted: '已接受',
-        rejected: '已拒绝'
+        'PENDING': '待处理',
+        'ACCEPTED': '已接受',
+        'REJECTED': '已拒绝'
       };
       return statusMap[status] || status;
     },
-    acceptSuggestion(suggestion) {
-      suggestion.status = 'accepted';
-      this.$emit('suggestion-accepted', suggestion);
+    async acceptSuggestion(suggestion) {
+      try {
+        const token = sessionStorage.getItem('authToken');
+        if (!token) {
+          alert('登录已过期，请重新登录');
+          return;
+        }
+        
+        console.log('开始接受建议，ID:', suggestion.id, '状态: ACCEPTED');
+        console.log('当前token:', token ? '已设置' : '未设置');
+        const suggestionId = parseInt(suggestion.id);
+        console.log('发送API参数:', { suggestionId, newStatus: 'ACCEPTED' });
+        const response = await updateSuggestionStatus(suggestionId, 'ACCEPTED');
+        console.log('接受建议API响应:', response);
+        
+        if (response && (response.code === 200 || response.code === '200')) {
+          // 更新本地状态
+          const suggestionIndex = this.suggestions.findIndex(s => s.id === suggestion.id);
+          if (suggestionIndex !== -1) {
+            this.suggestions[suggestionIndex].suggestionStatus = 'ACCEPTED';
+          }
+          
+          // 发送事件给父组件，包含完整的建议数据
+          this.$emit('suggestion-accepted', {
+            id: suggestion.id,
+            startArea: suggestion.sourceGeohash,
+            endArea: suggestion.targetGeohash,
+            amount: suggestion.suggestedBikeCount,
+            originalSuggestion: suggestion
+          });
+          
+          console.log('建议已接受，ID:', suggestion.id);
+          alert('建议已成功接受！');
+        } else {
+          console.error('接受建议失败 - API响应:', response);
+          console.error('响应code:', response?.code, '响应msg:', response?.msg);
+          alert(`接受建议失败: ${response?.msg || '未知错误'}`);
+        }
+      } catch (error) {
+        console.error('接受建议出错 - 完整错误:', error);
+        console.error('错误响应:', error.response);
+        if (error.response) {
+          console.error('HTTP状态码:', error.response.status);
+          console.error('错误数据:', error.response.data);
+          alert(`接受建议失败: HTTP ${error.response.status} - ${error.response.data?.msg || error.message}`);
+        } else {
+          alert(`接受建议失败: ${error.message}`);
+        }
+      }
     },
-    rejectSuggestion(suggestion) {
-      suggestion.status = 'rejected';
-      this.$emit('suggestion-rejected', suggestion);
+    async rejectSuggestion(suggestion) {
+      try {
+        const token = sessionStorage.getItem('authToken');
+        if (!token) {
+          alert('登录已过期，请重新登录');
+          return;
+        }
+        
+        console.log('开始拒绝建议，ID:', suggestion.id, '状态: REJECTED');
+        console.log('当前token:', token ? '已设置' : '未设置');
+        const suggestionId = parseInt(suggestion.id);
+        console.log('发送API参数:', { suggestionId, newStatus: 'REJECTED' });
+        const response = await updateSuggestionStatus(suggestionId, 'REJECTED');
+        console.log('拒绝建议API响应:', response);
+        
+        if (response && (response.code === 200 || response.code === '200')) {
+          // 更新本地状态
+          const suggestionIndex = this.suggestions.findIndex(s => s.id === suggestion.id);
+          if (suggestionIndex !== -1) {
+            this.suggestions[suggestionIndex].suggestionStatus = 'REJECTED';
+          }
+          
+          // 发送事件给父组件
+          this.$emit('suggestion-rejected', {
+            id: suggestion.id,
+            originalSuggestion: suggestion
+          });
+          
+          console.log('建议已拒绝，ID:', suggestion.id);
+          alert('建议已成功拒绝！');
+        } else {
+          console.error('拒绝建议失败 - API响应:', response);
+          console.error('响应code:', response?.code, '响应msg:', response?.msg);
+          alert(`拒绝建议失败: ${response?.msg || '未知错误'}`);
+        }
+      } catch (error) {
+        console.error('拒绝建议出错 - 完整错误:', error);
+        console.error('错误响应:', error.response);
+        if (error.response) {
+          console.error('HTTP状态码:', error.response.status);
+          console.error('错误数据:', error.response.data);
+          alert(`拒绝建议失败: HTTP ${error.response.status} - ${error.response.data?.msg || error.message}`);
+        } else {
+          alert(`拒绝建议失败: ${error.message}`);
+        }
+      }
     },
-    filterSuggestions() {
-      // 实时搜索过滤已经通过计算属性实现
+    formatDateTime(dateTimeStr) {
+      if (!dateTimeStr) return '';
+      const date = new Date(dateTimeStr);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    },
+    async loadSuggestions() {
+      try {
+        const token = sessionStorage.getItem('authToken');
+        if (!token) {
+          console.warn('未找到登录token，无法加载调度建议');
+          this.suggestions = [];
+          return;
+        }
+        
+        console.log('开始加载调度建议...');
+        console.log('当前token:', token ? '已设置' : '未设置');
+        const response = await getAllSuggestions();
+        console.log('获取建议API响应:', response);
+        
+        if (response && (response.code === 200 || response.code === '200') && response.data) {
+          this.suggestions = response.data;
+          console.log('成功加载建议数量:', this.suggestions.length);
+        } else {
+          console.warn('获取调度建议失败 - API响应:', response);
+          console.warn('响应code:', response?.code, '响应msg:', response?.msg);
+          this.suggestions = [];
+        }
+      } catch (error) {
+        console.error('获取调度建议出错 - 完整错误:', error);
+        console.error('错误响应:', error.response);
+        if (error.response) {
+          console.error('HTTP状态码:', error.response.status);
+          console.error('错误数据:', error.response.data);
+        }
+        this.suggestions = [];
+      }
     }
+  },
+  async mounted() {
+    await this.loadSuggestions();
   }
 }
 </script>
@@ -204,8 +269,11 @@ export default {
   background: white;
   border-radius: 12px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  width: 320px;
+  width: 100%;
+  max-width: 400px;
   height: 500px;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .search-section {
@@ -220,6 +288,7 @@ export default {
   font-size: 14px;
   outline: none;
   transition: all 0.3s;
+  box-sizing: border-box;
 }
 
 .search-input:focus {
@@ -249,43 +318,42 @@ export default {
 }
 
 .suggestions-list {
-  height: 380px;
+  flex: 1;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding-right: 8px;
-  margin-right: -8px;
+  padding-right: 4px;
+  margin-right: -4px;
 }
 
-/* Customize scrollbar */
+/* 自定义滚动条样式 */
 .suggestions-list::-webkit-scrollbar {
-  width: 4px;
+  width: 6px;
 }
 
 .suggestions-list::-webkit-scrollbar-track {
   background: #f1f1f1;
-  border-radius: 2px;
+  border-radius: 3px;
 }
 
 .suggestions-list::-webkit-scrollbar-thumb {
-  background: #FFD600;
-  border-radius: 2px;
+  background: #c1c1c1;
+  border-radius: 3px;
 }
 
 .suggestions-list::-webkit-scrollbar-thumb:hover {
-  background: #e6c100;
+  background: #a8a8a8;
 }
 
 .suggestion-item {
-  background: white;
+  background: #f8f9fa;
   border-radius: 8px;
   padding: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.suggestion-content {
-  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
 }
 
 .suggestion-header {
@@ -296,7 +364,7 @@ export default {
 }
 
 .suggestion-id {
-  font-weight: bold;
+  font-weight: 500;
   color: #333;
 }
 
@@ -308,72 +376,73 @@ export default {
 }
 
 .suggestion-status.pending {
-  background: #fff3e0;
-  color: #e65100;
+  background: #fff3cd;
+  color: #856404;
 }
 
 .suggestion-status.accepted {
-  background: #e8f5e9;
-  color: #2e7d32;
+  background: #d4edda;
+  color: #155724;
 }
 
 .suggestion-status.rejected {
-  background: #ffebee;
-  color: #c62828;
+  background: #f8d7da;
+  color: #721c24;
 }
 
 .suggestion-details {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .detail-row {
   display: flex;
-  gap: 8px;
+  justify-content: space-between;
+  align-items: center;
   font-size: 14px;
 }
 
-.detail-row .label {
+.label {
   color: #666;
-  min-width: 70px;
 }
 
-.detail-row .value {
+.value {
   color: #333;
   font-weight: 500;
 }
 
 .suggestion-actions {
   display: flex;
-  justify-content: flex-end;
   gap: 8px;
+  margin-top: 8px;
 }
 
 .action-btn {
+  flex: 1;
   padding: 6px 12px;
   border: none;
   border-radius: 4px;
-  font-weight: 500;
   cursor: pointer;
+  font-weight: 500;
   transition: all 0.3s;
 }
 
 .action-btn.accept {
-  background: #e8f5e9;
-  color: #2e7d32;
+  background: #28a745;
+  color: white;
 }
 
 .action-btn.accept:hover {
-  background: #c8e6c9;
+  background: #218838;
 }
 
 .action-btn.reject {
-  background: #ffebee;
-  color: #c62828;
+  background: #dc3545;
+  color: white;
 }
 
 .action-btn.reject:hover {
-  background: #ffcdd2;
+  background: #c82333;
 }
 </style> 
