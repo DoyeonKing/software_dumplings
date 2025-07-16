@@ -3,6 +3,7 @@ package com.example.springboot.controller;
 
 import com.example.springboot.common.Result;
 import com.example.springboot.dto.NearestParkingAreaResponseDTO;
+import com.example.springboot.dto.CenterLatLonResponse;
 import com.example.springboot.entity.EliteSites;
 import com.example.springboot.service.Interface.IBikesService;
 import com.example.springboot.service.Interface.IEliteSitesService;
@@ -17,7 +18,7 @@ import java.util.List;
  * 负责接收和处理与Geohash区域信息相关的HTTP请求
  */
 @RestController
-@RequestMapping("/geohashInfo") // 定义这个控制器的基础URL路径
+@RequestMapping("/elitesites") // 定义这个控制器的基础URL路径
 public class EliteSitesController {
     @Resource
     private IEliteSitesService eliteSitesService;
@@ -25,6 +26,15 @@ public class EliteSitesController {
     @Resource
     private IBikesService bikesService;
 
+    /**
+     * 根据停车区域编号获取停车区域中心点的纬度和经度
+     * @param geohash 停车区域编号
+     * @return 包含中心点纬度和经度的 CenterLatLonResponse 实体
+     */
+    @GetMapping("/centerLatLon")
+    public CenterLatLonResponse getCenterLatLonByGeohash(@RequestParam String geohash) {
+        return eliteSitesService.findCenterLatLonByGeohash(geohash);
+    }
 
     // 根据经纬度范围查询停车区域信息
     @GetMapping("/parkingAreasByLatLng")

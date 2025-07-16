@@ -178,7 +178,7 @@ public class DispatchTasksController { // 控制器类名与资源名复数形�
      * @param taskId 调度任务的ID
      * @return 关联的自行车ID列表，或错误响应。
      */
-    @GetMapping("/{taskId}/bikes") // 定义为 GET 请求，路径包含任务ID和 /bikes
+    @GetMapping("/{taskId}/bikes")
     public Result getBikesForDispatchTask(@PathVariable Long taskId) {
         try {
             // 调用 Service 层的方法获取关联的自行车ID列表

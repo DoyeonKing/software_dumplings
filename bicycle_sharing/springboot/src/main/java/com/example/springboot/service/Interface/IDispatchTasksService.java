@@ -13,6 +13,8 @@ import java.util.List; // 导入List
  * 定义调度任务相关的业务操作契约框架
  */
 public interface IDispatchTasksService { // 接口名与实体类名保持一致，改为IDispatchTasksService
+
+
     /**
      * 创建调度任务。
      * @param request 调度任务请求体

@@ -34,6 +34,7 @@ import java.util.stream.Collectors;
 @Service // 标记这是一个Spring管理的Service组件
 public class DispatchTasksServiceImpl implements IDispatchTasksService { // 实现接口名纠正为IDispatchTasksService
 
+
     // 空壳：不在此处定义任何方法实现
     @Autowired // 自动注入 DispatchTasksMapper
     private DispatchTasksMapper dispatchTasksMapper;

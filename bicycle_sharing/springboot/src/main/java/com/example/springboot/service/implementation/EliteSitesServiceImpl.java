@@ -1,6 +1,7 @@
 // src/main/java/com/example/springboot/service/implementation/GeohashInfoServiceImpl.java
 package com.example.springboot.service.implementation;
 
+import com.example.springboot.dto.CenterLatLonResponse;
 import com.example.springboot.entity.EliteSites;
 import com.example.springboot.mapper.EliteSitesMapper;
 import com.example.springboot.service.Interface.IEliteSitesService;
@@ -19,6 +20,11 @@ public class EliteSitesServiceImpl implements IEliteSitesService {
 
     @Autowired
     private EliteSitesMapper eliteSitesMapper;
+
+    @Override
+    public CenterLatLonResponse findCenterLatLonByGeohash(String geohash) {
+        return eliteSitesMapper.findCenterLatLonByGeohash(geohash);
+    }
 
     @Override
     public List<EliteSites> findByLatLngRange(BigDecimal minLat, BigDecimal maxLat, BigDecimal minLon, BigDecimal maxLon) {

@@ -29,4 +29,5 @@ public interface BikesInTasksMapper {
      * @return 关联的自行车ID字符串列表。
      */
     List<String> findBikeIdsByTaskId(@Param("taskId") Long taskId); // 方法签名，SQL 在 XML 中定义
+
 }

@@ -1,6 +1,7 @@
 // src/main/java/com/example/springboot/service/Interface/IGeohashInfoService.java
 package com.example.springboot.service.Interface;
 
+import com.example.springboot.dto.CenterLatLonResponse;
 import com.example.springboot.entity.EliteSites;
 
 import java.math.BigDecimal;
@@ -13,6 +14,13 @@ import java.util.List;
 public interface IEliteSitesService {
 
     List<EliteSites> findByLatLngRange(BigDecimal minLat, BigDecimal maxLat, BigDecimal minLon, BigDecimal maxLon);
+
+    /**
+     * 根据 geohash 查询停车区域中心点的经纬度
+     * @param geohash 停车区域编号
+     * @return 对应的 CenterLatLonResponse 实体，如果找不到则返回 null
+     */
+    CenterLatLonResponse findCenterLatLonByGeohash(String geohash);
 
     /**
      * 获取所有精英站点信息
