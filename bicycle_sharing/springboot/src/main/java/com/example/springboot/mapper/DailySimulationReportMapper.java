@@ -40,4 +40,9 @@ public interface DailySimulationReportMapper {
     // 查找某个geohash在数据库中最晚的prediction_target_time
     LocalDateTime findLatestPredictionTargetTimeByGeohash(@Param("geohash") String geohash);
 
+    List<DailySimulationReport> selectReportsByDateAndTime(
+            @Param("reportDate") LocalDate reportDate,
+            @Param("predictionTargetTime") LocalDateTime predictionTargetTime);
+
+
 }

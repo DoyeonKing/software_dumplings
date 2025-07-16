@@ -84,4 +84,14 @@
         WHERE geohash = #{geohash}
     </select>
 
+    <select id="selectReportsByDateAndTime" resultType="com.example.springboot.entity.DailySimulationReport">
+        SELECT
+            id, report_date, prediction_target_time, geohash, latitude, longitude,
+            status, utilization_rate, current_bikes, parking_capacity,
+            predicted_pickups, predicted_dropoffs, future_bikes, future_remaining_spots, created_at
+        FROM daily_simulation_reports
+        WHERE report_date = #{reportDate}
+          AND prediction_target_time = #{predictionTargetTime}
+    </select>
+
 </mapper>

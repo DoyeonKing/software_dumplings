@@ -69,4 +69,10 @@ public class DailySimulationReportServiceImpl implements IDailySimulationReportS
     public LocalDateTime findLatestPredictionTargetTimeByGeohash(String geohash) {
         return dailySimulationReportMapper.findLatestPredictionTargetTimeByGeohash(geohash);
     }
+
+    // 实现根据日期和精确时间点查询报告
+    @Override
+    public List<DailySimulationReport> getReportsByDateAndTime(LocalDate reportDate, LocalDateTime predictionTargetTime) {
+        return dailySimulationReportMapper.selectReportsByDateAndTime(reportDate, predictionTargetTime);
+    }
 }
