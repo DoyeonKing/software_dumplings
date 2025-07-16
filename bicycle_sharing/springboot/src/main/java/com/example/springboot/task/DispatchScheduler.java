@@ -250,9 +250,9 @@ public class DispatchScheduler {
         List<HourlySimulationReportDTO> dailyReports = new ArrayList<>();
         LocalDate reportDate = LocalDate.of(year, month, day);
 
-        // 【关键修改】：移除了这里对一整天数据进行删除的逻辑。
-        // dailySimulationReportService.deleteReportsByDate(reportDate); // Removed
-        // dailyDispatchSuggestionService.deleteSuggestionsByDate(reportDate); // Removed
+         //【关键修改】：移除了这里对一整天数据进行删除的逻辑。
+         dailySimulationReportService.deleteReportsByDate(reportDate); // Removed
+         dailyDispatchSuggestionService.deleteSuggestionsByDate(reportDate); // Removed
 
         LocalDateTime startOfDay = LocalDateTime.of(year, month, day, 0, 0, 0);
 

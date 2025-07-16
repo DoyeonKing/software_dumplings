@@ -167,8 +167,8 @@ public class PredictionController {
             if (scarceStatus == null || surplusStatus == null) continue;
 
             // 计算可调度数量（修正为整数计算）
-            long needed = Math.max(0, (long) Math.ceil(scarceStatus.getParkingCapacity() * 0.3 - scarceStatus.getFutureBikes()));
-            long available = Math.max(0, surplusStatus.getFutureBikes() - (long) Math.floor(surplusStatus.getParkingCapacity() * 0.7));
+            long needed = Math.max(0, (long) Math.ceil(scarceStatus.getParkingCapacity() * 0.75 - scarceStatus.getFutureBikes()));
+            long available = Math.max(0, surplusStatus.getFutureBikes() - (long) Math.floor(surplusStatus.getParkingCapacity() * 0.95));
             int dispatchCount = (int) Math.min(needed, available);  // 转换为int类型
 
             if (dispatchCount > 0) {

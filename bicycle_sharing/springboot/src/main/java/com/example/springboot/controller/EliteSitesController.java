@@ -22,7 +22,7 @@ public class EliteSitesController {
     @Resource
     private IEliteSitesService eliteSitesService;
 
-    @Resource 
+    @Resource
     private IBikesService bikesService;
 
 

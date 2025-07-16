@@ -41,4 +41,25 @@ public class DailySimulationReportServiceImpl implements IDailySimulationReportS
     public void deleteReportsByDate(LocalDate reportDate) {
         dailySimulationReportMapper.deleteByDate(reportDate);
     }
+
+     @Override
+    @Transactional
+    public void upsertDailyReport(DailySimulationReport report) {
+        // 尝试查找现有记录
+        DailySimulationReport existingReport = dailySimulationReportMapper.findByDateAndTimeAndGeohash(
+                report.getReportDate(),
+                report.getPredictionTargetTime(),
+                report.getGeohash()
+        );
+
+        if (existingReport != null) {
+            // 如果记录存在，更新它
+            report.setId(existingReport.getId()); // 确保更新时使用正确的ID
+            dailySimulationReportMapper.update(report);
+            System.out.println("DEBUG: Updated DailySimulationReport for geohash: " + report.getGeohash() + " at " + report.getPredictionTargetTime());
+        } else {
+            // 如果记录不存在，插入它
+            System.out.println("记录不存在");
+        }
+    }
 }

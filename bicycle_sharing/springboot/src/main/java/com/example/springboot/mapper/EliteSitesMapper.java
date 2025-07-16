@@ -47,4 +47,6 @@ public interface EliteSitesMapper {
             @Param("minLon") double minLon,
             @Param("maxLon") double maxLon
     );
+        EliteSites getEliteSiteByGeohash(@Param("geohash") String geohash);
+
 }

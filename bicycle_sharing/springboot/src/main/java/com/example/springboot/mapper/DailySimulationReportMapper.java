@@ -4,6 +4,7 @@ import com.example.springboot.entity.DailySimulationReport;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -25,4 +26,15 @@ public interface DailySimulationReportMapper {
 
     // 根据日期删除已有报告 (用于重新生成某天的报告)
     int deleteByDate(@Param("reportDate") LocalDate reportDate);
+
+
+    // 根据日期、时间点和geohash查找单个报告
+    DailySimulationReport findByDateAndTimeAndGeohash(
+            @Param("reportDate") LocalDate reportDate,
+            @Param("predictionTargetTime") LocalDateTime predictionTargetTime,
+            @Param("geohash") String geohash);
+
+    // 更新单个报告
+    void update(DailySimulationReport report);
+
 }

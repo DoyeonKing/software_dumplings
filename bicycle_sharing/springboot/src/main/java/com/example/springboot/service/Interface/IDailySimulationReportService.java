@@ -8,4 +8,6 @@ public interface IDailySimulationReportService {
     void saveDailyReports(List<DailySimulationReport> reports);
     List<DailySimulationReport> getReportsByDateAndBounds(LocalDate reportDate, double minLat, double maxLat, double minLon, double maxLon);
     void deleteReportsByDate(LocalDate reportDate);
+
+    void upsertDailyReport(DailySimulationReport report);
 }
