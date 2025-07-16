@@ -8,6 +8,38 @@ export function getAllDispatchTasks() {
     })
 }
 
+// 获取未处理状态的调度任务
+export function getUnprocessedTasks() {
+  return request({
+    url: '/dispatchTasks/unprocessed',
+    method: 'get'
+  })
+}
+
+// 获取处理中状态的调度任务
+export function getProcessingTasks() {
+  return request({
+    url: '/dispatchTasks/processing',
+    method: 'get'
+  })
+}
+
+// 获取处理完成状态的调度任务
+export function getCompletedTasks() {
+  return request({
+    url: '/dispatchTasks/completed',
+    method: 'get'
+  })
+}
+
+// 删除调度任务
+export function deleteDispatchTask(taskId) {
+  return request({
+    url: `/dispatchTasks/${taskId}`,
+    method: 'delete'
+  })
+}
+
 // 按日期范围和工作人员ID查询调度任务
 export function getDispatchTasksByDateRangeAndStaff(params) {
     return request({

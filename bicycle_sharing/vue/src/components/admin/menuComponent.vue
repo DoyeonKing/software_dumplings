@@ -12,12 +12,14 @@
       </router-link>
 
       <router-link to="/location" class="menu-item" @click="closeMenu">
-        <span class="menu-item-text">车辆投放</span>
+        <span class="menu-item-text">车辆调度</span>
       </router-link>
 
+<!--
       <router-link to="/tasks" class="menu-item" @click="closeMenu">
         <span class="menu-item-text">任务查询</span>
       </router-link>
+-->
 
       <router-link to="/help" class="menu-item" @click="closeMenu">
         <span class="menu-item-text">帮助指南</span>

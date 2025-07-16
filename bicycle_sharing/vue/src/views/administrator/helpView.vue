@@ -9,6 +9,7 @@
         <h2 class="help-title">
           <span class="icon-help">💡</span> 帮助指南
         </h2>
+        
         <div class="help-content">
           <div class="help-item">
             <h3 class="help-question">
@@ -17,7 +18,7 @@
             <p class="help-answer">
               系统核心功能都集中在几个主要页面。您可以首先访问
               <router-link to="/admin" class="help-link">主页面</router-link>
-              ，这里是系统的入口和概览。
+              ，这里是系统的入口和概览，可以快速了解系统整体状态。
             </p>
           </div>
 
@@ -28,29 +29,18 @@
             <p class="help-answer">
               所有关键的运营数据，如车辆使用率、收入、区域天气等，都在
               <router-link to="/dashboard" class="help-link">指标看板页面</router-link>
-              中以图表形式展示，方便您进行数据分析和决策。
+              中以图表形式展示，方便您进行数据分析和决策。这里提供了完整的业务洞察。
             </p>
           </div>
 
           <div class="help-item">
             <h3 class="help-question">
-              <span class="icon-q">❓</span> 如何找到单车或特定区域的车辆分布？
+              <span class="icon-q">❓</span> 如何管理车辆调度和定位？
             </h3>
             <p class="help-answer">
               请前往
-              <router-link to="/location" class="help-link">车辆定位页面</router-link>
-              。您不仅可以在地图上看到所有车辆的实时位置，还可以查看特定停车区域的车辆数量，并进行车辆调度任务的发布。
-            </p>
-          </div>
-
-          <div class="help-item">
-            <h3 class="help-question">
-              <span class="icon-q">❓</span> 我发布了调度任务，如何跟踪任务状态？
-            </h3>
-            <p class="help-answer">
-              所有已发布的调度任务都会汇总在
-              <router-link to="/tasks" class="help-link">任务查询页面</router-link>
-              。您可以在此页面搜索、筛选、并管理（如催促、删除）所有调度任务。
+              <router-link to="/location" class="help-link">车辆调度页面</router-link>
+              。您不仅可以在地图上看到所有车辆的实时位置，还可以查看特定停车区域的车辆数量，发布车辆调度任务，并管理区域数据和调度建议。
             </p>
           </div>
         </div>

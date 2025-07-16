@@ -86,6 +86,14 @@ export function getParkingAreaDetails(parkingId) {
     });
 }
 
+// 获取所有停车区域编号（用于下拉选择）
+export function getAllParkingAreaCodes() {
+    return request({
+        url: '/elitesites/allParkingAreas',
+        method: 'get'
+    });
+}
+
 
 // 数据格式转换函数：将后端返回的数据转换为前端需要的格式
 export function convertParkingAreaData(backendData) {

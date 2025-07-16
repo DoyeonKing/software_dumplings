@@ -43,42 +43,24 @@
       />
     </div>
 
-    <div class="filter-buttons">
-      <button 
-        :class="['filter-btn', { active: currentFilter === 'PENDING' }]"
-        @click="setFilter('PENDING')"
-      >
-        待处理
-      </button>
-      <button 
-        :class="['filter-btn', { active: currentFilter === 'ACCEPTED' }]"
-        @click="setFilter('ACCEPTED')"
-      >
-        已接受
-      </button>
-      <button 
-        :class="['filter-btn', { active: currentFilter === 'REJECTED' }]"
-        @click="setFilter('REJECTED')"
-      >
-        已拒绝
-      </button>
-    </div>
-
     <!-- 建议列表 -->
     <div class="suggestions-list">
       <div v-if="suggestions.length === 0 && !isLoading" class="no-suggestions">
         <p>{{ hasSearched ? '当前屏幕范围内暂无调度建议' : '请设置预测参数并点击"预测调度建议"' }}</p>
       </div>
+      <div v-else-if="filteredSuggestions.length === 0 && suggestions.length > 0" class="no-suggestions">
+        <p>没有符合搜索条件的调度建议</p>
+      </div>
       <div 
-        v-for="suggestion in filteredSuggestions" 
-        :key="suggestion.id"
+        v-for="(suggestion, index) in filteredSuggestions" 
+        :key="suggestion.id || index"
         class="suggestion-item"
       >
         <div class="suggestion-content">
           <div class="suggestion-header">
-            <span class="suggestion-id">建议ID: {{ suggestion.id }}</span>
-            <div class="suggestion-status" :class="suggestion.suggestionStatus?.toLowerCase()">
-              {{ getStatusText(suggestion.suggestionStatus) }}
+            <span class="suggestion-id">建议ID: {{ suggestion.id || `临时ID_${index + 1}` }}</span>
+            <div class="suggestion-status" :class="(suggestion.suggestionStatus || 'PENDING')?.toLowerCase()">
+              {{ getStatusText(suggestion.suggestionStatus || 'PENDING') }}
             </div>
           </div>
           <div class="suggestion-details">
@@ -104,7 +86,7 @@
             </div>
           </div>
         </div>
-        <div class="suggestion-actions" v-if="suggestion.suggestionStatus === 'PENDING'">
+        <div class="suggestion-actions">
           <button class="action-btn accept" @click="acceptSuggestion(suggestion)">
             接受
           </button>
@@ -131,7 +113,6 @@ export default {
   data() {
     return {
       searchQuery: '',
-      currentFilter: 'PENDING',
       suggestions: [],
       reportDate: '',
       predictionHour: 0,
@@ -141,17 +122,26 @@ export default {
   },
   computed: {
     filteredSuggestions() {
-      return this.suggestions
+      console.log('计算过滤后的建议，原始建议数量:', this.suggestions.length);
+      console.log('原始建议数据:', this.suggestions);
+      
+      const filtered = this.suggestions
         .filter(suggestion => {
           const matchesSearch = this.searchQuery === '' ||
-            suggestion.id.toString().includes(this.searchQuery) ||
-            suggestion.sourceGeohash.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-            suggestion.targetGeohash.toLowerCase().includes(this.searchQuery.toLowerCase());
+            suggestion.id?.toString().includes(this.searchQuery) ||
+            suggestion.sourceGeohash?.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+            suggestion.targetGeohash?.toLowerCase().includes(this.searchQuery.toLowerCase());
           
-          const matchesFilter = this.currentFilter === suggestion.suggestionStatus;
+          // 暂时不进行状态过滤，显示所有建议
+          // const matchesFilter = this.currentFilter === suggestion.suggestionStatus;
           
-          return matchesSearch && matchesFilter;
+          return matchesSearch; // 只进行搜索过滤，不进行状态过滤
         });
+      
+      console.log('过滤后的建议数量:', filtered.length);
+      console.log('过滤后的建议数据:', filtered);
+      
+      return filtered;
     }
   },
   mounted() {
@@ -159,9 +149,6 @@ export default {
     this.reportDate = this.getTodayString();
   },
   methods: {
-    setFilter(filter) {
-      this.currentFilter = filter;
-    },
     getStatusText(status) {
       const statusMap = {
         'PENDING': '待处理',
@@ -278,14 +265,21 @@ export default {
         console.log('预测调度建议API响应:', response);
 
         if (response && (response.code === 200 || response.code === '200')) {
-          // 直接使用后端返回的数据，不做前端判断
-          this.suggestions = response.data || [];
+          // 添加详细的数据结构调试信息
+          console.log('完整的响应数据结构:', response);
+          console.log('response.data:', response.data);
+          console.log('response.data.dispatchSuggestions:', response.data?.dispatchSuggestions);
+          console.log('response.data.areaStatuses:', response.data?.areaStatuses);
+          
+          // 修复：正确获取调度建议数据
+          const suggestionsData = response.data?.dispatchSuggestions || [];
+          this.suggestions = suggestionsData;
           console.log('成功获取调度建议数量:', this.suggestions.length);
           
           if (this.suggestions.length > 0) {
             alert(`成功获取到 ${this.suggestions.length} 条调度建议`);
           } else {
-            alert('当前暂无符合条件的调度建议');
+            alert('当前屏幕范围内暂无符合条件的调度建议，请尝试调整预测参数或地图视图');
           }
         } else {
           console.warn('预测调度建议失败 - API响应:', response);
@@ -316,8 +310,27 @@ export default {
           return;
         }
         
-        console.log('开始接受建议，ID:', suggestion.id, '状态: ACCEPTED');
+        console.log('开始接受建议:', suggestion);
         console.log('当前token:', token ? '已设置' : '未设置');
+        
+        // 如果没有ID，直接处理接受逻辑，不调用API
+        if (!suggestion.id) {
+          console.log('建议没有ID，直接处理接受逻辑');
+          
+          // 发送事件给父组件，包含完整的建议数据
+          this.$emit('suggestion-accepted', {
+            id: `temp_${Date.now()}`,
+            startArea: suggestion.sourceGeohash,
+            endArea: suggestion.targetGeohash,
+            amount: suggestion.suggestedBikeCount,
+            originalSuggestion: suggestion
+          });
+          
+          console.log('建议已接受');
+          alert('建议已成功接受！');
+          return;
+        }
+        
         const suggestionId = parseInt(suggestion.id);
         console.log('发送API参数:', { suggestionId, newStatus: 'ACCEPTED' });
         const response = await updateSuggestionStatus(suggestionId, 'ACCEPTED');
@@ -366,8 +379,24 @@ export default {
           return;
         }
         
-        console.log('开始拒绝建议，ID:', suggestion.id, '状态: REJECTED');
+        console.log('开始拒绝建议:', suggestion);
         console.log('当前token:', token ? '已设置' : '未设置');
+        
+        // 如果没有ID，直接处理拒绝逻辑，不调用API
+        if (!suggestion.id) {
+          console.log('建议没有ID，直接处理拒绝逻辑');
+          
+          // 发送事件给父组件
+          this.$emit('suggestion-rejected', {
+            id: `temp_${Date.now()}`,
+            originalSuggestion: suggestion
+          });
+          
+          console.log('建议已拒绝');
+          alert('建议已成功拒绝！');
+          return;
+        }
+        
         const suggestionId = parseInt(suggestion.id);
         console.log('发送API参数:', { suggestionId, newStatus: 'REJECTED' });
         const response = await updateSuggestionStatus(suggestionId, 'REJECTED');
@@ -529,27 +558,6 @@ export default {
 .search-input:focus {
   border-color: #FFD600;
   box-shadow: 0 0 0 2px rgba(255, 214, 0, 0.2);
-}
-
-.filter-buttons {
-  display: flex;
-  gap: 8px;
-}
-
-.filter-btn {
-  flex: 1;
-  padding: 8px;
-  border: none;
-  border-radius: 6px;
-  background: #f5f5f5;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.filter-btn.active {
-  background: #FFD600;
-  color: #000;
 }
 
 .suggestions-list {

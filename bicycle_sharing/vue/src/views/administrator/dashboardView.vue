@@ -60,57 +60,36 @@
         </div>
       </div>
 
-      <div class="bike-stats-card info-card">
+      <div class="vehicle-info-card info-card">
         <div class="card-header">
-          <h3>车辆统计</h3>
-          <span class="stats-icon">🚲</span>
+          <h3>车辆信息</h3>
+          <span class="vehicle-icon">🚲</span>
         </div>
-        <div class="stats-content">
-          <div class="stats-main">
-            <div class="stats-number">{{ bikeStats.totalBikes }}</div>
-            <div class="stats-label">总车辆数</div>
-          </div>
-          <div class="stats-details">
-            <div class="stats-item">
-              <span class="label">正常：</span>
-              <span class="value normal">{{ bikeStats.normalBikes }}</span>
-            </div>
-            <div class="stats-item">
-              <span class="label">故障：</span>
-              <span class="value fault">{{ bikeStats.faultBikes }}</span>
-            </div>
-            <div class="stats-item">
-              <span class="label">维修中：</span>
-              <span class="value repair">{{ bikeStats.repairBikes }}</span>
+        <div class="vehicle-content">
+          <div class="parking-area-selector">
+            <div class="selector-label">选择停车区域</div>
+            <div class="selected-area">
+              {{ selectedParkingArea || '点击地图上的停车区域' }}
             </div>
           </div>
-        </div>
-      </div>
-
-      <div class="usage-card info-card">
-        <div class="card-header">
-          <h3>使用率</h3>
-          <span class="usage-icon">📊</span>
-        </div>
-        <div class="usage-content">
-          <div class="usage-main">
-            <div class="usage-circle">
-              <div class="usage-percentage">{{ usageData.usageRate }}%</div>
-              <div class="usage-label">当前使用率</div>
+          <div class="vehicle-stats">
+            <div class="stats-main">
+              <div class="stats-number">{{ vehicleData.totalBikes }}</div>
+              <div class="stats-label">车辆总数</div>
             </div>
-          </div>
-          <div class="usage-details">
-            <div class="usage-item">
-              <span class="label">在线车辆：</span>
-              <span class="value">{{ usageData.onlineBikes }}</span>
-            </div>
-            <div class="usage-item">
-              <span class="label">使用中：</span>
-              <span class="value">{{ usageData.inUseBikes }}</span>
-            </div>
-            <div class="usage-item">
-              <span class="label">空闲：</span>
-              <span class="value">{{ usageData.idleBikes }}</span>
+            <div class="stats-details">
+              <div class="stats-item">
+                <span class="label">使用率：</span>
+                <span class="value usage-rate">{{ vehicleData.utilization }}%</span>
+              </div>
+              <div class="stats-item">
+                <span class="label">可用车辆：</span>
+                <span class="value available">{{ vehicleData.availableBikes }}</span>
+              </div>
+              <div class="stats-item">
+                <span class="label">使用中：</span>
+                <span class="value in-use">{{ vehicleData.inUseBikes }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -135,7 +114,7 @@
 import MenuComponent from '@/components/admin/menuComponent.vue'
 import AMapLoader from '@/utils/loadAMap.js'
 import bicycleIcon from '@/components/icons/bicycle.png';
-import { getMapAreaBicycles } from '@/api/map/bicycle';
+import { getMapAreaBicycles, getBikeUtilization } from '@/api/map/bicycle';
 import { getParkingAreasInBounds, convertParkingAreaData } from '@/api/map/parking.js';
 
 export default {
@@ -155,17 +134,12 @@ export default {
         windSpeed: 12,
         airQuality: "优"
       },
-      bikeStats: {
-        totalBikes: 1200,
-        normalBikes: 1100,
-        faultBikes: 60,
-        repairBikes: 40
-      },
-      usageData: {
-        usageRate: 76,
-        onlineBikes: 1000,
-        inUseBikes: 760,
-        idleBikes: 240
+      selectedParkingArea: null,
+      vehicleData: {
+        totalBikes: 0,
+        utilization: 0,
+        availableBikes: 0,
+        inUseBikes: 0
       },
       cityDistrictRoad: {
         "深圳市": {
@@ -492,8 +466,53 @@ export default {
           infoWindow.open(this.map, e.lnglat);
         });
         polygon.on("mouseout", () => infoWindow.close());
+        
+        // 添加点击事件来获取停车区域信息
+        polygon.on("click", () => {
+          this.selectedParkingArea = area.geohash;
+          this.fetchVehicleUtilization(area.geohash);
+        });
       });
     },
+    
+    // 获取车辆使用率数据
+    async fetchVehicleUtilization(geohash) {
+      try {
+        console.log('获取车辆使用率数据，区域编号:', geohash);
+        const response = await getBikeUtilization(geohash);
+        console.log('车辆使用率API响应:', response);
+        
+        // 直接使用返回的数据，因为这个API直接返回数据对象
+        if (response && typeof response === 'object') {
+          this.vehicleData = {
+            totalBikes: response.totalBikes || 0,
+            utilization: response.utilization || 0,
+            availableBikes: response.availableBikes || 0,
+            inUseBikes: response.inUseBikes || 0
+          };
+          console.log('更新车辆数据:', this.vehicleData);
+        } else {
+          console.warn('获取车辆使用率失败:', response);
+          // 设置默认数据
+          this.vehicleData = {
+            totalBikes: 0,
+            utilization: 0,
+            availableBikes: 0,
+            inUseBikes: 0
+          };
+        }
+      } catch (error) {
+        console.error('获取车辆使用率出错:', error);
+        // 设置默认数据
+        this.vehicleData = {
+          totalBikes: 0,
+          utilization: 0,
+          availableBikes: 0,
+          inUseBikes: 0
+        };
+      }
+    },
+    
     handleProfileSaved(formData) {
       console.log('个人资料已保存:', formData);
     },
@@ -534,22 +553,6 @@ export default {
               humidity: 60 + Math.floor(Math.random() * 20),
               windSpeed: 10 + Math.floor(Math.random() * 8),
               airQuality: ["优", "良", "轻度污染"][Math.floor(Math.random() * 3)]
-            };
-
-            // 更新自行车统计数据
-            this.bikeStats = {
-              totalBikes: 1000 + Math.floor(Math.random() * 500),
-              normalBikes: 900 + Math.floor(Math.random() * 100),
-              faultBikes: 30 + Math.floor(Math.random() * 40),
-              repairBikes: 20 + Math.floor(Math.random() * 30)
-            };
-
-            // 更新使用率数据
-            this.usageData = {
-              usageRate: 60 + Math.floor(Math.random() * 30),
-              onlineBikes: 800 + Math.floor(Math.random() * 200),
-              inUseBikes: 500 + Math.floor(Math.random() * 300),
-              idleBikes: 200 + Math.floor(Math.random() * 100)
             };
           });
 
@@ -602,8 +605,7 @@ export default {
 
 .location-selector h3,
 .weather-card h3,
-.bike-stats-card h3,
-.usage-card h3 {
+.vehicle-info-card h3 {
   margin: 0 0 6px 0;
   font-size: 1rem;
   font-weight: 700;
@@ -651,14 +653,14 @@ export default {
   justify-content: space-between;
 }
 
-.weather-icon, .stats-icon, .usage-icon {
+.weather-icon, .vehicle-icon {
   font-size: 1.2rem;
 }
 
-.weather-content, .stats-content, .usage-content {
+.weather-content, .vehicle-content {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
 }
 
 .weather-main {
@@ -689,7 +691,44 @@ export default {
   color: #888;
 }
 
+/* 车辆信息面板样式 */
+.parking-area-selector {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+}
+
+.selector-label {
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.selected-area {
+  font-size: 0.9rem;
+  color: #333;
+  font-weight: 600;
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.vehicle-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .stats-main {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.stats-number {
   font-size: 1.8rem;
   font-weight: 700;
   color: #2196f3;
@@ -702,61 +741,35 @@ export default {
 
 .stats-details {
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  gap: 6px;
   font-size: 0.9rem;
   color: #555;
+}
+
+.stats-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .stats-item .label {
   color: #888;
 }
 
-.stats-item .value.normal {
-  color: #43a047;
-}
-
-.stats-item .value.fault {
-  color: #e53935;
-}
-
-.stats-item .value.repair {
-  color: #ffb300;
-}
-
-.usage-main {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.usage-circle {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.usage-percentage {
-  font-size: 1.8rem;
-  font-weight: 700;
+.stats-item .value.usage-rate {
   color: #FFD600;
+  font-weight: 600;
 }
 
-.usage-label {
-  font-size: 0.9rem;
-  color: #666;
+.stats-item .value.available {
+  color: #43a047;
+  font-weight: 600;
 }
 
-.usage-details {
-  display: flex;
-  gap: 10px;
-  font-size: 0.9rem;
-  color: #555;
-  justify-content: center;
-}
-
-.usage-item .label {
-  color: #888;
+.stats-item .value.in-use {
+  color: #ff9800;
+  font-weight: 600;
 }
 
 .top-right-btn-group {
@@ -764,6 +777,37 @@ export default {
   top: 20px;
   right: 30px;
   z-index: 30;
+  display: flex;
+  gap: 10px;
+}
+
+.btn-group {
+  display: flex;
+  gap: 10px;
+}
+
+.yellow-btn {
+  background: #FFD600;
+  color: #333;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.yellow-btn:hover {
+  background: #e6c100;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.yellow-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 @media (max-width: 900px) {

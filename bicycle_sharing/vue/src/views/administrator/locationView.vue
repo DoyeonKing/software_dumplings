@@ -23,55 +23,53 @@
       </button>
     </div>
 
-    <!-- 修改左侧信息面板为可折叠面板 -->
-    <div class="left-panels">
-      <div class="collapsible-panel" :class="{ expanded: areaPanelExpanded }">
-        <div class="panel-header" @click="toggleAreaPanel">
-          <span class="panel-title">区域数据</span>
+    <!-- 左侧信息面板 - 使用标签页设计 -->
+    <div class="left-panel-container">
+      <div class="panel-tabs">
+        <div 
+          class="tab-button" 
+          :class="{ active: activeTab === 'area' }"
+          @click="switchTab('area')"
+        >
+          <span class="tab-icon">📊</span>
+          <span class="tab-text">区域数据</span>
         </div>
-        <div class="panel-content" v-show="areaPanelExpanded">
-          <div class="info-card">
-            <div class="info-section">
-              <div class="info-label">停车区域位置</div>
-              <div class="info-value">{{ currentArea.geohash || "请在地图上选择区域" }}</div>
-            </div>
-            <div class="info-section">
-              <div class="info-label">现有车辆</div>
-              <div class="info-value">{{ currentArea.currentBikes || 0 }}</div>
-            </div>
-            <div class="info-section">
-              <div class="info-label">预估可用车位</div>
-              <div class="info-value">{{ currentArea.availableSpots || 0 }}</div>
-            </div>
-            <div class="info-section">
-              <div class="predict-filter">
-                <label>预测时间：</label>
-                <select v-model="predictHour" class="yellow-select">
-                  <option :value="1">未来1小时</option>
-                  <option :value="3">未来3小时</option>
-                  <option :value="6">未来6小时</option>
-                </select>
-              </div>
-              <div class="predict-stats">
-                <div>预计取车量：<span class="info-number">{{ predictData.take }}</span></div>
-                <div>预计停车量：<span class="info-number">{{ predictData.park }}</span></div>
-                <div>预计总车辆：<span class="info-number">{{ predictData.total }}</span></div>
-              </div>
-            </div>
-          </div>
+        <div 
+          class="tab-button" 
+          :class="{ active: activeTab === 'suggestion' }"
+          @click="switchTab('suggestion')"
+        >
+          <span class="tab-icon">💡</span>
+          <span class="tab-text">调度建议</span>
+        </div>
+        <div 
+          class="tab-button" 
+          :class="{ active: activeTab === 'task' }"
+          @click="switchTab('task')"
+        >
+          <span class="tab-icon">📋</span>
+          <span class="tab-text">任务查询</span>
         </div>
       </div>
-
-      <div class="collapsible-panel suggestion-panel-container" :class="{ expanded: suggestionPanelExpanded }">
-        <div class="panel-header" @click="toggleSuggestionPanel">
-          <span class="panel-title">调度建议</span>
+      
+      <div class="panel-content-container">
+        <div class="panel-content" v-show="activeTab === 'area'">
+          <AreaDataPanel 
+            :map="map"
+            ref="areaDataPanel"
+          />
         </div>
-        <div class="panel-content" v-show="suggestionPanelExpanded">
+        
+        <div class="panel-content" v-show="activeTab === 'suggestion'">
           <DispatchSuggestionPanel
               :map="map"
               @suggestion-accepted="handleSuggestionAccepted"
               @suggestion-rejected="handleSuggestionRejected"
           />
+        </div>
+        
+        <div class="panel-content" v-show="activeTab === 'task'">
+          <TaskQueryPanel />
         </div>
       </div>
     </div>
@@ -89,61 +87,65 @@
 
             <div class="task-section">
               <label>调度起点</label>
-              <button v-if="!startSelectionActive" class="yellow-btn select-location-btn" @click="activateSelection('start')">
-                选择起点
-              </button>
-              <div v-if="startSelectionActive" class="location-selection-box">
-                <div v-if="!selectedStartArea" class="placeholder-text">
-                  请在地图上选择起点区域...
+              <div class="location-selection-container">
+                <!-- 手动输入区域 -->
+                <div class="input-section">
+                  <input 
+                    v-model="startInputValue"
+                    @input="onStartInput"
+                    placeholder="输入停车区域编号..."
+                    class="area-input"
+                    :disabled="startSelectionActive"
+                  />
                 </div>
-                <div v-if="selectedStartArea" class="location-details">
-                  <div class="location-name">{{ selectedStartArea.geohash }}</div>
-                  <div class="predict-filter">
-                    <select v-model="startPredictHour" class="yellow-select small-select">
-                      <option :value="1">未来1小时</option>
-                      <option :value="3">未来3小时</option>
-                      <option :value="6">未来6小时</option>
-                    </select>
-                  </div>
-                  <div class="predict-stats-horizontal">
-                    <div class="predict-take">取车: {{ startPredictData.take }}</div>
-                    <div class="predict-park">停车: {{ startPredictData.park }}</div>
-                    <div class="predict-total">总车: {{ startPredictData.total }}</div>
-                  </div>
-                </div>
-                <button class="clear-btn" @click="cancelOrClearSelection('start')">
-                  {{ selectedStartArea ? '清空起点' : '取消' }}
+                
+                <!-- 地图选择按钮 -->
+                <button v-if="!startSelectionActive" class="yellow-btn select-location-btn" @click="activateSelection('start')">
+                  地图选择
                 </button>
+                <div v-if="startSelectionActive" class="location-selection-box">
+                  <div v-if="!selectedStartArea" class="placeholder-text">
+                    请在地图上选择起点区域...
+                  </div>
+                  <div v-if="selectedStartArea" class="location-details">
+                    <div class="location-name">{{ selectedStartArea.geohash }}</div>
+                  </div>
+                  <button class="clear-btn" @click="cancelOrClearSelection('start')">
+                    {{ selectedStartArea ? '清空起点' : '取消' }}
+                  </button>
+                </div>
               </div>
             </div>
 
             <div class="task-section">
               <label>调度终点</label>
-              <button v-if="!endSelectionActive" class="yellow-btn select-location-btn" @click="activateSelection('end')">
-                选择终点
-              </button>
-              <div v-if="endSelectionActive" class="location-selection-box">
-                <div v-if="!selectedEndArea" class="placeholder-text">
-                  请在地图上选择终点区域...
+              <div class="location-selection-container">
+                <!-- 手动输入区域 -->
+                <div class="input-section">
+                  <input 
+                    v-model="endInputValue"
+                    @input="onEndInput"
+                    placeholder="输入停车区域编号..."
+                    class="area-input"
+                    :disabled="endSelectionActive"
+                  />
                 </div>
-                <div v-if="selectedEndArea" class="location-details">
-                  <div class="location-name">{{ selectedEndArea.geohash }}</div>
-                  <div class="predict-filter">
-                    <select v-model="endPredictHour" class="yellow-select small-select">
-                      <option :value="1">未来1小时</option>
-                      <option :value="3">未来3小时</option>
-                      <option :value="6">未来6小时</option>
-                    </select>
-                  </div>
-                  <div class="predict-stats-horizontal">
-                    <div class="predict-take">取车: {{ endPredictData.take }}</div>
-                    <div class="predict-park">停车: {{ endPredictData.park }}</div>
-                    <div class="predict-total">总车: {{ endPredictData.total }}</div>
-                  </div>
-                </div>
-                <button class="clear-btn" @click="cancelOrClearSelection('end')">
-                  {{ selectedEndArea ? '清空终点' : '取消' }}
+                
+                <!-- 地图选择按钮 -->
+                <button v-if="!endSelectionActive" class="yellow-btn select-location-btn" @click="activateSelection('end')">
+                  地图选择
                 </button>
+                <div v-if="endSelectionActive" class="location-selection-box">
+                  <div v-if="!selectedEndArea" class="placeholder-text">
+                    请在地图上选择终点区域...
+                  </div>
+                  <div v-if="selectedEndArea" class="location-details">
+                    <div class="location-name">{{ selectedEndArea.geohash }}</div>
+                  </div>
+                  <button class="clear-btn" @click="cancelOrClearSelection('end')">
+                    {{ selectedEndArea ? '清空终点' : '取消' }}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -178,7 +180,7 @@
 
             <button class="yellow-btn deploy-btn"
                     @click="publishTask"
-                    :disabled="!selectedStartArea || !selectedEndArea || !selectedWorker || dispatchAmount<1"
+                    :disabled="(!selectedStartArea && !startInputValue.trim()) || (!selectedEndArea && !endInputValue.trim()) || !selectedWorker || dispatchAmount<1"
             >确定发布</button>
           </div>
         </transition>
@@ -190,11 +192,14 @@
 <script>
 import MenuComponent from '@/components/admin/menuComponent.vue';
 import DispatchSuggestionPanel from '@/components/admin/DispatchSuggestionPanel.vue';
+import AreaDataPanel from '@/components/admin/AreaDataPanel.vue';
+import TaskQueryPanel from '@/components/admin/TaskQueryPanel.vue';
 import AMapLoader from '@/utils/loadAMap.js';
 import bicycleIcon from '@/components/icons/bicycle.png';
 import { getMapAreaBicycles } from '@/api/map/bicycle';
 import { getParkingAreasInBounds, convertParkingAreaData } from '@/api/map/parking.js';
 import { getManagedStaff } from '@/api/account/staffService.js';
+import { createDispatchTask } from '@/api/assignment/dispatchService.js';
 
 // 颜色定义
 const HIGHLIGHT_COLORS = {
@@ -207,7 +212,9 @@ export default {
   name: "LocationView",
   components: {
     MenuComponent,
-    DispatchSuggestionPanel
+    DispatchSuggestionPanel,
+    AreaDataPanel,
+    TaskQueryPanel
   },
   data() {
     return {
@@ -215,17 +222,12 @@ export default {
       polygons: [],
       polygonMap: {},
       currentArea: { geohash: "请在地图上选择区域", currentBikes: 0, availableSpots: 0 },
-      predictHour: 1,
-      predictData: { take: 0, park: 0, total: 0 },
       selectingFor: null,
       startSelectionActive: false,
       endSelectionActive: false,
       selectedStartArea: null,
       selectedEndArea: null,
-      startPredictHour: 1,
-      endPredictHour: 1,
-      startPredictData: { take: 0, park: 0, total: 0 },
-      endPredictData: { take: 0, park: 0, total: 0 },
+
       selectedWorker: null,
       dispatchAmount: 1,
       workers: [],
@@ -239,22 +241,20 @@ export default {
       parkingAreas: [],
       bikes: [],
       showBikes: true,
-      // 新增面板状态
-      areaPanelExpanded: false,
-      suggestionPanelExpanded: false,
+      // 标签页状态
+      activeTab: 'area', // 默认显示区域数据标签页
       // 添加高亮区域的颜色配置
       areaColors: {
         start: { fillColor: "#ffcdd2", fillOpacity: 0.5, strokeColor: "#ef5350" },
         end: { fillColor: "#c8e6c9", fillOpacity: 0.5, strokeColor: "#66bb6a" }
-      }
+      },
+      // 停车区域选择相关
+      startInputValue: '',
+      endInputValue: ''
+
     };
   },
-  watch: {
-    predictHour() { this.updatePrediction(this.currentArea, this.predictHour, 'predictData'); },
-    startPredictHour() { this.updatePrediction(this.selectedStartArea, this.startPredictHour, 'startPredictData'); },
-    endPredictHour() { this.updatePrediction(this.selectedEndArea, this.endPredictHour, 'endPredictData'); },
-    currentArea() { this.updatePrediction(this.currentArea, this.predictHour, 'predictData'); }
-  },
+
   methods: {
     // 【已修改】实现了从API加载和转换停车区域数据的完整逻辑
     async loadParkingAreas() {
@@ -396,18 +396,24 @@ export default {
           return;
         }
         this.selectedStartArea = area;
-        this.updatePrediction(this.selectedStartArea, this.startPredictHour, 'startPredictData');
         this.selectingFor = null;
+        // 清空输入框
+        this.startInputValue = '';
       } else if (this.selectingFor === 'end') {
         if (this.selectedStartArea && this.selectedStartArea.id === area.id) {
           alert('起点和终点不能是同一个区域！');
           return;
         }
         this.selectedEndArea = area;
-        this.updatePrediction(this.selectedEndArea, this.endPredictHour, 'endPredictData');
         this.selectingFor = null;
+        // 清空输入框
+        this.endInputValue = '';
       } else {
         this.currentArea = area;
+        // 通知AreaDataPanel组件区域选择变化
+        if (this.$refs.areaDataPanel) {
+          this.$refs.areaDataPanel.setSelectedArea(area.geohash);
+        }
       }
       this.updatePolygonStyles();
     },
@@ -417,21 +423,99 @@ export default {
         this.startSelectionActive = false;
         this.selectedStartArea = null;
         this.selectingFor = null;
+        // 清空输入框
+        this.startInputValue = '';
       } else if (type === 'end') {
         this.endSelectionActive = false;
         this.selectedEndArea = null;
         this.selectingFor = null;
+        // 清空输入框
+        this.endInputValue = '';
+        this.endSuggestions = [];
+        this.showEndSuggestions = false;
       }
       this.updatePolygonStyles();
     },
 
-    publishTask() {
-      if (!this.selectedStartArea || !this.selectedEndArea || !this.selectedWorker || this.dispatchAmount < 1) return;
-      alert(`调度任务已发布！\n\n` + `起点：${this.selectedStartArea.geohash}\n` + `终点：${this.selectedEndArea.geohash}\n` + `调度数量：${this.dispatchAmount}\n` + `执行工作人员：${this.selectedWorker.username} (ID: ${this.selectedWorker.staffId})\n` + `负责区域：${this.selectedWorker.geohash}`);
-      this.cancelOrClearSelection('start');
-      this.cancelOrClearSelection('end');
-      this.selectedWorker = null;
-      this.dispatchAmount = 1;
+    async publishTask() {
+      // 检查是否有起点和终点（支持地图选择和输入框输入）
+      let startArea = this.selectedStartArea;
+      let endArea = this.selectedEndArea;
+      
+      // 如果地图没有选择，检查输入框是否有输入
+      if (!startArea && this.startInputValue.trim()) {
+        startArea = {
+          geohash: this.startInputValue.trim(),
+          id: this.startInputValue.trim()
+        };
+      }
+      
+      if (!endArea && this.endInputValue.trim()) {
+        endArea = {
+          geohash: this.endInputValue.trim(),
+          id: this.endInputValue.trim()
+        };
+      }
+      
+      // 验证所有必需字段
+      if (!startArea || !endArea || !this.selectedWorker || this.dispatchAmount < 1) {
+        alert('请确保已选择起点、终点、工作人员，且调度数量大于0！');
+        return;
+      }
+      
+      // 验证起点和终点不能相同
+      if (startArea.geohash === endArea.geohash) {
+        alert('起点和终点不能是同一个区域！');
+        return;
+      }
+      
+      try {
+        console.log('开始创建调度任务...');
+        console.log('任务数据:', {
+          startGeohash: startArea.geohash,
+          endGeohash: endArea.geohash,
+          assignedTo: this.selectedWorker.staffId,
+          bikeCount: this.dispatchAmount
+        });
+        
+        // 调用API创建调度任务
+        const response = await createDispatchTask({
+          startGeohash: startArea.geohash,
+          endGeohash: endArea.geohash,
+          assignedTo: this.selectedWorker.staffId,
+          bikeCount: this.dispatchAmount
+        });
+        
+        console.log('创建调度任务API响应:', response);
+        
+        if (response && (response.code === 200 || response.code === '200')) {
+          // 成功创建任务
+          alert(`调度任务已发布！\n\n` + 
+                `起点：${startArea.geohash}\n` + 
+                `终点：${endArea.geohash}\n` + 
+                `调度数量：${this.dispatchAmount}\n` + 
+                `执行工作人员：${this.selectedWorker.username} (ID: ${this.selectedWorker.staffId})\n` + 
+                `负责区域：${this.selectedWorker.geohash}`);
+          
+          // 清空选择状态
+          this.cancelOrClearSelection('start');
+          this.cancelOrClearSelection('end');
+          this.selectedWorker = null;
+          this.dispatchAmount = 1;
+          
+          // 清空输入框
+          this.startInputValue = '';
+          this.endInputValue = '';
+          
+        } else {
+          console.error('创建调度任务失败:', response);
+          alert(`创建调度任务失败: ${response?.msg || response?.message || '未知错误'}`);
+        }
+        
+      } catch (error) {
+        console.error('创建调度任务时发生错误:', error);
+        alert(`创建调度任务失败: ${error.message || '网络错误'}`);
+      }
     },
 
     onToggleHeatmap() {
@@ -483,16 +567,36 @@ export default {
     handleProfileSaved(formData) { console.log('个人资料已保存:', formData); window.alert('个人信息已在控制台输出。'); },
     goHome() { this.$router.push('/admin'); },
     goToAPITest() { this.$router.push('/api-test-manager-staff'); },
-    updatePrediction(area, hour, dataProperty) {
-      if (!area || !area.id) { this[dataProperty] = { take: 0, park: 0, total: 0 }; return; }
-      const take = Math.round((area.baseTakeRate || 3) * hour * (Math.random() * 0.4 + 0.8));
-      const park = Math.round((area.baseParkRate || 5) * hour * (Math.random() * 0.4 + 0.8));
-      const total = (area.currentBikes || 20) + park - take;
-      this[dataProperty] = { take, park, total };
+
+
+
+    // 起点输入处理
+    onStartInput() {
+      // 暂时不提供建议，直接输入
+      this.startSuggestions = [];
     },
+
+    // 终点输入处理
+    onEndInput() {
+      // 暂时不提供建议，直接输入
+      this.endSuggestions = [];
+    },
+
+
+
     activateSelection(type) {
-      if (type === 'start') { this.startSelectionActive = true; this.selectingFor = 'start'; }
-      else if (type === 'end') { this.endSelectionActive = true; this.selectingFor = 'end'; }
+      if (type === 'start') { 
+        this.startSelectionActive = true; 
+        this.selectingFor = 'start'; 
+        // 清空输入框
+        this.startInputValue = '';
+      }
+      else if (type === 'end') { 
+        this.endSelectionActive = true; 
+        this.selectingFor = 'end'; 
+        // 清空输入框
+        this.endInputValue = '';
+      }
     },
     selectWorker(worker) { this.selectedWorker = worker; },
     changeDispatchAmount(delta) {
@@ -501,12 +605,9 @@ export default {
       this.dispatchAmount = next;
     },
 
-    // 添加面板切换方法
-    toggleAreaPanel() {
-      this.areaPanelExpanded = !this.areaPanelExpanded;
-    },
-    toggleSuggestionPanel() {
-      this.suggestionPanelExpanded = !this.suggestionPanelExpanded;
+    // 标签页切换方法
+    switchTab(tabName) {
+      this.activeTab = tabName;
     },
 
     // 处理调度建议的接受和拒绝
@@ -531,9 +632,7 @@ export default {
       // 展开任务面板
       this.taskPanelCollapsed = false;
 
-      // 更新预测数据
-      this.updatePrediction(this.selectedStartArea, this.startPredictHour, 'startPredictData');
-      this.updatePrediction(this.selectedEndArea, this.endPredictHour, 'endPredictData');
+
 
       // 更新地图上的多边形样式
       this.updatePolygonStyles();
@@ -560,6 +659,10 @@ export default {
         }
       });
     },
+
+
+
+
 
     // 获取管理员手下的工作人员
     async loadManagedStaff() {
@@ -632,7 +735,7 @@ export default {
       
       // 初始化地图
       this.map = new window.AMap.Map("mapContainer", {
-        center: [114.0580, 22.5390],
+        center: [114.0620229340, 22.5390683891],
         zoom: 18, // 更高的缩放级别
         dragEnable: true,
         zoomEnable: true,
@@ -734,152 +837,189 @@ export default {
   color: #138496; 
   text-decoration: none;
 }
-.predict-filter { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-.yellow-select { background: #f7f7f7; border: 1.5px solid #FFD600; border-radius: 8px; padding: 4px 12px; font-size: 1rem; color: #222; font-weight: bold; outline: none; transition: background 0.2s; }
-.yellow-select.small-select { padding: 2px 8px; font-size: 0.9rem; border-radius: 6px; }
-.yellow-select:focus { background: #fffbe6; }
-.predict-stats { display: flex; flex-direction: column; gap: 4px; font-size: 1rem; color: #444; }
 
-.right-task-panel { position: fixed; top: 50px; right: 23px; z-index: 20; display: flex; flex-direction: column; min-width: 360px; max-width: 420px; align-items: flex-end; }
-.task-card { background: #fff; border-radius: 14px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); padding: 18px 24px; display: flex; flex-direction: column; gap: 14px; width: 100%; }
+
+.right-task-panel { position: fixed; top: 50px; right: 23px; z-index: 20; display: flex; flex-direction: column; min-width: 300px; max-width: 360px; align-items: flex-end; }
+.task-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 16px rgba(0,0,0,0.08); padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; width: 100%; }
 .task-title-row { display: flex; align-items: center; justify-content: space-between; }
-.task-title { font-size: 1.2rem; font-weight: 700; color: #222; }
-.collapse-btn { padding: 4px 18px; font-size: 15px; border-radius: 16px; min-width: 70px; margin-left: 10px; font-weight: 500; }
-.task-section { display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid #f0f0f0; padding-bottom: 14px; }
+.task-title { font-size: 1.1rem; font-weight: 700; color: #222; }
+.collapse-btn { padding: 3px 15px; font-size: 14px; border-radius: 14px; min-width: 65px; margin-left: 8px; font-weight: 500; }
+.task-section { display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid #f0f0f0; padding-bottom: 12px; }
 .task-section:last-child { border-bottom: none; padding-bottom: 0; }
-.task-section > label { font-weight: 600; font-size: 1.05rem; color: #333; }
-.select-location-btn { font-size: 0.95rem; padding: 8px 16px; width: 100%; }
+.task-section > label { font-weight: 600; font-size: 1rem; color: #333; }
+.select-location-btn { font-size: 0.9rem; padding: 7px 14px; width: 100%; }
 
-.location-selection-box { border: 1.5px solid #FFD600; background-color: #fffbef; border-radius: 8px; padding: 12px; position: relative; }
-.clear-btn { background: none; border: none; color: #999; cursor: pointer; font-size: 0.9rem; position: absolute; top: 8px; right: 8px; }
+.location-selection-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.input-section {
+  position: relative;
+}
+
+.area-input {
+  width: 90%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: white;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.area-input:focus {
+  border-color: #FFD600;
+  background: #fffbe6;
+}
+
+.area-input:disabled {
+  background: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.suggestions-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.suggestion-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.2s;
+}
+
+.suggestion-item:hover {
+  background-color: #f8f9fa;
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+
+
+.location-selection-box { border: 1.5px solid #FFD600; background-color: #fffbef; border-radius: 8px; padding: 10px; position: relative; }
+.clear-btn { background: none; border: none; color: #999; cursor: pointer; font-size: 0.85rem; position: absolute; top: 6px; right: 6px; }
 .clear-btn:hover { color: #e65100; text-decoration: underline; }
-.placeholder-text { color: #777; font-size: 1rem; text-align: center; padding: 20px 0; }
-.location-details { display: flex; flex-direction: column; gap: 10px; }
-.location-name { font-weight: bold; color: #e65100; font-size: 1rem; }
-.predict-stats-horizontal { display: flex; justify-content: space-around; align-items: center; font-size: 0.95rem; font-weight: 600; }
-.predict-take { color: #2e7d32; }
-.predict-park { color: #d32f2f; }
-.predict-total { color: #1976d2; }
+.placeholder-text { color: #777; font-size: 0.9rem; text-align: center; padding: 16px 0; }
+.location-details { display: flex; flex-direction: column; gap: 8px; }
+.location-name { font-weight: bold; color: #e65100; font-size: 0.95rem; }
 
-.task-workers-list { display: flex; flex-direction: column; gap: 12px; max-height: 240px; overflow-y: auto; padding-right: 5px; }
-.worker-card { border: 2px solid #eee; border-radius: 10px; padding: 12px 14px; display: flex; align-items: flex-start; cursor: pointer; transition: border 0.2s, box-shadow 0.2s, background 0.2s; min-height: 100px; }
+
+.task-workers-list { display: flex; flex-direction: column; gap: 10px; max-height: 200px; overflow-y: auto; padding-right: 5px; }
+.worker-card { border: 2px solid #eee; border-radius: 8px; padding: 10px 12px; display: flex; align-items: flex-start; cursor: pointer; transition: border 0.2s, box-shadow 0.2s, background 0.2s; min-height: 80px; }
 .worker-card:hover { border-color: #FFD600; }
 .worker-card.selected { border: 2.5px solid #FFD600; background: #fffbe6; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-.worker-avatar { width: 50px; height: 50px; border-radius: 50%; margin-right: 14px; background: #fff; border: 1.5px solid #FFD600; flex-shrink: 0; margin-top: 2px; }
-.worker-info { text-align: left; font-size: 0.85rem; color: #444; line-height: 1.5; flex: 1; }
+.worker-avatar { width: 40px; height: 40px; border-radius: 50%; margin-right: 12px; background: #fff; border: 1.5px solid #FFD600; flex-shrink: 0; margin-top: 2px; }
+.worker-info { text-align: left; font-size: 0.8rem; color: #444; line-height: 1.4; flex: 1; }
 .worker-staff-id { font-weight: bold; color: #333; margin-bottom: 4px; }
 .worker-username { color: #2c5aa0; font-weight: 600; margin-bottom: 4px; }
 .worker-manager-id { color: #666; margin-bottom: 4px; }
 .worker-geohash { color: #28a745; font-weight: 500; background: #f8f9fa; padding: 2px 6px; border-radius: 4px; display: inline-block; }
 
-.amount-input-group { display: flex; align-items: center; gap: 8px; }
-.amount-btn { width: 32px; height: 32px; font-size: 1.2rem; border-radius: 50%; }
+.amount-input-group { display: flex; align-items: center; gap: 6px; }
+.amount-btn { width: 28px; height: 28px; font-size: 1.1rem; border-radius: 50%; }
 .amount-btn:disabled { background: #f1f1f1; color: #aaa; cursor: not-allowed; }
-.amount-input { width: 48px; text-align: center; font-size: 1.1rem; border: 1px solid #ddd; border-radius: 6px; padding: 4px 0; outline: none; transition: border-color 0.2s; }
+.amount-input { width: 44px; text-align: center; font-size: 1rem; border: 1px solid #ddd; border-radius: 6px; padding: 3px 0; outline: none; transition: border-color 0.2s; }
 .amount-input:focus { border-color: #FFD600; }
-.deploy-btn { width: 100%; margin-top: 10px; padding: 12px; }
+.deploy-btn { width: 100%; margin-top: 8px; padding: 10px; }
 
 .fade-enter-active, .fade-leave-active { transition: all 0.3s ease-in-out; transform-origin: top; }
 .fade-enter-from, .fade-leave-to { opacity: 0; transform: scaleY(0.9); max-height: 0; }
 .fade-enter-to, .fade-leave-from { opacity: 1; transform: scaleY(1); max-height: 1000px; }
 
-.left-panels {
+.left-panel-container {
   position: fixed;
   top: 90px;
   left: 30px;
   z-index: 20;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
   min-width: 320px;
-}
-
-.collapsible-panel {
+  max-width: 380px;
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
   overflow: hidden;
   transition: all 0.3s ease;
 }
 
-/* 未展开时的样式 */
-.collapsible-panel:not(.expanded) .panel-header {
-  width: fit-content;
-  min-width: 120px;
-  border-radius: 12px;
+.panel-tabs {
+  display: flex;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  border-radius: 16px 16px 0 0;
 }
 
-/* 展开时的样式 */
-.collapsible-panel.expanded .panel-header {
-  width: 100%;
-  border-radius: 12px 12px 0 0;
-}
-
-.panel-header {
+.tab-button {
+  flex: 1;
   display: flex;
   align-items: center;
-  padding: 12px 16px;
-  background: white;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 8px;
   cursor: pointer;
   user-select: none;
   transition: all 0.3s ease;
-}
-
-.panel-header:hover {
-  background: #f0f0f0;
-}
-
-.panel-title {
+  position: relative;
   font-weight: 600;
-  color: #333;
-  flex: 1;
+  color: #666;
+  border-radius: 16px 16px 0 0;
+  font-size: 0.9rem;
 }
 
-.panel-icon {
-  margin-left: 8px;
-  color: #666;
-  font-size: 12px;
+.tab-button:hover {
+  background: #e9ecef;
+  color: #333;
+}
+
+.tab-button.active {
+  background: white;
+  color: #333;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.tab-button.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #FFD600;
+}
+
+.tab-icon {
+  font-size: 1rem;
+}
+
+.tab-text {
+  font-size: 0.85rem;
+}
+
+.panel-content-container {
+  background: white;
+  border-radius: 0 0 16px 16px;
+  max-height: 70vh;
+  overflow: hidden;
 }
 
 .panel-content {
-  background: white;
-  border-radius: 0 0 12px 12px;
-}
-
-/* 调度建议面板特定样式 */
-.suggestion-panel-container {
-  min-width: 320px;
-}
-
-.suggestion-panel-container .suggestion-panel {
-  width: 100%;
-  max-width: none;
-  padding: 12px;
-}
-
-.suggestion-panel-container .search-section {
-  width: 100%;
-}
-
-.suggestion-panel-container .search-input {
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.suggestion-panel-container .filter-buttons {
-  width: 100%;
-  display: flex;
-  gap: 8px;
-}
-
-.suggestion-panel-container .suggestions-list {
-  width: 100%;
-  margin: 0;
-}
-
-.suggestion-panel-container .suggestion-item {
-  width: 100%;
-  box-sizing: border-box;
+  padding: 0;
+  height: 100%;
 }
 
 .info-card {
@@ -908,11 +1048,19 @@ export default {
 
 /* 适配移动设备 */
 @media (max-width: 768px) {
-  .left-panels {
+  .left-panel-container {
     left: 10px;
     right: 10px;
     min-width: unset;
     max-width: calc(100vw - 20px);
+  }
+  
+  .tab-button {
+    padding: 12px 8px;
+  }
+  
+  .tab-text {
+    font-size: 0.9rem;
   }
 }
 </style>
