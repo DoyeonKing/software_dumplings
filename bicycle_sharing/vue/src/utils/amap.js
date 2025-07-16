@@ -135,5 +135,4 @@ export const getWalkingRoute = async (start, end, options = {}) => {
       error: error.message
     };
   }
-}; 
-
+};

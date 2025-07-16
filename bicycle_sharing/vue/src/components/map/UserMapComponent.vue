@@ -400,8 +400,8 @@
     <div v-if="showNavigation && isNavigationPanelCollapsed" class="navigation-collapsed-button" :class="{ hidden: hideUI }" @click="expandNavigationPanel">
       <div class="collapsed-icon">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 19l7-7-7-7"/>
-          <path d="M15 5l7 7-7 7"/>
+          <!-- 导航箭头图标 -->
+          <polygon points="3,11 22,2 13,21 11,13 3,11"/>
         </svg>
       </div>
       <div v-if="routeInfo" class="collapsed-route-indicator">
@@ -412,10 +412,7 @@
     <!-- 骑车圆形收起组件 -->
     <div v-if="showRide && isRidePanelCollapsed" class="ride-collapsed-button" :class="{ hidden: hideUI }" @click="expandRidePanel">
       <div class="collapsed-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="7,10 12,15 17,10"/>
-        </svg>
+        <img src="/src/components/icons/riding.png" alt="骑行" class="riding-icon" />
       </div>
       <div v-if="isRiding" class="collapsed-riding-indicator">
         <div class="riding-pulse"></div>
@@ -425,7 +422,7 @@
 </template>
 
 <script>
-import { onMounted, ref, onUnmounted, watch } from 'vue';
+import { onMounted, ref, onUnmounted, watch, nextTick } from 'vue';
 import AMapLoader from '@amap/amap-jsapi-loader';
 // 导入单车数据API
 import { getMapAreaBicycles } from '@/api/map/bicycle';
@@ -433,7 +430,7 @@ import { getAllParkingAreas, getParkingAreasInBounds, convertParkingAreaData } f
 import { getHeatMapData, convertHeatMapData } from '@/api/map/heat';
 import { updateUserProfile } from '@/api/account/profile';
 // 导入骑行API
-import { rentBike, returnBike, rentBikeWithLocation } from '@/api/riding';
+import { rentBike, returnBike, rentBikeWithLocation, getCurrentRideOrders } from '@/api/riding';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getRidingRoute } from '@/utils/amap';
 // 导入导航API
@@ -491,6 +488,10 @@ export default {
     authToken: {
       type: String,
       default: ''
+    },
+    unfinishedRideOrders: {
+      type: Array,
+      default: null
     }
   },
   setup(props, { emit }) {
@@ -974,8 +975,9 @@ export default {
             strokeOpacity: 1,
             fillColor: parkingAreaColor,
             fillOpacity: 0.4,
-            cursor: 'pointer',
-            map: null  // 初始不添加到地图
+            cursor: 'default', // 改为默认光标，避免误导用户
+            map: null,  // 初始不添加到地图
+            clickable: false // 禁用点击事件，避免干扰其他功能
           });
 
           // 创建图标标记（放在区域中心）
@@ -988,7 +990,7 @@ export default {
             position: center,
             icon: parkingIcon,
             offset: new AMap.Pixel(-20, -20),
-            cursor: 'pointer',
+            cursor: 'pointer', // 只有图标显示可点击光标
             map: null  // 初始不添加到地图
           });
 
@@ -1015,8 +1017,6 @@ export default {
             infoWindow.value.open(map.value, marker.getPosition());
           });
 
-          // 移除多边形点击事件 - 只有停车图标才显示详情
-
           // 仅保留标记鼠标悬停效果
           marker.on('mouseover', () => {
             polygon.setOptions({
@@ -1033,6 +1033,8 @@ export default {
             });
             marker.setzIndex(100);
           });
+
+
 
           parkingPolygons.value.push(polygon);
           parkingMarkers.value.push(marker);
@@ -2519,9 +2521,115 @@ export default {
       }
     };
 
+    // 处理未完成的骑行记录
+    const handleUnfinishedRideOrders = (orders) => {
+      try {
+        console.log('处理未完成骑行记录:', orders);
+        
+        // 取第一个未完成的订单（通常用户只会有一个未完成的订单）
+        const firstOrder = orders[0];
+        
+        if (firstOrder) {
+          console.log('开始恢复骑行状态，订单信息:', firstOrder);
+          
+          // 首先切换到用车标签页
+          currentTab.value = 'use';
+          
+          // 恢复骑行状态
+          isRiding.value = true;
+          bikeId.value = firstOrder.bikeid;
+          
+          // 恢复订单信息
+          rideOrderInfo.value = {
+            orderId: firstOrder.orderid,
+            startTime: firstOrder.startTime,
+            startGeohash: firstOrder.startGeohash,
+            userId: firstOrder.userid,
+            bikeId: firstOrder.bikeid
+          };
+          
+          // 计算骑行时长（从开始时间到现在）
+          if (firstOrder.startTime) {
+            const startTime = new Date(firstOrder.startTime);
+            const now = new Date();
+            const durationSeconds = Math.floor((now - startTime) / 1000);
+            ridingTime.value = durationSeconds;
+            console.log('计算的骑行时长:', durationSeconds, '秒');
+          }
 
+          // 设置起始位置
+          if (firstOrder.startLat && firstOrder.startLon) {
+            const startPosition = [firstOrder.startLon, firstOrder.startLat];
+            ridingPath.value = [startPosition];
+            
+            // 如果用户位置还没有设置，将起始位置作为当前位置
+            if (!userPosition.value) {
+              userPosition.value = startPosition;
+              currentPosition.value = startPosition;
+              
+              // 等待地图初始化完成后更新用户位置标记
+              setTimeout(() => {
+                updateUserPositionMarker();
+              }, 1000);
+            } else {
+              currentPosition.value = userPosition.value;
+            }
+          }
 
+          // 开始骑行计时器
+          if (!ridingTimer.value) {
+            ridingTimer.value = setInterval(() => {
+              ridingTime.value += 1;
+              
+              // 每2秒记录一次位置
+              if (ridingTime.value % 2 === 0) {
+                recordPosition();
+              }
+            }, 1000);
+          }
 
+          // 等待Vue响应式更新完成后，显示恢复状态
+          nextTick(() => {
+            // 先确保面板是展开的，让用户看到恢复的骑行状态
+            isRidePanelCollapsed.value = false;
+
+            console.log('骑行状态已恢复:', {
+              currentTab: currentTab.value,
+              isRiding: isRiding.value,
+              bikeId: bikeId.value,
+              orderId: rideOrderInfo.value.orderId,
+              ridingTime: ridingTime.value,
+              isRidePanelCollapsed: isRidePanelCollapsed.value
+            });
+
+            // 显示提示信息
+            ElMessage.info({
+              message: `发现未完成的骑行记录，单车ID: ${firstOrder.bikeid}`,
+              duration: 3000,
+              showClose: true
+            });
+
+            // 5秒后自动收起面板，显示红色脉动指示器
+            setTimeout(() => {
+              isRidePanelCollapsed.value = true;
+              console.log('骑车面板已自动收起，显示脉动指示器');
+            }, 5000);
+          });
+        }
+      } catch (error) {
+        console.error('处理未完成骑行记录失败:', error);
+      }
+    };
+
+    // 监听未完成骑行记录的变化
+    watch(() => props.unfinishedRideOrders, (newOrders) => {
+      if (newOrders && Array.isArray(newOrders) && newOrders.length > 0) {
+        // 延迟处理，确保组件完全加载后再恢复状态
+        setTimeout(() => {
+          handleUnfinishedRideOrders(newOrders);
+        }, 500);
+      }
+    }, { immediate: true });
 
     onMounted(async () => {
       initMap().then(() => {
@@ -2629,7 +2737,9 @@ export default {
       showNavigateButton,
       isSearchingNearestParking,
       findNearestParkingArea,
-      navigateToNearestParking
+      navigateToNearestParking,
+      // 未完成骑行记录处理
+      handleUnfinishedRideOrders
     };
   }
 }
@@ -3294,6 +3404,13 @@ export default {
 
 .ride-collapsed-button:hover .collapsed-icon {
   transform: scale(1.1);
+}
+
+.riding-icon {
+  width: 30px;
+  height: 30px;
+  filter: brightness(0) invert(1);
+  transition: transform 0.3s ease;
 }
 
 .collapsed-riding-indicator {

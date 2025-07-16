@@ -183,6 +183,7 @@
       :showHeatmap="showHeatmap"
       :userInfo="userInfo"
       :authToken="authToken"
+      :unfinishedRideOrders="unfinishedRideOrders"
       @update:showNavigation="showNavigation = $event"
       @update:showRide="showRide = $event"
       @user-data-updated="handleUserDataUpdated"
@@ -196,6 +197,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import UserMapComponent from '@/components/map/UserMapComponent.vue';
 import { getUserProfile } from '@/api/account/profile.js';
+import { getCurrentRideOrders } from '@/api/riding.js';
 
 const router = useRouter()
 
@@ -290,6 +292,9 @@ onMounted(() => {
   console.log('UserView.vue - 用户信息加载完成')
   console.log('最终userInfo:', userInfo.value)
   console.log('最终authToken:', authToken.value)
+  
+  // 检查用户是否有未完成的骑行记录
+  checkUnfinishedRideOrders()
 })
 
 const showDropdown = ref(false);
@@ -304,6 +309,9 @@ const showParkingAreas = ref(false);
 const showNavigation = ref(false);
 const showRide = ref(false);
 const showHeatmap = ref(false);
+
+// 未完成骑行记录状态
+const unfinishedRideOrders = ref(null);
 
 const mapStyles = [
   { label: '标准', value: 'normal' },
@@ -465,6 +473,40 @@ const handleUserDataUpdated = (updatedUserData) => {
     }
     
     console.log('用户信息已更新到本地存储');
+  }
+};
+
+// 检查用户未完成的骑行记录
+const checkUnfinishedRideOrders = async () => {
+  if (!userInfo.value || !userInfo.value.userid) {
+    console.log('用户信息不完整，跳过未完成骑行检查');
+    return;
+  }
+
+  try {
+    console.log('开始检查用户未完成骑行记录, 用户ID:', userInfo.value.userid);
+    
+    const response = await getCurrentRideOrders(userInfo.value.userid);
+    console.log('未完成骑行记录API响应:', response);
+
+    // 判断是否有未完成记录：检查data是否为null
+    if (response.data !== null && Array.isArray(response.data) && response.data.length > 0) {
+      console.log('发现未完成骑行记录:', response.data);
+      
+      // 存储未完成骑行记录
+      unfinishedRideOrders.value = response.data;
+      
+      // 自动开启骑车功能并设置为收起状态
+      showRide.value = true;
+      
+      console.log('已自动开启骑车功能，用户有', response.data.length, '个未完成的骑行记录');
+    } else {
+      console.log('没有发现未完成的骑行记录');
+      unfinishedRideOrders.value = null;
+    }
+  } catch (error) {
+    console.error('检查未完成骑行记录失败:', error);
+    // 不显示错误信息给用户，静默处理
   }
 };
 </script>
