@@ -36,7 +36,7 @@ public class OrdersController {
         if (!orders.isEmpty()) {
             return ResponseEntity.ok(createSuccessResponse("获取成功！", orders));
         } else {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(createErrorResponse("未找到未完成的骑行记录"));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(createErrorCurrentRideResponse("未找到未完成的骑行记录"));
         }
     }
 
@@ -112,4 +112,14 @@ public class OrdersController {
         response.put("data", null);
         return response;
     }
+
+    private Map<String, Object> createErrorCurrentRideResponse(String message) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("code", 200);
+        response.put("message", message);
+        response.put("data", null);
+        return response;
+    }
+
+
 }

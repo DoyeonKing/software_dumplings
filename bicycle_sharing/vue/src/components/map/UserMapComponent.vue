@@ -412,7 +412,7 @@
     <!-- 骑车圆形收起组件 -->
     <div v-if="showRide && isRidePanelCollapsed" class="ride-collapsed-button" :class="{ hidden: hideUI }" @click="expandRidePanel">
       <div class="collapsed-icon">
-        <img src="/src/components/icons/riding.png" alt="骑行" class="riding-icon" />
+        <img :src="ridingIcon" alt="骑行" class="riding-icon" />
       </div>
       <div v-if="isRiding" class="collapsed-riding-indicator">
         <div class="riding-pulse"></div>
@@ -422,6 +422,10 @@
 </template>
 
 <script>
+import parking_areaIcon from '@/components/icons/parking_area.png';
+import bicycleIcon from '@/components/icons/bicycle.png';
+import ridingIcon from '@/components/icons/riding.png';
+
 import { onMounted, ref, onUnmounted, watch, nextTick } from 'vue';
 import AMapLoader from '@amap/amap-jsapi-loader';
 // 导入单车数据API
@@ -530,7 +534,7 @@ const currentHeatmapType = ref('current'); // 'current' 或 'prediction'
     const isRiding = ref(false);  // 是否正在骑行
     const isRidePanelCollapsed = ref(false);  // 骑车面板是否收起
     
-    // 模拟移动相关状态
+    // 拟移动相关状态
     const isSimulating = ref(false);  // 是否正在模拟移动
     const simulationPath = ref([]);  // 模拟移动路径
     const simulationIndex = ref(0);  // 当前路径点索引
@@ -809,7 +813,7 @@ const currentHeatmapType = ref('current'); // 'current' 或 'prediction'
 
         // 创建单车图标
         const icon = new AMap.Icon({
-          image: '/src/components/icons/bicycle.png',
+          image: bicycleIcon,
           size: new AMap.Size(32, 32),
           imageSize: new AMap.Size(32, 32)
         });
@@ -1026,7 +1030,7 @@ const currentHeatmapType = ref('current'); // 'current' 或 'prediction'
 
         // 创建停车场图标
         const parkingIcon = new AMap.Icon({
-          image: '/src/components/icons/parking_area.png',
+          image: parking_areaIcon,
           size: new AMap.Size(40, 40),
           imageSize: new AMap.Size(40, 40)
         });

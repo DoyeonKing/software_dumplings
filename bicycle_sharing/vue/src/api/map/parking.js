@@ -2,51 +2,7 @@ import request from '@/utils/request'
 
 // 停车点数据（使用边界框坐标）- 保留作为备用数据
 const mockParkingAreas = [
-    {
-        id: 'ws1053',
-        bounds: {
-            southwest: [22.505493, 114.049072],  // south_lat, west_lon
-            northeast: [22.510986, 114.060059]   // north_lat, east_lon
-        },
-        status: 'normal',
-        name: '停车区域1'
-    },
-    {
-        id: 'ws1056',
-        bounds: {
-            southwest: [22.510986, 114.049072],  // south_lat, west_lon
-            northeast: [22.516479, 114.060059]   // north_lat, east_lon
-        },
-        status: 'normal',
-        name: '停车区域2'
-    },
-    {
-        id: 'ws106b',
-        bounds: {
-            southwest: [22.543945, 114.027100],  // south_lat, west_lon
-            northeast: [22.549438, 114.038086]   // north_lat, east_lon
-        },
-        status: 'normal',
-        name: '停车区域3'
-    },
-    {
-        id: 'ws1052',
-        bounds: {
-            southwest: [22.500000, 114.049072],  // south_lat, west_lon
-            northeast: [22.505493, 114.060059]   // north_lat, east_lon
-        },
-        status: 'normal',
-        name: '停车区域4'
-    },
-    {
-        id: 'ws109s',
-        bounds: {
-            southwest: [22.593384, 114.104004],  // south_lat, west_lon
-            northeast: [22.598877, 114.114990]   // north_lat, east_lon
-        },
-        status: 'normal',
-        name: '停车区域5'
-    }
+
 ];
 
 // 获取所有停车点（保留用于兼容性）

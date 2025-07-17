@@ -1,5 +1,13 @@
 <template>
   <div class="login-container">
+    <!-- 返回主页按钮 -->
+    <div class="home-link">
+      <router-link to="/" class="home-button">
+        <span class="home-icon">🏠</span>
+        <span class="home-text">主页</span>
+      </router-link>
+    </div>
+    
     <!-- API测试按钮 -->
     <div class="api-test-link">
       <el-button type="primary" link @click="router.push('/api-test')">
@@ -434,6 +442,40 @@ input:focus {
   top: 20px;
   right: 20px;
   z-index: 100;
+}
+
+.home-link {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 100;
+}
+
+.home-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: #4F6EF7;
+  font-weight: 500;
+  font-size: 0.9rem;
+  padding: 8px 12px;
+  border: 1px solid #4F6EF7;
+  border-radius: 12px;
+  transition: background-color 0.3s, border-color 0.3s;
+}
+
+.home-button:hover {
+  background-color: #4F6EF7;
+  color: white;
+}
+
+.home-icon {
+  font-size: 1.2rem;
+}
+
+.home-text {
+  font-size: 0.9rem;
 }
 
 @media (max-width: 1200px) {

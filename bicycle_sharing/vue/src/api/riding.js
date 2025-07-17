@@ -161,4 +161,21 @@ export function getCurrentRideOrders(userId) {
       userId: userId
     }
   })
+  .then(response => {
+    // 正常响应，强制code为200
+    response.code = 200;
+    return response;
+  })
+  .catch(error => {
+    // 只要是400，强制返回一个“正常”对象
+    if (error.response && error.response.status === 400) {
+      return {
+        code: 200,
+        data: null,
+        message: error.response.data?.message || '未找到未完成的骑行记录'
+      };
+    }
+    // 其他错误继续抛出
+    throw error;
+  });
 }
