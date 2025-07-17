@@ -5,18 +5,35 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.3</version>
-        <relativePath/> <!-- lookup parent from repository -->
+        <version>3.2.7</version>
+        <relativePath/>
     </parent>
     <groupId>com.example</groupId>
     <artifactId>springboot</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>springboot</name>
     <description>springboot</description>
-    <url/>
     <properties>
         <java.version>21</java.version>
+        <lombok.version>1.18.32</lombok.version>
+        <hutool.version>5.8.25</hutool.version>
+        <pagehelper.version>1.4.6</pagehelper.version>
+        <geohash.version>1.4.0</geohash.version>
     </properties>
+
+    <repositories>
+        <repository>
+            <id>central</id>
+            <name>Maven Central</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -24,33 +41,9 @@
         </dependency>
 
         <dependency>
-            <groupId>ch.hsr</groupId>
-            <artifactId>geohash</artifactId>
-            <version>1.4.0</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.mybatis</groupId>
-            <artifactId>mybatis-typehandlers-jsr310</artifactId>
-            <version>1.0.2</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.mybatis.spring.boot</groupId>
-            <artifactId>mybatis-spring-boot-starter</artifactId>
-            <version>3.0.4</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.github.pagehelper</groupId>
-            <artifactId>pagehelper-spring-boot-starter</artifactId>
-            <version>1.4.6</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.mybatis</groupId>
-                    <artifactId>mybatis</artifactId>
-                </exclusion>
-            </exclusions>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <dependency>
@@ -60,31 +53,16 @@
         </dependency>
 
         <dependency>
-            <groupId>cn.hutool</groupId>
-            <artifactId>hutool-all</artifactId>
-            <version>5.8.26</version>
+            <groupId>org.mybatis.spring.boot</groupId>
+            <artifactId>mybatis-spring-boot-starter</artifactId>
+            <version>3.0.3</version>
         </dependency>
 
-<!--        &lt;!&ndash; hadoop &ndash;&gt;-->
-<!--        <dependency>-->
-<!--            <groupId>org.apache.hadoop</groupId>-->
-<!--            <artifactId>hadoop-client</artifactId>-->
-<!--            <version>3.3.4</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.apache.hadoop</groupId>-->
-<!--            <artifactId>hadoop-hdfs</artifactId>-->
-<!--            <version>3.3.4</version>-->
-<!--        </dependency>-->
-
-        <!-- SpringDoc OpenAPI 依赖 -->
         <dependency>
-            <groupId>org.springdoc</groupId>
-            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>2.8.9</version>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
-        <!-- JWT Dependencies -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
@@ -103,38 +81,41 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- 移除 Spring Boot Security Starter，因为它不再被需要 -->
-        <!-- <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security</artifactId>
-        </dependency> -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.5.0</version>
+        </dependency>
 
-        <!-- Spring Boot WebFlux Starter (提供WebClient和Reactor Core) -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webflux</artifactId>
         </dependency>
 
         <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <scope>provided</scope>
+            <groupId>com.github.pagehelper</groupId>
+            <artifactId>pagehelper-spring-boot-starter</artifactId>
+            <version>${pagehelper.version}</version>
         </dependency>
-
-        <!-- 其他测试依赖 -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-
 
         <dependency>
-            <groupId>com.fasterxml.jackson.datatype</groupId>
-            <artifactId>jackson-datatype-jsr310</artifactId>
-            <version>2.15.2</version> <!-- 版本号与项目中 Jackson 其他组件保持一致 -->
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+            <version>${hutool.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>ch.hsr</groupId>
+            <artifactId>geohash</artifactId>
+            <version>1.4.0</version>
+        </dependency>
 
     </dependencies>
 
@@ -143,6 +124,21 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
             </plugin>
         </plugins>
     </build>

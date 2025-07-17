@@ -52,67 +52,49 @@ public class DispatchTasksServiceImpl implements IDispatchTasksService { // 实�
      */
     @Override
     @Transactional
-    public DispatchTasks createDispatchTask(DispatchTaskRequest request, LocalDateTime createdAt) { // 【修改】接收 createdAt 参数
-        // 1. 校验参数
-        if (request.getStartGeohash() == null || request.getEndGeohash() == null ||
-            request.getBikeCount() == null || request.getBikeCount() <= 0) {
-            throw new IllegalArgumentException("起始区域、结束区域和调度数量不能为空且数量需大于0。");
-        }
+    // doyeonking/software_dumplings/software_dumplings-jintaoran/bicycle_sharing/springboot/src/main/java/com/example/springboot/service/implementation/DispatchTasksServiceImpl.java
 
-        // 2. 验证源区域是否存在且有足够可用车辆
-        Map<String, Long> availableBikesMap = bikesService.countBikesByGeohashes(Collections.singletonList(request.getStartGeohash()));
-        Long availableBikes = availableBikesMap.getOrDefault(request.getStartGeohash(), 0L);
-        if (availableBikes < request.getBikeCount()) {
-            throw new IllegalArgumentException("源区域 " + request.getStartGeohash() + " 可用单车数量不足。当前可用: " + availableBikes + ", 需调度: " + request.getBikeCount());
-        }
-
-        // 3. 验证目标区域是否存在 (通常 EliteSitesMapper 也会有查找方法)
-        EliteSites endSite = eliteSitesMapper.getEliteSiteByGeohash(request.getEndGeohash());
-        if (endSite == null) {
-            throw new IllegalArgumentException("目标区域 " + request.getEndGeohash() + " 不存在或非精英站点。");
-        }
-
-        // 4. 从源区域选择自行车并更新状态为“调度中”
-        List<Bikes> bikesToDispatch = bikesMapper.findAvailableBikesByGeohash(request.getStartGeohash());
-        if (bikesToDispatch.size() < request.getBikeCount()) {
-            // 理论上与上面的availableBikes检查重复，但确保健壮性
-            throw new IllegalArgumentException("源区域实际可调配单车不足。");
-        }
-
-        List<Bikes> selectedBikes = bikesToDispatch.stream()
-                .limit(request.getBikeCount())
-                .collect(Collectors.toList());
-
-        for (Bikes bike : selectedBikes) {
-            bikesMapper.updateBikeStatusAndLocation(
-                    bike.getBikeId(),
-                    "调度中", // 设置为“调度中”状态
-                    bike.getCurrentLat(), // 保持当前经纬度，直到完成
-                    bike.getCurrentLon(),
-                    bike.getCurrentGeohash() // 保持当前geohash
-            );
-        }
-
-        // 5. 创建调度任务实体并保存
-        DispatchTasks dispatchTask = new DispatchTasks();
-        dispatchTask.setStartGeohash(request.getStartGeohash());
-        dispatchTask.setEndGeohash(request.getEndGeohash());
-        dispatchTask.setBikeCount(request.getBikeCount());
-        dispatchTask.setAssignedTo(request.getAssignedTo()); // 工作人员ID
-        dispatchTask.setStatus("未处理"); // 初始状态为“未处理”
-        dispatchTask.setCreatedAt(createdAt); // 【关键修改】使用传入的创建时间
-        // completedAt 字段在任务完成时设置
-
-        dispatchTasksMapper.insertDispatchTask(dispatchTask); // 假设 insertDispatchTask 方法存在且返回ID
-
-        // 6. 关联自行车与调度任务
-        List<BikesInTasks> bikesInTasksList = selectedBikes.stream()
-                .map(bike -> new BikesInTasks(dispatchTask.getTaskId(), bike.getBikeId()))
-                .collect(Collectors.toList());
-        bikesInTasksMapper.insertBatch(bikesInTasksList);
-
-        return dispatchTask; // 返回创建的任务实体，包含生成的taskId
+public DispatchTasks createDispatchTask(DispatchTaskRequest request, LocalDateTime createdAt) { // 【修改】接收 createdAt 参数
+    // 1. 校验参数
+    if (request.getStartGeohash() == null || request.getEndGeohash() == null ||
+        request.getBikeCount() == null || request.getBikeCount() <= 0) {
+        throw new IllegalArgumentException("起始区域、结束区域和调度数量不能为空且数量需大于0。");
     }
+
+    // 2. 验证源区域是否存在且有足够可用车辆 (仅做数量检查，不实际选择或锁定车辆)
+    Map<String, Long> availableBikesMap = bikesService.countBikesByGeohashes(Collections.singletonList(request.getStartGeohash()));
+    Long availableBikes = availableBikesMap.getOrDefault(request.getStartGeohash(), 0L);
+    if (availableBikes < request.getBikeCount()) {
+        // 在任务创建时，我们仅检查理论上是否有足够车辆，不实际锁定。
+        // 如果这里显示不足，意味着即使未来开始调度，也可能没有足够车辆。
+        // 根据业务需求，可以改为警告或允许创建但后续在startDispatch中处理实际不足。
+        // 这里沿用原逻辑，但在任务创建时就进行严格检查。
+        throw new IllegalArgumentException("源区域 " + request.getStartGeohash() + " 可用单车数量不足。当前可用: " + availableBikes + ", 需调度: " + request.getBikeCount());
+    }
+
+    // 3. 验证目标区域是否存在
+    EliteSites endSite = eliteSitesMapper.getEliteSiteByGeohash(request.getEndGeohash());
+    if (endSite == null) {
+        throw new IllegalArgumentException("目标区域 " + request.getEndGeohash() + " 不存在或非精英站点。");
+    }
+
+    // --- 移除：原第4步（选择自行车并更新状态为“调度中”） ---
+    // --- 移除：原第6步（关联自行车与调度任务） ---
+
+    // 4. 创建调度任务实体并保存
+    DispatchTasks dispatchTask = new DispatchTasks();
+    dispatchTask.setStartGeohash(request.getStartGeohash());
+    dispatchTask.setEndGeohash(request.getEndGeohash());
+    dispatchTask.setBikeCount(request.getBikeCount());
+    dispatchTask.setAssignedTo(request.getAssignedTo()); // 工作人员ID
+    dispatchTask.setStatus("未处理"); // 初始状态为“未处理”
+    dispatchTask.setCreatedAt(createdAt); // 使用传入的创建时间
+    // completedAt 字段在任务完成时设置
+
+    dispatchTasksMapper.insertDispatchTask(dispatchTask); // 假设 insertDispatchTask 方法存在且返回ID
+
+    return dispatchTask; // 返回创建的任务实体，包含生成的taskId
+}
 
     @Override
     public int getAvailableBikesInArea(String geohash) {
@@ -161,7 +143,6 @@ public class DispatchTasksServiceImpl implements IDispatchTasksService { // 实�
     }
 
         /**
-     * 【新增方法实现】
      * 开始一个调度任务，执行自行车的选择、去重和任务关联。
      * 自行车位置在此阶段不改变，只更新状态为“调度中”。
      */
