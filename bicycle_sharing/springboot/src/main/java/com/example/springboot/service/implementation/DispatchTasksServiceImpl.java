@@ -50,12 +50,6 @@ public class DispatchTasksServiceImpl implements IDispatchTasksService { // 实�
      * @param createdAt 任务的创建时间点（可为模拟时间）
      * @return 创建的 DispatchTasks 实体
      */
-    /**
-     * 创建新的调度任务。
-     * @param request 调度任务请求 DTO
-     * @param createdAt 任务的创建时间点（可为模拟时间）
-     * @return 创建的 DispatchTasks 实体
-     */
     @Override
     @Transactional
     public DispatchTasks createDispatchTask(DispatchTaskRequest request, LocalDateTime createdAt) { // 【修改】接收 createdAt 参数
