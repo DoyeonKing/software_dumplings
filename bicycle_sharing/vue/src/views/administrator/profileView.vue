@@ -214,10 +214,6 @@ function goHome() {
   align-items: center;
   min-height: 0;
   height: calc(100vh - 80px); /* 80px为header高度 */
-  background-image: url('C:/Users/12817/-xxq/software_dumplings/bicycle_sharing/vue/public/bg.adminhome.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
   position: relative;
   overflow: hidden;
 }
