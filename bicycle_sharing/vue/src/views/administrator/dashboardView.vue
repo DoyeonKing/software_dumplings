@@ -9,11 +9,11 @@
         <h3>地区选择</h3>
         <div class="select-group">
           <select v-model="selectedCity" @change="updateLocation">
-            <option value="">选择城市</option>
+<!--            <option value="">选择城市</option>-->
             <option value="深圳市">深圳市</option>
-            <option value="广州市">广州市</option>
+<!--            <option value="广州市">广州市</option>
             <option value="北京市">北京市</option>
-            <option value="上海市">上海市</option>
+            <option value="上海市">上海市</option>-->
           </select>
           <select v-model="selectedDistrict" @change="updateLocation">
             <option value="">选择区</option>
@@ -60,78 +60,82 @@
         </div>
       </div>
 
-      <div class="bike-stats-card info-card">
+      <div class="vehicle-info-card info-card">
         <div class="card-header">
-          <h3>车辆统计</h3>
-          <span class="stats-icon">🚲</span>
+          <h3>车辆信息</h3>
+          <span class="vehicle-icon">🚲</span>
         </div>
-        <div class="stats-content">
-          <div class="stats-main">
-            <div class="stats-number">{{ bikeStats.totalBikes }}</div>
-            <div class="stats-label">总车辆数</div>
-          </div>
-          <div class="stats-details">
-          </div>
-        </div>
-      </div>
-
-      <div class="usage-card info-card">
-        <div class="card-header">
-          <h3>使用率</h3>
-          <span class="usage-icon">📊</span>
-        </div>
-        <div class="usage-content">
-          <div class="usage-main">
-            <div class="usage-circle">
-              <div class="usage-percentage">{{ usageData.usageRate }}%</div>
-              <div class="usage-label">当前使用率</div>
+        <div class="vehicle-content">
+          <div class="parking-area-selector">
+            <div class="selector-label">选择停车区域</div>
+            <div class="selected-area">
+              {{ selectedParkingArea || '点击地图上的停车区域' }}
             </div>
           </div>
-          <div class="usage-details">
-            <div class="usage-item">
-              <span class="label">在线车辆：</span>
-              <span class="value">{{ usageData.onlineBikes }}</span>
+          <div class="vehicle-stats">
+            <div class="stats-main">
+              <div class="stats-number">{{ vehicleData.totalBikes }}</div>
+              <div class="stats-label">车辆总数</div>
             </div>
-            <div class="usage-item">
-              <span class="label">使用中：</span>
-              <span class="value">{{ usageData.inUseBikes }}</span>
-            </div>
-            <div class="usage-item">
-              <span class="label">空闲：</span>
-              <span class="value">{{ usageData.idleBikes }}</span>
+            <div class="stats-details">
+              <div class="stats-item">
+                <span class="label">使用率：</span>
+                <span class="value usage-rate">{{ vehicleData.utilization }}%</span>
+              </div>
+              <div class="stats-item">
+                <span class="label">可用车辆：</span>
+                <span class="value available">{{ vehicleData.availableBikes }}</span>
+              </div>
+              <div class="stats-item">
+                <span class="label">使用中：</span>
+                <span class="value in-use">{{ vehicleData.inUseBikes }}</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="top-right-btn-group btn-group">
-      <button class="yellow-btn" @click="onToggleHeatmap">
-        {{ showHeatmap ? '显示普通地图' : '显示热力图' }}
-      </button>
-      <button class="yellow-btn" @click="goHome">
-        返回主页
-      </button>
+    <div class="top-right-controls">
+      <div class="control-group">
+        <button class="control-btn" @click="onToggleBikes" :class="{ active: showBikes }">
+          <span class="btn-icon">🚲</span>
+          <span class="btn-text">{{ showBikes ? '隐藏单车' : '显示单车' }}</span>
+        </button>
+        <button class="control-btn" @click="onToggleHeatmap" :class="{ active: showHeatmap }">
+          <span class="btn-icon">🔥</span>
+          <span class="btn-text">{{ showHeatmap ? '普通地图' : '热力图' }}</span>
+        </button>
+        <button class="control-btn" @click="onToggleParkingAreas" :class="{ active: showParkingAreas }">
+          <span class="btn-icon">🅿️</span>
+          <span class="btn-text">{{ showParkingAreas ? '隐藏区域' : '显示区域' }}</span>
+        </button>
+        <button class="control-btn" @click="goHome">
+          <span class="btn-icon">🏠</span>
+          <span class="btn-text">主页</span>
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
 import MenuComponent from '@/components/admin/menuComponent.vue'
-import { mapMixin } from '@/utils/mapMixin.js'
 import AMapLoader from '@/utils/loadAMap.js'
+import bicycleIcon from '@/components/icons/bicycle.png';
+import { getMapAreaBicycles, getBikeUtilization } from '@/api/map/bicycle';
+import { getParkingAreasInBounds, convertParkingAreaData } from '@/api/map/parking.js';
 
 export default {
   name: "DashboardView",
   components: {
     MenuComponent
   },
-  mixins: [mapMixin],
   data() {
     return {
       selectedCity: "深圳市",
       selectedDistrict: "福田区",
-      selectedRoad: "福华三路",
+      selectedRoad: "",
       weatherData: {
         temperature: 28,
         description: "多云",
@@ -139,50 +143,51 @@ export default {
         windSpeed: 12,
         airQuality: "优"
       },
-      bikeStats: {
-        totalBikes: 1200,
-        normalBikes: 1100,
-        faultBikes: 60,
-        repairBikes: 40
-      },
-      usageData: {
-        usageRate: 76,
-        onlineBikes: 1000,
-        inUseBikes: 760,
-        idleBikes: 240
+      selectedParkingArea: null,
+      vehicleData: {
+        totalBikes: 0,
+        utilization: 0,
+        availableBikes: 0,
+        inUseBikes: 0
       },
       cityDistrictRoad: {
         "深圳市": {
-          "福田区": ["福华三路", "金田路", "滨河大道"],
-          "南山区": ["科技园", "深南大道", "南海大道"]
-        },
-        "广州市": {
-          "天河区": ["体育西路", "珠江新城", "天河北路"],
-          "越秀区": ["中山路", "北京路", "东风路"]
-        },
-        "北京市": {
-          "朝阳区": ["建国路", "三里屯", "望京"],
-          "海淀区": ["中关村", "学院路", "知春路"]
-        },
-        "上海市": {
-          "浦东新区": ["世纪大道", "张江路", "花木路"],
-          "徐汇区": ["漕溪北路", "肇嘉浜路", "虹桥路"]
+          "福田区": ["金田路", "福华三路", "福荣路", "深南大道"]
         }
       },
-      // MODIFIED: Updated area codes
-      parkingAreas: [
-        { id: 1, location: "深圳市-福田区-福华三路", areaCode: "P1001", polygon: [ [114.0560, 22.5330], [114.0590, 22.5330], [114.0590, 22.5360], [114.0560, 22.5360] ] },
-        { id: 2, location: "深圳市-福田区-金田路", areaCode: "P1002", polygon: [ [114.0595, 22.5330], [114.0625, 22.5330], [114.0625, 22.5360], [114.0595, 22.5360] ] },
-        { id: 3, location: "深圳市-福田区-滨河大道", areaCode: "P1003", polygon: [ [114.0560, 22.5365], [114.0590, 22.5365], [114.0590, 22.5395], [114.0560, 22.5395] ] }
-      ],
-      bikeList: [
-        {id: "SZ1001", lng: 114.057868, lat: 22.53445, status: "正常", address: "深圳市-福田区-福华三路"},
-        {id: "SZ1002", lng: 114.060868, lat: 22.53495, status: "故障", address: "深圳市-福田区-金田路"},
-        {id: "SZ1003", lng: 114.058868, lat: 22.53645, status: "待维修", address: "深圳市-福田区-滨河大道"},
-        {id: "SZ1004", lng: 114.061868, lat: 22.53445, status: "正常", address: "深圳市-福田区-会展中心"},
-        {id: "SZ1005", lng: 114.061867, lat: 22.53545, status: "正常", address: "深圳市-福田区-福华一路"},
-        {id: "SZ1006", lng: 114.057000, lat: 22.53400, status: "正常", address: "深圳市-福田区-福华三路附近"},
-      ]
+      // 地图相关
+      map: null,
+      infoWindow: null,
+      markers: [],
+      heatmap: null,
+      heatmapReady: false,
+      showHeatmap: false,
+      parkingAreas: [],
+      parkingPolygons: [],
+      bikes: [],
+      showBikes: false, // 默认隐藏单车
+      showParkingAreas: false, // 默认隐藏停车区域
+      // 添加默认缩放级别
+      defaultZoom: 18,
+      // 添加特定区域的坐标映射
+      locationCoordinates: {
+        "金田路": {
+          center: [114.0622479856, 22.5374765653],
+          parkingArea: "ws105wc"
+        },
+        "福华三路": {
+          center: [114.0648990521, 22.5333978834],
+          parkingArea: "ws105w5"
+        },
+        "福荣路": {
+          center: [114.0430866507, 22.5133931471],
+          parkingArea: "ws10547"
+        },
+        "深南大道": {
+          center: [114.0522947637, 22.5405770101],
+          parkingArea: "ws105r6"
+        }
+      }
     };
   },
   computed: {
@@ -208,27 +213,269 @@ export default {
   },
   mounted() {
     AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
-      const {yellowBikeIcon} = this.initMap();
-      this.map.setZoomAndCenter(15, [114.0588, 22.5368]);
-      this.addBikeMarkers(this.bikeList, yellowBikeIcon);
-      this.drawParkingAreas();
+      // 初始化地图
+      this.map = new window.AMap.Map("mapContainer", {
+        center: [114.0610, 22.5395],
+        zoom: 17, // 更高的缩放级别
+        dragEnable: true,
+        zoomEnable: true,
+        doubleClickZoom: true,
+        keyboardEnable: true,
+        scrollWheel: true,
+        touchZoom: true,
+        mapStyle: 'amap://styles/normal'
+      });
+
+      // 初始化信息窗口
+      this.infoWindow = new window.AMap.InfoWindow({
+        offset: new window.AMap.Pixel(0, -20)
+      });
+
+      // 加载热力图插件
+      window.AMap.plugin(['AMap.HeatMap'], () => {
+        this.heatmap = new window.AMap.HeatMap(this.map, {
+          radius: 20,
+          opacity: [0.1, 0.9],
+          gradient: {
+             0.4: '#4575b4',   // 深蓝色 - 最低密度
+            0.5: '#74add1',   // 浅蓝色
+            0.6: '#abd9e9',   // 更浅的蓝色
+            0.7: '#ffffbf',   // 淡黄色
+            0.8: '#fdae61',   // 橙色
+            0.9: '#f46d43',   // 深橙色
+            1.0: '#d73027'    // 红色 - 最高密度
+          }
+        });
+        this.heatmapReady = true;
+      });
+
+      // 加载初始数据
+      this.loadBicycles();
+      this.loadParkingAreas();
+
+      // 监听地图移动和缩放事件，但使用防抖来减少API调用频率
+      let timeout;
+      const updateData = () => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+          this.loadBicycles();
+          this.loadParkingAreas();
+        }, 500); // 500ms的防抖延迟
+      };
+
+      this.map.on('moveend', updateData);
+      this.map.on('zoomend', updateData);
+
     }).catch(err => {
       this.$message && this.$message.error
           ? this.$message.error('地图加载失败: ' + err.message)
           : alert('地图加载失败: ' + err.message);
     });
   },
+
+  beforeUnmount() {
+    if (this.map) {
+      this.map.destroy();
+    }
+  },
+
   methods: {
-    // MODIFIED: Updated InfoWindow content and options
+    // 【新增】获取停车区域数据的方法
+    async fetchParkingAreas() {
+      try {
+        const bounds = this.map.getBounds();
+        const params = {
+          minLat: bounds.getSouthWest().lat,
+          maxLat: bounds.getNorthEast().lat,
+          minLon: bounds.getSouthWest().lng,
+          maxLon: bounds.getNorthEast().lng
+        };
+        const response = await getParkingAreasInBounds(params);
+
+        let rawData = null;
+        if (response && response.data && Array.isArray(response.data)) {
+          rawData = response.data;
+        } else if (response && Array.isArray(response)) {
+          rawData = response;
+        }
+
+        if (rawData) {
+          this.parkingAreas = convertParkingAreaData(rawData);
+        } else {
+          console.warn('停车点数据格式异常:', response);
+          this.parkingAreas = [];
+        }
+      } catch (error) {
+        console.error('获取停车点数据失败:', error);
+        this.parkingAreas = [];
+      }
+    },
+    // 【新增】显示停车区域的主方法
+    async loadParkingAreas() {
+      if (!this.map) return;
+      try {
+        if (this.parkingPolygons && this.parkingPolygons.length > 0) {
+          this.map.remove(this.parkingPolygons);
+          this.parkingPolygons = [];
+        }
+        await this.fetchParkingAreas();
+        this.drawParkingAreas();
+      } catch (error) {
+        console.error("显示停车区域失败:", error);
+      }
+    },
+    async loadBicycles() {
+      try {
+        const bounds = this.map.getBounds();
+        const params = {
+          minLat: bounds.getSouthWest().lat,
+          maxLat: bounds.getNorthEast().lat,
+          minLng: bounds.getSouthWest().lng,
+          maxLng: bounds.getNorthEast().lng
+        };
+        const response = await getMapAreaBicycles(params);
+
+        const bikesForMixin = response.data.map(bike => ({
+          ...bike,
+          lng: bike.currentLon,
+          lat: bike.currentLat,
+          id: bike.bikeId,
+        }));
+
+        this.bikes = bikesForMixin;
+
+        const bikeMarkerIcon = new window.AMap.Icon({
+          image: bicycleIcon,
+          size: new window.AMap.Size(32, 32),
+          imageSize: new window.AMap.Size(32, 32)
+        });
+
+        this.addBikeMarkers(this.bikes, bikeMarkerIcon);
+
+        if (!this.showBikes) {
+          this.markers.forEach(marker => marker.hide());
+        }
+      } catch (error) {
+        console.error("加载单车数据失败:", error);
+      }
+    },
+
+    addBikeMarkers(bikeList, bikeIcon) {
+      this.markers.forEach(marker => marker.setMap(null));
+      this.markers = [];
+
+      bikeList.forEach(bike => {
+        const marker = new window.AMap.Marker({
+          position: [bike.lng, bike.lat],
+          map: this.map,
+          icon: bikeIcon,
+          title: `单车编号: ${bike.id}`
+        });
+
+        marker.on('mouseover', () => {
+          this.infoWindow.setContent(`
+                    <div style="padding: 8px 12px; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+                        <b>单车编号：</b>${bike.id}
+                    </div>
+                `);
+          this.infoWindow.open(this.map, marker.getPosition());
+        });
+        marker.on('mouseout', () => this.infoWindow.close());
+
+        this.markers.push(marker);
+      });
+    },
+
+    onToggleBikes() {
+      this.showBikes = !this.showBikes;
+      if (this.markers && this.markers.length > 0) {
+        if (this.showBikes && this.showHeatmap) {
+          this.toggleHeatmap(this.bikes);
+        } else {
+          this.markers.forEach(marker => {
+            this.showBikes ? marker.show() : marker.hide();
+          });
+        }
+      }
+    },
+
+    onToggleHeatmap() {
+      if (!this.showHeatmap) {
+        this.showBikes = false;
+      }
+      this.toggleHeatmap();
+
+      if (!this.showHeatmap && !this.showBikes) {
+        this.markers.forEach(marker => marker.hide());
+      }
+    },
+
+    onToggleParkingAreas() {
+      this.showParkingAreas = !this.showParkingAreas;
+      
+      if (this.parkingPolygons && this.parkingPolygons.length > 0) {
+        if (this.showParkingAreas) {
+          // 显示停车区域
+          this.parkingPolygons.forEach(polygon => {
+            polygon.setMap(this.map);
+          });
+        } else {
+          // 隐藏停车区域
+          this.parkingPolygons.forEach(polygon => {
+            polygon.setMap(null);
+          });
+        }
+      }
+      
+      console.log(`停车区域已${this.showParkingAreas ? '显示' : '隐藏'}`);
+    },
+
+    toggleHeatmap() {
+      this.showHeatmap = !this.showHeatmap;
+
+      if (this.showHeatmap) {
+        this.markers.forEach(m => m.hide());
+        const heatData = this.bikes.map(bike => ({
+          lng: bike.lng,
+          lat: bike.lat,
+          count: 30  // 降低每个点的权重值
+        }));
+        if (this.heatmapReady && this.heatmap) {
+          try {
+            if (typeof this.heatmap.setDataSet === 'function') {
+              this.heatmap.setDataSet({
+                data: heatData,
+                max: 50  // 降低最大值
+              });
+            } else if (typeof this.heatmap.setData === 'function') {
+              this.heatmap.setData({
+                data: heatData,
+                max: 50
+              });
+            } else if (typeof this.heatmap.setPoints === 'function') {
+              this.heatmap.setPoints(heatData);
+            }
+            this.heatmap.show();
+          } catch (error) {
+            console.error('设置热力图数据失败：', error);
+          }
+        }
+      } else {
+        this.markers.forEach(m => m.show());
+        if (this.heatmap) this.heatmap.hide();
+      }
+    },
+
+    // 【修改】更新 drawParkingAreas 方法以处理动态数据
     drawParkingAreas() {
       const infoWindow = new window.AMap.InfoWindow({
-        offset: new window.AMap.Pixel(0, -20),
-        anchor: 'bottom-center' // Better positioning
+        offset: new window.AMap.Pixel(0, -20)
       });
-
+      // 遍历从API获取的新数据进行绘制
       this.parkingAreas.forEach(area => {
         const polygon = new window.AMap.Polygon({
-          path: area.polygon,
+          // 使用转换后的 polygonPath 字段
+          path: area.polygonPath,
           fillColor: "#FFD600",
           fillOpacity: 0.2,
           strokeColor: "#FFD600",
@@ -236,53 +483,123 @@ export default {
           zIndex: 40,
           cursor: "pointer"
         });
-
-        this.map.add(polygon);
-
-        // Define clearer content for the info window
-        const infoContent = `
-          <div style="padding: 2px 5px;">
-            <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px;">${area.location}</div>
-            <div><b style="color: #555;">编号:</b> ${area.areaCode}</div>
-          </div>
-        `;
+        
+        // 根据showParkingAreas状态决定是否显示
+        if (this.showParkingAreas) {
+          this.map.add(polygon);
+        }
+        
+        // 将新创建的多边形存起来，方便下次清除
+        this.parkingPolygons.push(polygon);
 
         polygon.on("mouseover", (e) => {
-          infoWindow.setContent(infoContent);
+          // 使用 geohash 作为区域标识
+          infoWindow.setContent(`
+            <div style="min-width:160px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+              <b>停车区域：</b>${area.geohash}
+            </div>`);
           infoWindow.open(this.map, e.lnglat);
         });
-
-        polygon.on("mouseout", () => {
-          infoWindow.close();
+        polygon.on("mouseout", () => infoWindow.close());
+        
+        // 添加点击事件来获取停车区域信息
+        polygon.on("click", () => {
+          this.selectedParkingArea = area.geohash;
+          this.fetchVehicleUtilization(area.geohash);
         });
       });
     },
+    
+    // 获取车辆使用率数据
+    async fetchVehicleUtilization(geohash) {
+      try {
+        console.log('获取车辆使用率数据，区域编号:', geohash);
+        const response = await getBikeUtilization(geohash);
+        console.log('车辆使用率API响应:', response);
+        
+        // 直接使用返回的数据，因为这个API直接返回数据对象
+        if (response && typeof response === 'object') {
+          this.vehicleData = {
+            totalBikes: response.totalBikes || 0,
+            utilization: response.utilization || 0,
+            availableBikes: response.availableBikes || 0,
+            inUseBikes: response.inUseBikes || 0
+          };
+          console.log('更新车辆数据:', this.vehicleData);
+        } else {
+          console.warn('获取车辆使用率失败:', response);
+          // 设置默认数据
+          this.vehicleData = {
+            totalBikes: 0,
+            utilization: 0,
+            availableBikes: 0,
+            inUseBikes: 0
+          };
+        }
+      } catch (error) {
+        console.error('获取车辆使用率出错:', error);
+        // 设置默认数据
+        this.vehicleData = {
+          totalBikes: 0,
+          utilization: 0,
+          availableBikes: 0,
+          inUseBikes: 0
+        };
+      }
+    },
+    
     handleProfileSaved(formData) {
       console.log('个人资料已保存:', formData);
     },
-    updateLocation() {
-      this.weatherData = {
-        temperature: 28 + Math.floor(Math.random() * 5),
-        description: ["多云", "晴", "小雨", "阴"][Math.floor(Math.random() * 4)],
-        humidity: 60 + Math.floor(Math.random() * 20),
-        windSpeed: 10 + Math.floor(Math.random() * 8),
-        airQuality: ["优", "良", "轻度污染"][Math.floor(Math.random() * 3)]
-      };
-      this.bikeStats = {
-        totalBikes: 1000 + Math.floor(Math.random() * 500),
-        normalBikes: 900 + Math.floor(Math.random() * 100),
-        faultBikes: 30 + Math.floor(Math.random() * 40),
-        repairBikes: 20 + Math.floor(Math.random() * 30)
-      };
-      this.usageData = {
-        usageRate: 60 + Math.floor(Math.random() * 30),
-        onlineBikes: 800 + Math.floor(Math.random() * 200),
-        inUseBikes: 500 + Math.floor(Math.random() * 300),
-        idleBikes: 200 + Math.floor(Math.random() * 100)
-      };
+    // 优化地图中心点设置方法
+    setMapCenter(coordinates) {
+      if (!this.map) return;
+      
+      // 设置更快的动画速度
+      this.map.setStatus({
+        animateEnable: true,
+        animateDuration: 300  // 减少动画时间到300毫秒
+      });
+      
+      // 使用更快的动画速度设置中心点和缩放级别
+      this.map.setZoomAndCenter(
+        this.defaultZoom,
+        coordinates,
+        true,  // 启用动画
+        300    // 动画持续时间（毫秒）
+      );
     },
-    onToggleHeatmap() {
-      this.toggleHeatmap(this.bikeList);
+
+    // 优化位置更新方法
+    updateLocation() {
+      // 只在选择深圳市福田区时处理特定位置
+      if (this.selectedCity === "深圳市" && this.selectedDistrict === "福田区" && this.selectedRoad) {
+        const locationInfo = this.locationCoordinates[this.selectedRoad];
+        if (locationInfo) {
+          // 立即更新地图位置
+          this.setMapCenter(locationInfo.center);
+          
+          // 使用 requestAnimationFrame 延迟加载其他数据，避免卡顿
+          requestAnimationFrame(() => {
+            // 更新天气数据
+            this.weatherData = {
+              temperature: 28 + Math.floor(Math.random() * 5),
+              description: ["多云", "晴", "小雨", "阴"][Math.floor(Math.random() * 4)],
+              humidity: 60 + Math.floor(Math.random() * 20),
+              windSpeed: 10 + Math.floor(Math.random() * 8),
+              airQuality: ["优", "良", "轻度污染"][Math.floor(Math.random() * 3)]
+            };
+          });
+
+          // 使用 Promise 和 setTimeout 优化数据加载
+          Promise.resolve().then(() => {
+                      setTimeout(() => {
+            this.loadBicycles();
+            this.loadParkingAreas();
+          }, 400); // 等地图动画结束后再加载数据
+          });
+        }
+      }
     },
     goHome() {
       this.$router.push('/admin');
@@ -323,8 +640,7 @@ export default {
 
 .location-selector h3,
 .weather-card h3,
-.bike-stats-card h3,
-.usage-card h3 {
+.vehicle-info-card h3 {
   margin: 0 0 6px 0;
   font-size: 1rem;
   font-weight: 700;
@@ -372,14 +688,14 @@ export default {
   justify-content: space-between;
 }
 
-.weather-icon, .stats-icon, .usage-icon {
+.weather-icon, .vehicle-icon {
   font-size: 1.2rem;
 }
 
-.weather-content, .stats-content, .usage-content {
+.weather-content, .vehicle-content {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
 }
 
 .weather-main {
@@ -410,7 +726,44 @@ export default {
   color: #888;
 }
 
+/* 车辆信息面板样式 */
+.parking-area-selector {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+}
+
+.selector-label {
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.selected-area {
+  font-size: 0.9rem;
+  color: #333;
+  font-weight: 600;
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.vehicle-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .stats-main {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.stats-number {
   font-size: 1.8rem;
   font-weight: 700;
   color: #2196f3;
@@ -423,68 +776,98 @@ export default {
 
 .stats-details {
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  gap: 6px;
   font-size: 0.9rem;
   color: #555;
+}
+
+.stats-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .stats-item .label {
   color: #888;
 }
 
-.stats-item .value.normal {
+.stats-item .value.usage-rate {
+  color: #FFD600;
+  font-weight: 600;
+}
+
+.stats-item .value.available {
   color: #43a047;
+  font-weight: 600;
 }
 
-.stats-item .value.fault {
-  color: #e53935;
+.stats-item .value.in-use {
+  color: #ff9800;
+  font-weight: 600;
 }
 
-.stats-item .value.repair {
-  color: #ffb300;
-}
-
-.usage-main {
+.top-right-controls {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 30;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-end;
 }
 
-.usage-circle {
+.control-group {
+  display: flex;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 214, 0, 0.15);
+}
+
+.control-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-}
-
-.usage-percentage {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: #FFD600;
-}
-
-.usage-label {
-  font-size: 0.9rem;
+  gap: 3px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.8);
   color: #666;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.7rem;
+  font-weight: 500;
+  min-width: 60px;
+  backdrop-filter: blur(5px);
 }
 
-.usage-details {
-  display: flex;
-  gap: 10px;
-  font-size: 0.9rem;
-  color: #555;
-  justify-content: center;
+.control-btn:hover {
+  background: rgba(255, 214, 0, 0.15);
+  color: #333;
+  transform: translateY(-1px);
 }
 
-.usage-item .label {
-  color: #888;
+.control-btn.active {
+  background: #FFD600;
+  color: #333;
+  box-shadow: 0 2px 8px rgba(255, 214, 0, 0.3);
 }
 
-.top-right-btn-group {
-  position: fixed;
-  top: 20px;
-  right: 30px;
-  z-index: 30;
+.btn-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.btn-text {
+  font-size: 0.65rem;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  font-weight: 500;
 }
 
 @media (max-width: 900px) {
@@ -501,7 +884,7 @@ export default {
     font-size: 0.85rem;
   }
 
-  .top-right-btn-group {
+  .top-right-controls {
     right: 10px;
   }
 }
