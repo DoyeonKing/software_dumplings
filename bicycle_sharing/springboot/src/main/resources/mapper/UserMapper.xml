@@ -26,8 +26,8 @@
         INSERT INTO user (
             userid, username, password_hash, phone_number, total_rides, total_duration_minutes, total_cost
         ) VALUES (
-            #{userid}, #{username}, #{passwordHash}, #{phoneNumber}, #{totalRides}, #{totalDurationMinutes}, #{totalCost}
-        )
+                     #{userid}, #{username}, #{passwordHash}, #{phoneNumber}, #{totalRides}, #{totalDurationMinutes}, #{totalCost}
+                 )
     </insert>
 
     <select id="findByUserId" resultMap="UserResultMap">
@@ -51,4 +51,4 @@
     <select id="getById" resultMap="UserResultMap">
         SELECT * FROM user WHERE userid = #{id}
     </select>
-    </mapper>
+</mapper>

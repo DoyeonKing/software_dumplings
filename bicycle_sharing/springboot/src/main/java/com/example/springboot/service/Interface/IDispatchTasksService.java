@@ -22,7 +22,7 @@ public interface IDispatchTasksService { // 接口名与实体类名保持一致
      * @return 创建成功的调度任务实体
      * @throws IllegalArgumentException 如果参数校验失败或调度数量超过可用自行车数
      */
-    DispatchTasks createDispatchTask(DispatchTaskRequest request);
+    DispatchTasks createDispatchTask(DispatchTaskRequest request, LocalDateTime createdAt); // 允许传入创建时间
 
     /**
      * 获取指定 geohash 区域内“待使用”状态的自行车数量。
