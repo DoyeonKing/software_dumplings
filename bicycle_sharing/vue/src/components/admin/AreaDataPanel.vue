@@ -441,15 +441,16 @@ export default {
 .area-data-panel {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   height: 100%;
+  padding: 8px;
 }
 
 .prediction-params {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px;
+  gap: 6px;
+  padding: 10px;
   background: #f8f9fa;
   border-radius: 8px;
   border: 1px solid #e9ecef;
@@ -458,38 +459,38 @@ export default {
 .param-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .param-row label {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: #333;
-  min-width: 70px;
+  min-width: 65px;
 }
 
 .date-input, .hour-input {
   flex: 1;
-  padding: 6px 8px;
+  padding: 5px 6px;
   border: 1px solid #ddd;
   border-radius: 4px;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   background: white;
 }
 
 .hour-input {
-  width: 60px;
+  width: 50px;
   text-align: center;
 }
 
 .unit {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: #666;
 }
 
 .predict-btn {
-  padding: 8px 16px;
-  font-size: 0.9rem;
+  padding: 6px 12px;
+  font-size: 0.85rem;
   font-weight: 600;
   border: none;
   border-radius: 6px;
@@ -513,15 +514,15 @@ export default {
 .heatmap-control {
   display: flex;
   justify-content: center;
-  padding: 8px;
+  padding: 6px;
   background: #f8f9fa;
   border-radius: 8px;
   border: 1px solid #e9ecef;
 }
 
 .heatmap-btn {
-  padding: 8px 16px;
-  font-size: 0.9rem;
+  padding: 6px 12px;
+  font-size: 0.85rem;
   font-weight: 600;
   border: none;
   border-radius: 6px;
@@ -546,8 +547,8 @@ export default {
 .search-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px;
+  gap: 6px;
+  padding: 10px;
   background: #f8f9fa;
   border-radius: 8px;
   border: 1px solid #e9ecef;
@@ -560,42 +561,42 @@ export default {
 
 .search-input {
   flex: 1;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border: 1px solid #ddd;
   border-radius: 4px;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   background: white;
 }
 
 .area-selection-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .selection-label {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: #333;
-  min-width: 70px;
+  min-width: 65px;
 }
 
 .selected-area-display {
   flex: 1;
-  padding: 6px 8px;
+  padding: 5px 6px;
   background: white;
   border: 1px solid #ddd;
   border-radius: 4px;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: #666;
-  min-height: 20px;
+  min-height: 18px;
   display: flex;
   align-items: center;
 }
 
 .clear-area-btn {
-  padding: 4px 8px;
-  font-size: 0.8rem;
+  padding: 3px 6px;
+  font-size: 0.75rem;
   border: 1px solid #dc3545;
   border-radius: 4px;
   background: white;
@@ -613,15 +614,16 @@ export default {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .no-data {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100px;
+  height: 80px;
   color: #666;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   text-align: center;
   background: #f8f9fa;
   border-radius: 8px;
@@ -629,18 +631,19 @@ export default {
 }
 
 .area-data-scroll-container {
-  max-height: 400px;
+  max-height: 600px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  padding-bottom: 10px;
 }
 
 .area-data-item {
   background: white;
   border: 1px solid #e9ecef;
   border-radius: 8px;
-  padding: 12px;
+  padding: 10px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
@@ -648,21 +651,21 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
-  padding-bottom: 8px;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
   border-bottom: 1px solid #f0f0f0;
 }
 
 .area-geohash {
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: #333;
 }
 
 .area-status {
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.8rem;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 0.75rem;
   font-weight: 500;
 }
 
@@ -689,14 +692,14 @@ export default {
 .area-details {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .detail-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .detail-row .label {

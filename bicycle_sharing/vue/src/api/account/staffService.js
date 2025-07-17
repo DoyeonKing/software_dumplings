@@ -22,4 +22,16 @@ export function getAllWorkers() {
             'Authorization': token ? 'Bearer ' + token : ''
         }
     });
+}
+
+// 获取工作人员信息
+export function getStaffWorkers() {
+    const token = sessionStorage.getItem('authToken');
+    return request({
+        url: '/staff/workers',
+        method: 'get',
+        headers: {
+            'Authorization': token ? 'Bearer ' + token : ''
+        }
+    });
 } 

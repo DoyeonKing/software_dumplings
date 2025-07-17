@@ -25,6 +25,10 @@
           <span class="btn-icon">🅿️</span>
           <span class="btn-text">{{ showParkingAreas ? '隐藏区域' : '显示区域' }}</span>
         </button>
+        <button class="control-btn" @click="onToggleStaff" :class="{ active: showStaff }">
+          <span class="btn-icon">👥</span>
+          <span class="btn-text">{{ showStaff ? '隐藏人员' : '显示人员' }}</span>
+        </button>
         <button class="control-btn" @click="goHome">
           <span class="btn-icon">🏠</span>
           <span class="btn-text">主页</span>
@@ -189,7 +193,7 @@
 
             <button class="yellow-btn deploy-btn"
                     @click="publishTask"
-                    :disabled="!selectedStartArea || !selectedEndArea || !selectedWorker || dispatchAmount<1"
+                    :disabled="!startAreaValid || !endAreaValid || !selectedWorker || dispatchAmount<1"
             >确定发布</button>
           </div>
         </transition>
@@ -205,9 +209,11 @@ import AreaDataPanel from '@/components/admin/AreaDataPanel.vue';
 import TaskQueryPanel from '@/components/admin/TaskQueryPanel.vue';
 import AMapLoader from '@/utils/loadAMap.js';
 import bicycleIcon from '@/components/icons/bicycle.png';
+import staffIcon from '@/components/icons/staff_position.png';
 import { getMapAreaBicycles } from '@/api/map/bicycle';
 import { getParkingAreasInBounds, convertParkingAreaData } from '@/api/map/parking.js';
-import { getManagedStaff } from '@/api/account/staffService.js';
+import { getManagedStaff, getStaffWorkers } from '@/api/account/staffService.js';
+import { createDispatchTask } from '@/api/assignment/dispatchService.js';
 
 // 颜色定义
 const HIGHLIGHT_COLORS = {
@@ -248,8 +254,11 @@ export default {
       showHeatmap: false,
       parkingAreas: [],
       bikes: [],
-      showBikes: true,
-      showParkingAreas: true, // 默认显示停车区域
+      showBikes: false, // 默认隐藏单车
+      showParkingAreas: false, // 默认隐藏停车区域
+      showStaff: false, // 默认不显示工作人员
+      staffMarkers: [], // 工作人员标记
+      staffData: [], // 工作人员数据
       // 标签页状态
       activeTab: 'area', // 默认显示区域数据标签页
       // 添加高亮区域的颜色配置
@@ -259,7 +268,9 @@ export default {
       },
       // 停车区域选择相关
       startInputValue: '',
-      endInputValue: ''
+      endInputValue: '',
+      startAreaValid: false,
+      endAreaValid: false,
 
     };
   },
@@ -354,6 +365,121 @@ export default {
       console.log(`停车区域已${this.showParkingAreas ? '显示' : '隐藏'}`);
     },
 
+    onToggleStaff() {
+      this.showStaff = !this.showStaff;
+      if (this.showStaff) {
+        if (this.staffData.length > 0) {
+          // 如果已有数据，直接显示标记
+          this.addStaffMarkers(this.staffData);
+          this.showStaffMarkers();
+        } else {
+          // 如果没有数据，重新加载
+          this.loadStaffData();
+        }
+      } else {
+        this.hideStaffMarkers();
+      }
+      console.log(`工作人员已${this.showStaff ? '显示' : '隐藏'}`);
+    },
+
+    async loadStaffData() {
+      try {
+        console.log('开始加载工作人员数据...');
+        const response = await getStaffWorkers();
+        console.log('工作人员API响应:', response);
+        
+        let staffData = [];
+        
+        // 处理响应数据
+        if (response && Array.isArray(response)) {
+          staffData = response;
+        } else if (response && response.data && Array.isArray(response.data)) {
+          staffData = response.data;
+        } else if (response && (response.code === 200 || response.code === '200') && Array.isArray(response.data)) {
+          staffData = response.data;
+        }
+        
+        console.log('处理后的工作人员数据:', staffData);
+        this.staffData = staffData;
+        
+        if (staffData.length > 0) {
+          this.addStaffMarkers(staffData);
+        } else {
+          console.warn('没有获取到工作人员数据');
+        }
+      } catch (error) {
+        console.error("加载工作人员数据失败:", error);
+        this.staffData = [];
+      }
+    },
+
+    addStaffMarkers(staffList) {
+      console.log('开始添加工作人员标记，数据:', staffList);
+      // 清除现有标记
+      this.hideStaffMarkers();
+      
+      if (!this.map || !staffList || staffList.length === 0) {
+        console.warn('无法添加工作人员标记：地图未初始化或数据为空');
+        return;
+      }
+      
+      const staffMarkerIcon = new window.AMap.Icon({ 
+        image: staffIcon, 
+        size: new window.AMap.Size(32, 32),
+        imageSize: new window.AMap.Size(32, 32)
+      });
+      
+      let markerCount = 0;
+      staffList.forEach(staff => {
+        console.log('处理工作人员:', staff);
+        if (staff.latitude && staff.longitude) {
+          console.log(`添加工作人员标记: ${staff.username} at [${staff.longitude}, ${staff.latitude}]`);
+          const marker = new window.AMap.Marker({ 
+            position: [staff.longitude, staff.latitude], 
+            map: null, // 不立即添加到地图，通过showStaffMarkers控制
+            icon: staffMarkerIcon, 
+            title: `工作人员: ${staff.username}` 
+          });
+          
+          marker.on('mouseover', () => {
+            this.infoWindow.setContent(`
+              <div style="padding: 8px 12px; font-size: 14px;">
+                <b>工作人员信息</b><br>
+                <b>ID：</b>${staff.staffId}<br>
+                <b>用户名：</b>${staff.username}<br>
+                <b>上级管理员：</b>${staff.managerId}<br>
+                <b>负责区域：</b>${staff.geohash}<br>
+                <b>位置：</b>${staff.latitude}, ${staff.longitude}
+              </div>
+            `);
+            this.infoWindow.open(this.map, marker.getPosition());
+          });
+          
+          marker.on('mouseout', () => this.infoWindow.close());
+          
+          this.staffMarkers.push(marker);
+          markerCount++;
+        } else {
+          console.warn(`工作人员 ${staff.username} 缺少经纬度信息`);
+        }
+      });
+      
+      console.log(`成功添加了 ${markerCount} 个工作人员标记`);
+    },
+
+    hideStaffMarkers() {
+      this.staffMarkers.forEach(marker => {
+        marker.setMap(null);
+      });
+      this.staffMarkers = [];
+    },
+
+    showStaffMarkers() {
+      this.staffMarkers.forEach(marker => {
+        marker.setMap(this.map);
+      });
+    },
+
     updatePolygonStyles() {
       this.parkingAreas.forEach(area => {
         const polygon = this.polygonMap[area.id];
@@ -425,6 +551,7 @@ export default {
           return;
         }
         this.selectedStartArea = area;
+        this.startAreaValid = true;
         this.selectingFor = null;
         // 清空输入框
         this.startInputValue = '';
@@ -434,6 +561,7 @@ export default {
           return;
         }
         this.selectedEndArea = area;
+        this.endAreaValid = true;
         this.selectingFor = null;
         // 清空输入框
         this.endInputValue = '';
@@ -466,13 +594,40 @@ export default {
       this.updatePolygonStyles();
     },
 
-    publishTask() {
-      if (!this.selectedStartArea || !this.selectedEndArea || !this.selectedWorker || this.dispatchAmount < 1) return;
-      alert(`调度任务已发布！\n\n` + `起点：${this.selectedStartArea.geohash}\n` + `终点：${this.selectedEndArea.geohash}\n` + `调度数量：${this.dispatchAmount}\n` + `执行工作人员：${this.selectedWorker.username} (ID: ${this.selectedWorker.staffId})\n` + `负责区域：${this.selectedWorker.geohash}`);
-      this.cancelOrClearSelection('start');
-      this.cancelOrClearSelection('end');
-      this.selectedWorker = null;
-      this.dispatchAmount = 1;
+    async publishTask() {
+      // 优先用地图选择，否则用输入框
+      let startArea = this.selectedStartArea;
+      let endArea = this.selectedEndArea;
+      if (!startArea && this.startInputValue.trim()) {
+        startArea = this.parkingAreas.find(a => a.geohash === this.startInputValue.trim());
+      }
+      if (!endArea && this.endInputValue.trim()) {
+        endArea = this.parkingAreas.find(a => a.geohash === this.endInputValue.trim());
+      }
+      if (!startArea || !endArea || !this.selectedWorker || this.dispatchAmount < 1) {
+        alert('请填写完整的起点、终点、工作人员和调度数量！');
+        return;
+      }
+      try {
+        await createDispatchTask({
+          startGeohash: startArea.geohash,
+          endGeohash: endArea.geohash,
+          assignedTo: this.selectedWorker.id,
+          bikeCount: this.dispatchAmount
+        });
+        alert(`调度任务已发布！\n\n起点：${startArea.geohash}\n终点：${endArea.geohash}\n调度数量：${this.dispatchAmount}\n执行工作人员：${this.selectedWorker.username} (ID: ${this.selectedWorker.staffId})\n负责区域：${this.selectedWorker.geohash}`);
+        // 清空
+        this.cancelOrClearSelection('start');
+        this.cancelOrClearSelection('end');
+        this.selectedWorker = null;
+        this.dispatchAmount = 1;
+        this.startInputValue = '';
+        this.endInputValue = '';
+        this.startAreaValid = false;
+        this.endAreaValid = false;
+      } catch (e) {
+        alert('调度任务发布失败，请重试！');
+      }
     },
 
     onToggleHeatmap() {
@@ -529,14 +684,30 @@ export default {
 
     // 起点输入处理
     onStartInput() {
-      // 暂时不提供建议，直接输入
-      this.startSuggestions = [];
+      const val = this.startInputValue.trim();
+      if (this.startSelectionActive) return;
+      const area = this.parkingAreas.find(a => a.geohash === val);
+      if (area) {
+        this.selectedStartArea = area;
+        this.startAreaValid = true;
+      } else {
+        this.selectedStartArea = null;
+        this.startAreaValid = false;
+      }
     },
 
     // 终点输入处理
     onEndInput() {
-      // 暂时不提供建议，直接输入
-      this.endSuggestions = [];
+      const val = this.endInputValue.trim();
+      if (this.endSelectionActive) return;
+      const area = this.parkingAreas.find(a => a.geohash === val);
+      if (area) {
+        this.selectedEndArea = area;
+        this.endAreaValid = true;
+      } else {
+        this.selectedEndArea = null;
+        this.endAreaValid = false;
+      }
     },
 
 
@@ -692,8 +863,8 @@ export default {
       
       // 初始化地图
       this.map = new window.AMap.Map("mapContainer", {
-        center: [114.0580, 22.5390],
-        zoom: 18, // 更高的缩放级别
+        center: [114.0610, 22.5395],
+        zoom: 17, // 更高的缩放级别
         dragEnable: true,
         zoomEnable: true,
         doubleClickZoom: true,
@@ -713,7 +884,7 @@ export default {
       // 加载热力图插件
       window.AMap.plugin(['AMap.HeatMap'], () => {
         this.heatmap = new window.AMap.HeatMap(this.map, {
-          radius: 25,
+          radius: 20,
           opacity: [0.1, 0.9],
           gradient: {
             0.2: 'blue',
@@ -755,6 +926,10 @@ export default {
     // 加载工作人员数据
     console.log('开始加载工作人员数据...');
     this.loadManagedStaff();
+    
+    // 预加载工作人员位置数据（用于地图显示）
+    console.log('开始预加载工作人员位置数据...');
+    this.loadStaffData();
     
     // 确保调度建议面板默认展开
     this.suggestionPanelExpanded = true;
@@ -1033,7 +1208,7 @@ export default {
 .panel-content-container {
   background: white;
   border-radius: 0 0 16px 16px;
-  max-height: 70vh;
+  max-height: 75vh;
   overflow: hidden;
 }
 

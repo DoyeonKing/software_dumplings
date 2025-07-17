@@ -104,12 +104,17 @@ export default {
         email: 'admin@bikeshare.com',
         birth: '1990-01-01'
       },
-      // 【修改】初始化为空数组
+      // 【修改】初始化为空数组，默认隐藏单车和停车区域
       parkingAreas: [],
       parkingPolygons: [],
       bikes: [],
-      showBikes: true,
-      showParkingAreas: true, // 默认显示停车区域
+      showBikes: false, // 默认隐藏单车
+      showParkingAreas: false, // 默认隐藏停车区域
+      // 性能优化相关
+      updateTimeout: null,
+      isUpdating: false,
+      lastUpdateTime:0,
+      updateThrottle:1000, //1
     };
   },
   mounted() {
@@ -129,17 +134,28 @@ export default {
     this.userRole = sessionStorage.getItem('userRole') || ''
 
     AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
-      // 初始化地图
+      // 初始化地图 - 优化配置
       this.map = new window.AMap.Map("mapContainer", {
-        center: [114.0580, 22.5390],
-        zoom: 18, // 更高的缩放级别
+        center: [114.0610, 22.5395],
+        zoom: 17,
         dragEnable: true,
         zoomEnable: true,
         doubleClickZoom: true,
         keyboardEnable: true,
         scrollWheel: true,
         touchZoom: true,
-        mapStyle: 'amap://styles/normal'
+        mapStyle: 'amap://styles/normal',
+        // 性能优化配置
+        renderMode: '2D', // 使用2D渲染模式
+        pitch: 0, // 禁用3D倾斜
+        viewMode: '2D', // 强制2D视图
+        expandZoomRange: false, // 禁用扩展缩放范围
+        jogEnable: false, // 禁用缓动效果
+        animateEnable: false, // 禁用动画效果
+        resizeEnable: true,
+        showIndoorMap: false, // 禁用室内地图
+        showBuildingBlock: false, // 禁用建筑物
+        showLabel: true, // 保留标签显示
       });
 
       // 初始化信息窗口
@@ -150,7 +166,7 @@ export default {
       // 加载热力图插件
       window.AMap.plugin(['AMap.HeatMap'], () => {
         this.heatmap = new window.AMap.HeatMap(this.map, {
-          radius: 25,
+          radius: 20,
           opacity: [0.1, 0.9],
           gradient: {
              0.4: '#4575b4',   // 深蓝色 - 最低密度
@@ -165,22 +181,14 @@ export default {
         this.heatmapReady = true;
       });
 
-      // 加载初始数据
-      this.loadBicycles();
-      this.loadParkingAreas();
+      // 【优化】延迟加载初始数据，避免页面加载时卡顿
+      setTimeout(() => {
+        this.loadBicycles();
+        this.loadParkingAreas();
+      }, 1000);
 
-      // 监听地图移动和缩放事件，但使用防抖来减少API调用频率
-      let timeout;
-      const updateData = () => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => {
-          this.loadBicycles();
-          this.loadParkingAreas();
-        }, 500); // 500ms的防抖延迟
-      };
-
-      this.map.on('moveend', updateData);
-      this.map.on('zoomend', updateData);
+      // 【优化】使用节流的地图事件监听
+      this.setupMapEventListeners();
 
     }).catch(err => {
       alert('地图加载失败: ' + err.message);
@@ -189,17 +197,46 @@ export default {
   },
   beforeUnmount() {
     document.removeEventListener('click', this.handleClickOutside);
+    
+    // 清理定时器
+    if (this.updateTimeout) {
+      clearTimeout(this.updateTimeout);
+    }
+    
     if (this.map) {
-      // 【修改】移除所有监听器
+      // 清理地图事件监听器
       this.map.off('moveend', this.loadBicycles);
       this.map.off('zoomend', this.loadBicycles);
       this.map.off('moveend', this.loadParkingAreas);
       this.map.off('zoomend', this.loadParkingAreas);
+      
+      // 清理标记
+      if (this.markers && this.markers.length > 0) {
+        this.markers.forEach(marker => marker.setMap(null));
+        this.markers = [];
+      }
+      
+      // 清理多边形
+      if (this.parkingPolygons && this.parkingPolygons.length > 0) {
+        this.parkingPolygons.forEach(polygon => polygon.setMap(null));
+        this.parkingPolygons = [];
+      }
+      
+      // 清理热力图
+      if (this.heatmap) {
+        this.heatmap.setMap(null);
+        this.heatmap = null;
+      }
+      
+      // 销毁地图
+      this.map.destroy();
+      this.map = null;
     }
   },
   methods: {
     // 【新增】获取停车区域数据的方法 (参考 UserMapComponent.vue)
     async fetchParkingAreas() {
+      if (!this.map) return;
       try {
         const bounds = this.map.getBounds();
         const params = {
@@ -230,7 +267,7 @@ export default {
     },
     // 【新增】显示停车区域的主方法 (参考 UserMapComponent.vue)
     async loadParkingAreas() {
-      if (!this.map) return;
+      if (!this.map || !this.showParkingAreas) return; // 如果隐藏停车区域则不加载
       try {
         // 清除旧的图层
         if (this.parkingPolygons && this.parkingPolygons.length > 0) {
@@ -249,6 +286,8 @@ export default {
       }
     },
     async loadBicycles() {
+      if (!this.map || !this.showBikes) return; // 如果隐藏单车则不加载
+      
       try {
         const bounds = this.map.getBounds();
         const params = {
@@ -286,13 +325,16 @@ export default {
     },
 
     addBikeMarkers(bikeList, bikeIcon) {
-      this.markers.forEach(marker => marker.setMap(null));
-      this.markers = [];
+      if (this.markers && this.markers.length > 0) {
+        this.markers.forEach(marker => marker.setMap(null));
+        this.markers = [];
+      }
 
-      bikeList.forEach(bike => {
+      // 批量创建新标记
+      const newMarkers = bikeList.map(bike => {
         const marker = new window.AMap.Marker({
           position: [bike.lng, bike.lat],
-          map: this.map,
+          map: this.showBikes ? this.map : null, // 根据显示状态决定是否添加到地图
           icon: bikeIcon,
           title: `单车编号: ${bike.id}`
         });
@@ -307,17 +349,21 @@ export default {
         });
         marker.on('mouseout', () => this.infoWindow.close());
 
-        this.markers.push(marker);
+        return marker;
       });
+
+      this.markers = newMarkers;
     },
 
     drawParkingAreas() {
+      if (!this.showParkingAreas) return; // 如果隐藏则不绘制
+      
       const infoWindow = new window.AMap.InfoWindow({
         offset: new window.AMap.Pixel(0, -20)
       });
 
-      // 遍历从API获取的新数据进行绘制
-      this.parkingAreas.forEach(area => {
+      // 批量创建多边形
+      const newPolygons = this.parkingAreas.map(area => {
         const polygon = new window.AMap.Polygon({
           path: area.polygonPath,
           fillColor: "#FFD600",
@@ -333,27 +379,31 @@ export default {
           this.map.add(polygon);
         }
         
-        this.parkingPolygons.push(polygon);
-
         polygon.on("mouseover", (e) => {
           infoWindow.setContent(`<div style="min-width:160px;"><b>停车区域：</b>${area.geohash}</div>`);
           infoWindow.open(this.map, e.lnglat);
         });
         polygon.on("mouseout", () => infoWindow.close());
+        
+        return polygon;
       });
+
+      this.parkingPolygons = newPolygons;
     },
     onToggleBikes() {
       this.showBikes = !this.showBikes;
-      if (this.markers && this.markers.length > 0) {
-        if (this.showBikes && this.showHeatmap) {
-          this.toggleHeatmap(this.bikes);
-        } else {
-          this.markers.forEach(marker => {
-            this.showBikes ? marker.show() : marker.hide();
-          });
+      
+      if (this.showBikes) {
+        // 显示时立即刷新视野内数据
+        this.loadBicycles();
+      } else {
+        // 隐藏时立即隐藏所有单车标记
+        if (this.markers && this.markers.length > 0) {
+          this.markers.forEach(marker => marker.setMap(null));
         }
       }
     },
+    
     onToggleHeatmap() {
       if (!this.showHeatmap) {
         this.showBikes = false;
@@ -368,14 +418,12 @@ export default {
     onToggleParkingAreas() {
       this.showParkingAreas = !this.showParkingAreas;
       
-      if (this.parkingPolygons && this.parkingPolygons.length > 0) {
-        if (this.showParkingAreas) {
-          // 显示停车区域
-          this.parkingPolygons.forEach(polygon => {
-            polygon.setMap(this.map);
-          });
-        } else {
-          // 隐藏停车区域
+      if (this.showParkingAreas) {
+        // 显示时立即刷新视野内数据
+        this.loadParkingAreas();
+      } else {
+        // 隐藏时立即隐藏所有停车区域
+        if (this.parkingPolygons && this.parkingPolygons.length > 0) {
           this.parkingPolygons.forEach(polygon => {
             polygon.setMap(null);
           });
@@ -411,6 +459,49 @@ export default {
     saveInfo() {
       this.editMode = false;
       window.alert('信息已保存！');
+    },
+    // 【新增】设置地图事件监听器 - 使用节流优化
+    setupMapEventListeners() {
+      const throttledUpdate = this.throttle(() => {
+        if (!this.isUpdating) {
+          this.isUpdating = true;
+          this.loadBicycles();
+          this.loadParkingAreas();
+          setTimeout(() => {
+            this.isUpdating = false;
+          }, 500);
+        }
+      }, this.updateThrottle);
+
+      this.map.on('moveend', throttledUpdate);
+      this.map.on('zoomend', throttledUpdate);
+    },
+
+    // 【新增】节流函数
+    throttle(func, delay) {
+      return function(...args) {
+        const now = Date.now();
+        if (now - this.lastUpdateTime >= delay) {
+          this.lastUpdateTime = now;
+          func.apply(this, args);
+        }
+      }.bind(this);
+    },
+
+    // 【新增】优化的数据更新方法
+    async updateMapData() {
+      if (this.updateTimeout) {
+        clearTimeout(this.updateTimeout);
+      }
+      
+      this.updateTimeout = setTimeout(async () => {
+        if (this.showBikes) {
+          await this.loadBicycles();
+        }
+        if (this.showParkingAreas) {
+          await this.loadParkingAreas();
+        }
+      }, 300);
     },
   }
 };

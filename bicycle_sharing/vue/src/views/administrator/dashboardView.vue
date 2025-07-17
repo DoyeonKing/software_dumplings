@@ -165,8 +165,8 @@ export default {
       parkingAreas: [],
       parkingPolygons: [],
       bikes: [],
-      showBikes: true,
-      showParkingAreas: true, // 默认显示停车区域
+      showBikes: false, // 默认隐藏单车
+      showParkingAreas: false, // 默认隐藏停车区域
       // 添加默认缩放级别
       defaultZoom: 18,
       // 添加特定区域的坐标映射
@@ -215,8 +215,8 @@ export default {
     AMapLoader.load('dea7cc14dad7340b0c4e541dfa3d27b7', 'AMap.Heatmap').then(() => {
       // 初始化地图
       this.map = new window.AMap.Map("mapContainer", {
-        center: [114.0580, 22.5390],
-        zoom: 18, // 更高的缩放级别
+        center: [114.0610, 22.5395],
+        zoom: 17, // 更高的缩放级别
         dragEnable: true,
         zoomEnable: true,
         doubleClickZoom: true,
@@ -234,7 +234,7 @@ export default {
       // 加载热力图插件
       window.AMap.plugin(['AMap.HeatMap'], () => {
         this.heatmap = new window.AMap.HeatMap(this.map, {
-          radius: 25,
+          radius: 20,
           opacity: [0.1, 0.9],
           gradient: {
              0.4: '#4575b4',   // 深蓝色 - 最低密度
