@@ -1,4 +1,4 @@
- // 高德地图 API Keys 说明：
+// 高德地图 API Keys 说明：
 // 1. Web端 Key (key-webJS): 7a9ebfd8db9264a7f90b65369bd2970a
 //    用于前端地图显示和基础交互功能（JavaScript API、地图组件等）
 // 
@@ -192,6 +192,30 @@
                   <span class="info-label">可用车位:</span>
                   <span class="info-value available-spots">{{ nearestParkingArea.availableSpots }}个</span>
                 </div>
+                <!-- 使用情况信息 -->
+                <div v-if="nearestParkingArea.utilization !== undefined" class="utilization-section">
+                  <div class="utilization-header">
+                    <span class="info-label">使用情况:</span>
+                  </div>
+                  <div class="utilization-details">
+                    <div class="utilization-item">
+                      <span class="utilization-label">使用率:</span>
+                      <span class="utilization-value utilization-rate">{{ nearestParkingArea.utilization.toFixed(1) }}%</span>
+                    </div>
+                    <div class="utilization-item">
+                      <span class="utilization-label">总车辆:</span>
+                      <span class="utilization-value">{{ nearestParkingArea.totalBikes }}辆</span>
+                    </div>
+                    <div class="utilization-item">
+                      <span class="utilization-label">可用车辆:</span>
+                      <span class="utilization-value available-bikes">{{ nearestParkingArea.availableBikes }}辆</span>
+                    </div>
+                    <div class="utilization-item">
+                      <span class="utilization-label">使用中:</span>
+                      <span class="utilization-value in-use-bikes">{{ nearestParkingArea.inUseBikes }}辆</span>
+                    </div>
+                  </div>
+                </div>
               </div>
               
               <!-- 导航到这里按钮 -->
@@ -288,29 +312,53 @@
                 </el-button>
               </div>
               
-              <!-- 最近停车点信息显示 -->
-              <div v-if="nearestParkingArea" class="parking-info-card">
-                <div class="parking-info-header">
-                  <h5>📍 最近停车点</h5>
+                          <!-- 最近停车点信息显示 -->
+            <div v-if="nearestParkingArea" class="parking-info-card">
+              <div class="parking-info-header">
+                <h5>📍 最近停车点</h5>
+              </div>
+              <div class="parking-info-content">
+                <div class="info-row">
+                  <span class="info-label">区域编号:</span>
+                  <span class="info-value">{{ nearestParkingArea.geohash }}</span>
                 </div>
-                <div class="parking-info-content">
-                  <div class="info-row">
-                    <span class="info-label">区域编号:</span>
-                    <span class="info-value">{{ nearestParkingArea.geohash }}</span>
+                <div class="info-row">
+                  <span class="info-label">总容量:</span>
+                  <span class="info-value">{{ nearestParkingArea.totalParkingCapacity }}个</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">当前单车:</span>
+                  <span class="info-value bike-count">{{ nearestParkingArea.currentBikeCount }}辆</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">可用车位:</span>
+                  <span class="info-value available-spots">{{ nearestParkingArea.availableSpots }}个</span>
+                </div>
+                <!-- 使用情况信息 -->
+                <div v-if="nearestParkingArea.utilization !== undefined" class="utilization-section">
+                  <div class="utilization-header">
+                    <span class="info-label">使用情况:</span>
                   </div>
-                  <div class="info-row">
-                    <span class="info-label">总容量:</span>
-                    <span class="info-value">{{ nearestParkingArea.totalParkingCapacity }}个</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">当前单车:</span>
-                    <span class="info-value bike-count">{{ nearestParkingArea.currentBikeCount }}辆</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">可用车位:</span>
-                    <span class="info-value available-spots">{{ nearestParkingArea.availableSpots }}个</span>
+                  <div class="utilization-details">
+                    <div class="utilization-item">
+                      <span class="utilization-label">使用率:</span>
+                      <span class="utilization-value utilization-rate">{{ nearestParkingArea.utilization.toFixed(1) }}%</span>
+                    </div>
+                    <div class="utilization-item">
+                      <span class="utilization-label">总车辆:</span>
+                      <span class="utilization-value">{{ nearestParkingArea.totalBikes }}辆</span>
+                    </div>
+                    <div class="utilization-item">
+                      <span class="utilization-label">可用车辆:</span>
+                      <span class="utilization-value available-bikes">{{ nearestParkingArea.availableBikes }}辆</span>
+                    </div>
+                    <div class="utilization-item">
+                      <span class="utilization-label">使用中:</span>
+                      <span class="utilization-value in-use-bikes">{{ nearestParkingArea.inUseBikes }}辆</span>
+                    </div>
                   </div>
                 </div>
+              </div>
                 
                 <!-- 导航到这里按钮 -->
                 <div v-if="showNavigateButton" class="navigate-action">
@@ -376,6 +424,30 @@
                     <span class="info-label">可用车位:</span>
                     <span class="info-value available-spots">{{ nearestParkingArea.availableSpots }}个</span>
                   </div>
+                  <!-- 使用情况信息 -->
+                  <div v-if="nearestParkingArea.utilization !== undefined" class="utilization-section">
+                    <div class="utilization-header">
+                      <span class="info-label">使用情况:</span>
+                    </div>
+                    <div class="utilization-details">
+                      <div class="utilization-item">
+                        <span class="utilization-label">使用率:</span>
+                        <span class="utilization-value utilization-rate">{{ nearestParkingArea.utilization.toFixed(1) }}%</span>
+                      </div>
+                      <div class="utilization-item">
+                        <span class="utilization-label">总车辆:</span>
+                        <span class="utilization-value">{{ nearestParkingArea.totalBikes }}辆</span>
+                      </div>
+                      <div class="utilization-item">
+                        <span class="utilization-label">可用车辆:</span>
+                        <span class="utilization-value available-bikes">{{ nearestParkingArea.availableBikes }}辆</span>
+                      </div>
+                      <div class="utilization-item">
+                        <span class="utilization-label">使用中:</span>
+                        <span class="utilization-value in-use-bikes">{{ nearestParkingArea.inUseBikes }}辆</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 
                 <!-- 导航到这里按钮 -->
@@ -412,7 +484,7 @@
     <!-- 骑车圆形收起组件 -->
     <div v-if="showRide && isRidePanelCollapsed" class="ride-collapsed-button" :class="{ hidden: hideUI }" @click="expandRidePanel">
       <div class="collapsed-icon">
-        <img :src="ridingIcon" alt="骑行" class="riding-icon" />
+        <span class="ride-text">骑车</span>
       </div>
       <div v-if="isRiding" class="collapsed-riding-indicator">
         <div class="riding-pulse"></div>
@@ -439,6 +511,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { getRidingRoute } from '@/utils/amap';
 // 导入导航API
 import { getNearestParkingArea } from '@/api/navigation';
+import { getBikeUtilization } from '@/api/map/bicycle';
 
 // 状态文本映射
 const statusText = {
@@ -1074,7 +1147,7 @@ const currentHeatmapType = ref('current'); // 'current' 或 'prediction'
           });
 
           // 添加图标点击事件
-          marker.on('click', () => {
+          marker.on('click', async () => {
             if (!infoWindow.value) {
               infoWindow.value = new AMap.InfoWindow({
                 closeWhenClickMap: true,
@@ -1082,18 +1155,50 @@ const currentHeatmapType = ref('current'); // 'current' 或 'prediction'
               });
             }
 
-            const content = `
+            // 先显示基础信息
+            let content = `
               <div class="parking-info">
                 <h4>停车区域 ${area.geohash}</h4>
                 <p><strong>区域编号：</strong>${area.geohash}</p>
                 <p><strong>区域组ID：</strong>${area.regionGroupId}</p>
                 <p><strong>停车容量：</strong>${area.parkingCapacity}个</p>
                 <p><strong>中心位置：</strong>${area.centerLat.toFixed(6)}, ${area.centerLon.toFixed(6)}</p>
+                <div id="utilization-loading">正在加载使用情况...</div>
               </div>
             `;
-
             infoWindow.value.setContent(content);
             infoWindow.value.open(map.value, marker.getPosition());
+
+            // 异步获取使用率等数据
+            try {
+              const util = await getBikeUtilization(area.geohash);
+              if (util && util.utilization !== undefined) {
+                // 拼接使用情况内容
+                const utilHtml = `
+                  <p><strong>使用率：</strong>${util.utilization.toFixed(1)}%</p>
+                  <p><strong>总车辆：</strong>${util.totalBikes}辆</p>
+                  <p><strong>可用车辆：</strong>${util.availableBikes}辆</p>
+                  <p><strong>使用中：</strong>${util.inUseBikes}辆</p>
+                `;
+                // 替换loading
+                const dom = infoWindow.value.getContent();
+                if (dom && typeof dom === 'string') {
+                  infoWindow.value.setContent(dom.replace('<div id="utilization-loading">正在加载使用情况...</div>', utilHtml));
+                }
+              } else {
+                // 替换为无数据
+                const dom = infoWindow.value.getContent();
+                if (dom && typeof dom === 'string') {
+                  infoWindow.value.setContent(dom.replace('<div id="utilization-loading">正在加载使用情况...</div>', '<p><strong>使用情况：</strong>暂无数据</p>'));
+                }
+              }
+            } catch (e) {
+              // 替换为加载失败
+              const dom = infoWindow.value.getContent();
+              if (dom && typeof dom === 'string') {
+                infoWindow.value.setContent(dom.replace('<div id="utilization-loading">正在加载使用情况...</div>', '<p><strong>使用情况：</strong>加载失败</p>'));
+              }
+            }
           });
 
           // 仅保留标记鼠标悬停效果
@@ -2421,6 +2526,26 @@ const currentHeatmapType = ref('current'); // 'current' 或 'prediction'
           nearestParkingArea.value = response.data;
           showNavigateButton.value = true;
 
+          // 获取停车点使用情况数据
+          try {
+            const utilizationResponse = await getBikeUtilization(nearestParkingArea.value.geohash);
+            console.log('停车点使用情况API响应:', utilizationResponse);
+            
+            if (utilizationResponse && utilizationResponse.utilization !== undefined) {
+              // 将使用情况数据合并到停车点信息中
+              nearestParkingArea.value = {
+                ...nearestParkingArea.value,
+                utilization: utilizationResponse.utilization,
+                totalBikes: utilizationResponse.totalBikes,
+                availableBikes: utilizationResponse.availableBikes,
+                inUseBikes: utilizationResponse.inUseBikes
+              };
+            }
+          } catch (utilizationError) {
+            console.error('获取停车点使用情况失败:', utilizationError);
+            // 即使获取使用情况失败，也不影响停车点基本信息的显示
+          }
+
           // 将地图中心移动到停车点位置
           const parkingCenter = [
             nearestParkingArea.value.centerLon,
@@ -3578,6 +3703,58 @@ const currentHeatmapType = ref('current'); // 'current' 或 'prediction'
   box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
 }
 
+/* 使用情况信息样式 */
+.utilization-section {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #e8e8e8;
+}
+
+.utilization-header {
+  margin-bottom: 10px;
+}
+
+.utilization-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.utilization-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.utilization-label {
+  color: #666;
+  font-weight: 500;
+}
+
+.utilization-value {
+  font-weight: 600;
+  color: #333;
+}
+
+.utilization-rate {
+  color: #ff6b6b;
+  font-weight: 700;
+}
+
+.available-bikes {
+  color: #4CAF50;
+  font-weight: 700;
+}
+
+.in-use-bikes {
+  color: #2196F3;
+  font-weight: 700;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .ride-panel {
@@ -3642,5 +3819,16 @@ const currentHeatmapType = ref('current'); // 'current' 或 'prediction'
     padding: 6px 20px;
     font-size: 14px;
   }
+}
+
+.ride-text {
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  transition: transform 0.3s ease;
+}
+
+.ride-collapsed-button:hover .ride-text {
+  transform: scale(1.1);
 }
 </style> 

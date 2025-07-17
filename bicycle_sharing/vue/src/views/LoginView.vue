@@ -8,13 +8,6 @@
       </router-link>
     </div>
     
-    <!-- API测试按钮 -->
-    <div class="api-test-link">
-      <el-button type="primary" link @click="router.push('/api-test')">
-        API Test Page
-      </el-button>
-    </div>
-
     <div class="login-content">
       <div class="left-section">
         <div class="title-container">
@@ -206,10 +199,26 @@ const handleLogin = async () => {
   align-items: center;
   justify-content: center;
   width: 100%;
-  background-color: #ecedf6;
+  background-image: url('/bp.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.login-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.4); /* 增加透明度，使背景更淡 */
+  z-index: 1;
 }
 
 .login-content {
+  position: relative;
+  z-index: 2; /* 确保内容在遮罩之上 */
   display: flex;
   width: 100%;
   max-width: 1440px;
@@ -437,45 +446,61 @@ input:focus {
   text-align: center;
 }
 
-.api-test-link {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  z-index: 100;
-}
-
 .home-link {
   position: absolute;
   top: 20px;
   left: 20px;
-  z-index: 100;
+  z-index: 3; /* 确保在遮罩之上 */
 }
 
 .home-button {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 25px;
   text-decoration: none;
-  color: #4F6EF7;
-  font-weight: 500;
-  font-size: 0.9rem;
-  padding: 8px 12px;
-  border: 1px solid #4F6EF7;
-  border-radius: 12px;
-  transition: background-color 0.3s, border-color 0.3s;
+  color: #333;
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
 }
 
 .home-button:hover {
-  background-color: #4F6EF7;
-  color: white;
+  background: rgba(255, 255, 255, 1);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
 }
 
 .home-icon {
-  font-size: 1.2rem;
+  font-size: 16px;
 }
 
 .home-text {
-  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.register-hint {
+  margin-top: 20px;
+  font-size: 16px;
+  color: #333;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.register-hint .link {
+  color: #4a148c; /* 更深的蓝紫色 */
+  text-decoration: none;
+  font-weight: 700;
+  transition: color 0.3s ease;
+}
+
+.register-hint .link:hover {
+  color: #6a1b9a; /* 悬停时稍微亮一点的蓝紫色 */
+  text-decoration: underline;
 }
 
 @media (max-width: 1200px) {
