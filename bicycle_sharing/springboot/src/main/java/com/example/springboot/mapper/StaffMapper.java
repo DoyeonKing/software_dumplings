@@ -21,7 +21,7 @@ public interface StaffMapper {
      * @return 匹配的工作人员对象或 null
      */
     // 移除 staff_type 字段的查询
-    @Select("SELECT staff_id, username, password_hash, managerId, geohash FROM staff WHERE username = #{username}")
+    @Select("SELECT staff_id, username, password_hash, managerId, geohash, latitude, longitude  FROM staff WHERE username = #{username}")
     Staff findByUsername(@Param("username") String username);
 
     /**
@@ -40,7 +40,7 @@ public interface StaffMapper {
      * @return 对应的 Staff 对象，如果不存在则返回 null
      */
     // 移除 staff_type 字段的查询
-    @Select("SELECT staff_id, username, password_hash, managerId, geohash FROM staff WHERE username = #{username}")
+    @Select("SELECT staff_id, username, password_hash, managerId, geohash, latitude, longitude FROM staff WHERE username = #{username}")
     Staff selectByUsername(@Param("username") String username);
 
     // 如果你有注册功能，也可以添加一个检查用户名是否存在的方法
@@ -52,7 +52,7 @@ public interface StaffMapper {
      * @return 所有工作人员对象的列表
      */
     // 移除 staff_type 的过滤条件
-    @Select("SELECT staff_id, username, managerId, geohash FROM staff")
+    @Select("SELECT staff_id, username, managerId, geohash, latitude, longitude FROM staff")
     List<Staff> findAllWorkers();
 
     /**
@@ -76,7 +76,7 @@ public interface StaffMapper {
 
     //使用token码获得staff信息
     // 移除 staff_type 字段的查询
-    @Select("SELECT staff_id, username, password_hash, managerId, geohash FROM staff WHERE staff_id = #{staffId}")
+    @Select("SELECT staff_id, username, password_hash, managerId, geohash, latitude, longitude FROM staff WHERE staff_id = #{staffId}")
     Staff selectById(@Param("staffId") Integer staffId);
 
 
@@ -85,6 +85,6 @@ public interface StaffMapper {
      * @param managerId 管理员ID
      * @return 对应的 Staff 对象列表，如果不存在则返回空列表
      */
-    @Select("SELECT staff_id, username, password_hash, managerId, geohash FROM staff WHERE managerId = #{managerId}")
+    @Select("SELECT staff_id, username, password_hash, managerId, geohash, latitude, longitude FROM staff WHERE managerId = #{managerId}")
     List<Staff> selectStaffByManagerId(@Param("managerId") Integer managerId);
 }
