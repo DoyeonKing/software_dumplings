@@ -598,25 +598,66 @@ export default {
       // 优先用地图选择，否则用输入框
       let startArea = this.selectedStartArea;
       let endArea = this.selectedEndArea;
+      
+      // 如果没有通过地图选择，尝试从输入框获取
       if (!startArea && this.startInputValue.trim()) {
         startArea = this.parkingAreas.find(a => a.geohash === this.startInputValue.trim());
       }
       if (!endArea && this.endInputValue.trim()) {
         endArea = this.parkingAreas.find(a => a.geohash === this.endInputValue.trim());
       }
-      if (!startArea || !endArea || !this.selectedWorker || this.dispatchAmount < 1) {
-        alert('请填写完整的起点、终点、工作人员和调度数量！');
+      
+      // 验证所有必需字段
+      if (!startArea) {
+        alert('请选择或输入有效的起点区域！');
         return;
       }
+      if (!endArea) {
+        alert('请选择或输入有效的终点区域！');
+        return;
+      }
+      if (!this.selectedWorker) {
+        alert('请选择执行任务的工作人员！');
+        return;
+      }
+      if (this.dispatchAmount < 1) {
+        alert('调度数量必须大于0！');
+        return;
+      }
+      
       try {
-        await createDispatchTask({
+        console.log('开始发布调度任务:', {
           startGeohash: startArea.geohash,
           endGeohash: endArea.geohash,
           assignedTo: this.selectedWorker.id,
           bikeCount: this.dispatchAmount
         });
-        alert(`调度任务已发布！\n\n起点：${startArea.geohash}\n终点：${endArea.geohash}\n调度数量：${this.dispatchAmount}\n执行工作人员：${this.selectedWorker.username} (ID: ${this.selectedWorker.staffId})\n负责区域：${this.selectedWorker.geohash}`);
-        // 清空
+        
+        const response = await createDispatchTask({
+          startGeohash: startArea.geohash,
+          endGeohash: endArea.geohash,
+          assignedTo: this.selectedWorker.id,
+          bikeCount: this.dispatchAmount
+        });
+        
+        console.log('调度任务发布成功:', response);
+        
+        // 显示详细的成功信息
+        const successMessage = `✅ 调度任务已成功发布！
+
+📋 任务详情：
+• 起点区域：${startArea.geohash}
+• 终点区域：${endArea.geohash}
+• 调度数量：${this.dispatchAmount} 辆
+• 执行人员：${this.selectedWorker.username}
+• 人员ID：${this.selectedWorker.staffId}
+• 负责区域：${this.selectedWorker.geohash}
+
+任务已分配给工作人员，请等待执行结果。`;
+        
+        alert(successMessage);
+        
+        // 清空所有选择
         this.cancelOrClearSelection('start');
         this.cancelOrClearSelection('end');
         this.selectedWorker = null;
@@ -625,8 +666,44 @@ export default {
         this.endInputValue = '';
         this.startAreaValid = false;
         this.endAreaValid = false;
-      } catch (e) {
-        alert('调度任务发布失败，请重试！');
+        
+        // 重置地图样式
+        this.updatePolygonStyles();
+        
+      } catch (error) {
+        console.error('调度任务发布失败:', error);
+        
+        let errorMessage = '调度任务发布失败，请重试！';
+        
+        // 根据错误类型提供更详细的错误信息
+        if (error.response) {
+          const status = error.response.status;
+          const data = error.response.data;
+          
+          switch (status) {
+            case 400:
+              errorMessage = `请求参数错误：${data?.message || '请检查输入的数据格式'}`;
+              break;
+            case 401:
+              errorMessage = '登录已过期，请重新登录！';
+              break;
+            case 403:
+              errorMessage = '权限不足，无法发布调度任务！';
+              break;
+            case 404:
+              errorMessage = '指定的区域或工作人员不存在！';
+              break;
+            case 500:
+              errorMessage = '服务器内部错误，请联系管理员！';
+              break;
+            default:
+              errorMessage = `发布失败 (${status})：${data?.message || '未知错误'}`;
+          }
+        } else if (error.request) {
+          errorMessage = '网络连接失败，请检查网络连接！';
+        }
+        
+        alert(`❌ ${errorMessage}`);
       }
     },
 
@@ -754,13 +831,19 @@ export default {
         currentBikes: 20, // 使用默认值，实际应该从API获取
       };
 
+      // 设置输入框的值
+      this.startInputValue = suggestion.startArea;
+      this.endInputValue = suggestion.endArea;
+      
+      // 设置验证状态
+      this.startAreaValid = true;
+      this.endAreaValid = true;
+
       // 设置调度数量
       this.dispatchAmount = suggestion.amount;
 
       // 展开任务面板
       this.taskPanelCollapsed = false;
-
-
 
       // 更新地图上的多边形样式
       this.updatePolygonStyles();
