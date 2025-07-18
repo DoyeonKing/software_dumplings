@@ -5,11 +5,11 @@
     <MenuComponent @profile-saved="handleProfileSaved" />
 
     <!-- API测试链接 - 左上角 -->
-    <div class="top-left-link-group">
+<!--    <div class="top-left-link-group">
       <span class="api-test-link" @click="goToAPITest">
         API测试
       </span>
-    </div>
+    </div>-->
 
     <div class="top-right-controls">
       <div class="control-group">
@@ -203,7 +203,7 @@
 </template>
 
 <script>
-import MenuComponent from '@/components/admin/menuComponent.vue';
+import MenuComponent from '@/components/admin/MenuComponent.vue';
 import DispatchSuggestionPanel from '@/components/admin/DispatchSuggestionPanel.vue';
 import AreaDataPanel from '@/components/admin/AreaDataPanel.vue';
 import TaskQueryPanel from '@/components/admin/TaskQueryPanel.vue';

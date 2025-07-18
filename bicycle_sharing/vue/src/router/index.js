@@ -5,11 +5,9 @@ import RegisterView from '../views/RegisterView.vue'
 import UserView from '../views/UserView.vue'
 import WorkerView from '../views/WorkerView.vue'
 import AdminView from '../views/administrator/AdminView.vue'
-import profileView from '../views/administrator/profileView.vue'
-import dashboardView from "@/views/administrator/dashboardView.vue";
-import locationView from "@/views/administrator/locationView.vue";
-import tasksView from "@/views/administrator/tasksView.vue";
-import helpView from "@/views/administrator/helpView.vue";
+import dashboardView from "@/views/administrator/DashboardView.vue";
+import locationView from "@/views/administrator/LocationView.vue";
+import helpView from "@/views/administrator/HelpView.vue";
 import APITestView from '@/views/APITestView.vue'
 import APITestManagerStaff from '@/views/APItest_manager_staff.vue'
 
@@ -47,11 +45,7 @@ const router = createRouter({
       name: 'worker',
       component: WorkerView
     },
-    {
-      path: '/profile',
-      name: 'profile',
-      component: profileView
-    },
+
     {
       path: '/dashboard',
       name: 'dashboard',
@@ -62,11 +56,7 @@ const router = createRouter({
       name: 'location',
       component: locationView
     },
-    {
-      path: '/tasks',
-      name: 'tasks',
-      component: tasksView
-    },
+
     {
       path: '/help',
       name: 'help',

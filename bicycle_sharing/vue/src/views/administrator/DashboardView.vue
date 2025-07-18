@@ -120,7 +120,7 @@
 </template>
 
 <script>
-import MenuComponent from '@/components/admin/menuComponent.vue'
+import MenuComponent from '@/components/admin/MenuComponent.vue'
 import AMapLoader from '@/utils/loadAMap.js'
 import bicycleIcon from '@/components/icons/bicycle.png';
 import { getMapAreaBicycles, getBikeUtilization } from '@/api/map/bicycle';

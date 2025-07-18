@@ -52,7 +52,7 @@
 </template>
 
 <script>
-import MenuComponent from '@/components/admin/menuComponent.vue'
+import MenuComponent from '@/components/admin/MenuComponent.vue'
 import { mapMixin } from '@/utils/mapMixin.js'
 import AMapLoader from '@/utils/loadAMap.js'
 

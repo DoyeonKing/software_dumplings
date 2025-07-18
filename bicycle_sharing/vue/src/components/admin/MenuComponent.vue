@@ -29,7 +29,7 @@
 </template>
 
 <script>
-import ProfileModal from './profileModel.vue'
+import ProfileModal from './ProfileModel.vue'
 
 export default {
   name: 'MenuComponent',
