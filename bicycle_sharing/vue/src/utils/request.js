@@ -14,6 +14,13 @@ const request = axios.create({
 // 可以自请求发送前对请求做一些处理
 request.interceptors.request.use(config => {
     config.headers['Content-Type'] = 'application/json;charset=utf-8';
+    
+    // 自动添加token到请求头
+    const token = sessionStorage.getItem('authToken');
+    if (token) {
+        config.headers['Authorization'] = 'Bearer ' + token;
+    }
+    
     return config
 }, error => {
     return Promise.reject(error)
@@ -25,20 +32,38 @@ request.interceptors.response.use(
     response => {
         let res = response.data;
         // 兼容服务端返回的字符串数据
-        if (typeof res === 'string') {
-            res = res ? JSON.parse(res) : res
+        if (typeof res === 'string' && res) {
+            try {
+                // 尝试解析JSON，如果失败就返回原字符串
+                res = JSON.parse(res);
+            } catch (e) {
+                // 如果不是有效的JSON，就保持原字符串
+                // 针对后端返回纯文本的情况，包装成统一格式
+                res = {
+                    code: 200,
+                    msg: res,
+                    data: null
+                };
+            }
         }
         return res;
     },
     error => {
         // 确保在访问 error.response 之前，它本身是存在的
         if (error.response) {
-            if (error.response.status === 404) {
+            if (error.response.status === 401) {
+                ElMessage.error('登录已过期，请重新登录');
+                // 清除token并跳转到登录页
+                sessionStorage.removeItem('authToken');
+                window.location.href = '/login';
+            } else if (error.response.status === 403) {
+                ElMessage.error('权限不足，无法访问');
+            } else if (error.response.status === 404) {
                 ElMessage.error('未找到请求接口')
             } else if (error.response.status === 500) {
                 ElMessage.error('系统异常，请查看后端控制台报错')
             } else if (error.response.data && error.response.data.msg) {
-                // 其他有具体业务错误信息的失败（如 400, 401, 403）
+                // 其他有具体业务错误信息的失败
                 ElMessage.error(error.response.data.msg);
             } else {
                 // 对于其他未知的HTTP错误

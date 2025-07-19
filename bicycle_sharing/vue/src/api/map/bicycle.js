@@ -29,4 +29,12 @@ export function getBikeDetails(bikeId) {
     url: `/bikes/${bikeId}/details`,
     method: 'get'
   })
+}
+
+// 获取指定区域的车辆使用率
+export function getBikeUtilization(geohash) {
+  return request({
+    url: `/bikes/utilization/${geohash}`,
+    method: 'get'
+  })
 } 

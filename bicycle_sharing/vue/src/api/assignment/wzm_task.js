@@ -32,9 +32,16 @@ export function startDispatchTask(taskId) {
  * @returns {Promise} 返回完成状态
  */
 export function completeDispatchTask(taskId) {
+    // 获取当前系统时间
+    const now = new Date();
+    const completionTimeStr = now.toISOString().slice(0, 19).replace('T', ' ');
+    
     return request({
-        url: `/dispatchTasks/${taskId}/complete`,
-        method: 'put'
+        url: `/dispatchTasks/complete/${taskId}`,
+        method: 'put',
+        params: {
+            completionTimeStr: completionTimeStr
+        }
     }).then(response => {
         // 确保返回标准格式
         return {

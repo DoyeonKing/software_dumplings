@@ -6,39 +6,30 @@
 
     <!-- 弹出菜单 -->
     <div class="menu-dropdown" :class="{ 'menu-open': menuOpen }">
-      <div class="menu-item" @click="showProfileModal">
-        <span class="menu-item-text">个人资料</span>
-      </div>
 
       <router-link to="/dashboard" class="menu-item" @click="closeMenu">
         <span class="menu-item-text">指标看板</span>
       </router-link>
 
       <router-link to="/location" class="menu-item" @click="closeMenu">
-        <span class="menu-item-text">车辆定位</span>
+        <span class="menu-item-text">车辆调度</span>
       </router-link>
 
+<!--
       <router-link to="/tasks" class="menu-item" @click="closeMenu">
         <span class="menu-item-text">任务查询</span>
       </router-link>
+-->
 
       <router-link to="/help" class="menu-item" @click="closeMenu">
         <span class="menu-item-text">帮助指南</span>
       </router-link>
     </div>
-
-    <!-- 个人资料浮窗 -->
-    <ProfileModal
-        v-if="showProfile"
-        :form="profileForm"
-        @close="closeProfileModal"
-        @save="saveProfile"
-    />
   </div>
 </template>
 
 <script>
-import ProfileModal from './profileModel.vue'
+import ProfileModal from './ProfileModel.vue'
 
 export default {
   name: 'MenuComponent',
@@ -55,7 +46,7 @@ export default {
         gender: '男',
         education: '硕士研究生',
         organization: '共享单车科技有限公司',
-        workArea: '上海市浦东新区',
+        workArea: '深圳市南山区',
         idNumber: '310101199001011234',
         phone: '138-1234-5678',
         email: 'admin@bikeshare.com',
